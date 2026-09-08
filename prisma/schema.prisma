@@ -1,0 +1,296 @@
+// Prisma schema for MeliBoost
+// Data model per the project plan: docs/plan.md (Fase 1)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PlanTier {
+  EMPRENDEDOR
+  PRO
+  ELITE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+enum MeliSite {
+  MCO
+  MLA
+  MLB
+  MLM
+  MLC
+  MPE
+  MLV
+  MEC
+  MLU
+}
+
+enum SupportCaseStatus {
+  OPEN
+  IN_PROGRESS
+  ESCALATED
+  RESOLVED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  AGENT
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String?
+  // % de retención/impuesto que se descuenta de las ventas (configurable
+  // por el usuario, no viene de Mercado Libre).
+  taxWithholdingPercent Decimal? @db.Decimal(5, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  meliConnection   MeliConnection?
+  subscription     Subscription?
+  creditBalance    CreditBalance?
+  products         Product[]
+  costEntries      CostEntry[]
+  nicheAnalyses    NicheAnalysis[]
+  seoOptimizations SeoOptimization[]
+  generatedImages  GeneratedImage[]
+  supportCases     SupportCase[]
+  auditLogs        AuditLog[]
+}
+
+// Auth.js (NextAuth v5) Prisma adapter models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// A user's connected Mercado Libre seller account (OAuth tokens + site/country)
+model MeliConnection {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  meliUserId   String   @unique
+  site         MeliSite
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  expiresAt    DateTime
+  connectedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  plan                 PlanTier
+  status               SubscriptionStatus
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CreditBalance {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions CreditTransaction[]
+}
+
+model CreditTransaction {
+  id              String   @id @default(cuid())
+  creditBalanceId String
+  amount          Int // positive = compra/otorgado, negative = consumo
+  reason          String
+  createdAt       DateTime @default(now())
+
+  creditBalance CreditBalance @relation(fields: [creditBalanceId], references: [id], onDelete: Cascade)
+
+  @@index([creditBalanceId])
+}
+
+model Product {
+  id             String   @id @default(cuid())
+  userId         String
+  meliItemId     String?
+  title          String
+  price          Decimal  @db.Decimal(12, 2)
+  cogs           Decimal? @db.Decimal(12, 2)
+  shippingCost   Decimal? @db.Decimal(12, 2)
+  stockFull      Int?
+  stockWarehouse Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inventorySnapshots InventorySnapshot[]
+  costEntries        CostEntry[]
+  seoOptimizations   SeoOptimization[]
+  generatedImages    GeneratedImage[]
+
+  @@unique([userId, meliItemId])
+  @@index([userId])
+}
+
+model InventorySnapshot {
+  id             String   @id @default(cuid())
+  productId      String
+  stockFull      Int
+  stockWarehouse Int
+  daysOfStock    Int?
+  capturedAt     DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model CostEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String?
+  label     String
+  amount    Decimal  @db.Decimal(12, 2)
+  isFixed   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model NicheAnalysis {
+  id               String   @id @default(cuid())
+  userId           String
+  query            String
+  verdict          String
+  demandScore      Int?
+  competitionScore Int?
+  reportJson       Json
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SeoOptimization {
+  id             String   @id @default(cuid())
+  userId         String
+  productId      String?
+  keywords       Json
+  suggestedTitle String?
+  description    String?  @db.Text
+  createdAt      DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model GeneratedImage {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String?
+  url       String
+  kind      String // "infographic" | "background_removed" | ...
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model SupportCase {
+  id        String            @id @default(cuid())
+  userId    String
+  subject   String
+  status    SupportCaseStatus @default(OPEN)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  supportCaseId String
+  role          ChatRole
+  content       String   @db.Text
+  createdAt     DateTime @default(now())
+
+  supportCase SupportCase @relation(fields: [supportCaseId], references: [id], onDelete: Cascade)
+
+  @@index([supportCaseId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
