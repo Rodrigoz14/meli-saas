@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "MeliBoost - Investigación de Productos",
+  "version": "0.1.0",
+  "description": "Trae datos reales de nichos de Mercado Libre (título, precio, imagen) al dashboard de MeliBoost, usando tu propia sesión ya logueada.",
+  "permissions": ["scripting", "tabs"],
+  "host_permissions": [
+    "*://*.mercadolibre.com/*",
+    "*://*.mercadolibre.com.co/*",
+    "*://*.mercadolibre.com.ar/*",
+    "*://*.mercadolibre.com.mx/*",
+    "*://*.mercadolibre.com.br/*",
+    "*://*.mercadolibre.cl/*",
+    "*://*.mercadolibre.com.pe/*",
+    "http://localhost:3000/*",
+    "https://meli-saas.vercel.app/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:3000/*", "https://meli-saas.vercel.app/*"],
+      "js": ["content-scripts/bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

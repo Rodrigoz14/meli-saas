@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { ArrowDown, ArrowUp, ArrowUpDown, Package, Search, Zap } from "lucide-react";
 import {
   Table,
@@ -15,7 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { generateMockNicheReport, type NicheReport, type NicheRow } from "@/lib/niche-mock";
+import {
+  buildNicheReport,
+  buildRelatedKeywords,
+  generateMockNicheReport,
+  type NicheReport,
+  type NicheRow,
+} from "@/lib/niche-mock";
 
 type SortKey = "title" | "price" | "visits" | "estimatedRevenue" | "seller";
 
@@ -37,6 +44,36 @@ function money(value: number, currencyId: string) {
   } catch {
     return `$${value.toLocaleString()}`;
   }
+}
+
+// Escucha el "handshake" de la extensión de Chrome (content-scripts/bridge.js)
+// y reenvía búsquedas/resultados vía window.postMessage. Si la extensión no
+// está instalada, nunca llega MELIBOOST_EXTENSION_READY y se usa el mock.
+function useExtensionBridge(onProgress: (label: string) => void, onResult: (query: string, rows: NicheRow[], ok: boolean) => void) {
+  const [available, setAvailable] = useState(false);
+
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      const data = event.data;
+      if (!data || data.source !== "meliboost-extension") return;
+      if (data.type === "MELIBOOST_EXTENSION_READY") setAvailable(true);
+      if (data.type === "MELIBOOST_SEARCH_PROGRESS") onProgress(data.label);
+      if (data.type === "MELIBOOST_SEARCH_RESULT") onResult(data.query, data.rows ?? [], Boolean(data.ok));
+    }
+    window.addEventListener("message", handleMessage);
+    // El content script de la extensión avisa "listo" una sola vez al
+    // cargar — si este componente monta después, se pierde ese aviso para
+    // siempre. Por eso pedimos explícitamente que nos confirme si ya está.
+    window.postMessage({ source: "meliboost-page", type: "MELIBOOST_PING" }, "*");
+    return () => window.removeEventListener("message", handleMessage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function startSearch(query: string, site: string) {
+    window.postMessage({ source: "meliboost-page", type: "MELIBOOST_START_SEARCH", query, site }, "*");
+  }
+
+  return { available, startSearch };
 }
 
 function SortableHead({
@@ -127,7 +164,7 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
         case "title":
           return row.title.toLowerCase();
         case "seller":
-          return row.seller.toLowerCase();
+          return (row.seller || "").toLowerCase();
         case "price":
           return row.price;
         case "visits":
@@ -174,39 +211,55 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sortedRows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="max-w-[240px]">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
+          {sortedRows.map((row) => {
+            const titleNode = (
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
+                  {row.thumbnail ? (
+                    <Image src={row.thumbnail} alt="" width={40} height={40} className="object-cover" unoptimized />
+                  ) : (
                     <Package className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <span className="truncate text-sm font-medium">{row.title}</span>
+                  )}
                 </div>
-              </TableCell>
-              <TableCell className="text-center">{row.visits.toLocaleString("es")}</TableCell>
-              <TableCell>{money(row.price, currencyId)}</TableCell>
-              <TableCell className="font-semibold">{money(row.estimatedRevenue, currencyId)}</TableCell>
-              <TableCell className="text-center">
-                {row.isCatalog ? (
-                  <Badge className="bg-emerald-500/15 text-emerald-500">Catálogo</Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </TableCell>
-              <TableCell className="text-center">
-                {row.isFull ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-blue-500">
-                    <Zap className="h-3.5 w-3.5" /> Full
-                  </span>
-                ) : (
-                  <span className="text-xs text-muted-foreground">No Full</span>
-                )}
-              </TableCell>
-              <TableCell className="text-center text-xs text-muted-foreground">{row.origin}</TableCell>
-              <TableCell className="text-xs text-muted-foreground">{row.seller}</TableCell>
-            </TableRow>
-          ))}
+                <span className="truncate text-sm font-medium">{row.title}</span>
+              </div>
+            );
+
+            return (
+              <TableRow key={row.id}>
+                <TableCell className="max-w-[240px]">
+                  {row.permalink ? (
+                    <a href={row.permalink} target="_blank" rel="noreferrer" className="hover:underline">
+                      {titleNode}
+                    </a>
+                  ) : (
+                    titleNode
+                  )}
+                </TableCell>
+                <TableCell className="text-center">{row.visits.toLocaleString("es")}</TableCell>
+                <TableCell>{money(row.price, currencyId)}</TableCell>
+                <TableCell className="font-semibold">{money(row.estimatedRevenue, currencyId)}</TableCell>
+                <TableCell className="text-center">
+                  {row.isCatalog ? (
+                    <Badge className="bg-emerald-500/15 text-emerald-500">Catálogo</Badge>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-center">
+                  {row.isFull ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-blue-500">
+                      <Zap className="h-3.5 w-3.5" /> Full
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No Full</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-center text-xs text-muted-foreground">{row.origin}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{row.seller || "—"}</TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
@@ -288,8 +341,8 @@ function MarketTab({ report }: { report: NicheReport }) {
       <div className="rounded-xl border border-border bg-card p-6">
         <p className="text-sm font-semibold">Posesión del Mercado</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {m.marketShare.map((entry) => (
-            <div key={entry.title}>
+          {m.marketShare.map((entry, i) => (
+            <div key={`${entry.title}-${i}`}>
               <div className="flex items-center justify-between text-sm">
                 <span className="truncate pr-2 text-muted-foreground">{entry.title}</span>
                 <span className="font-semibold">{entry.percent}%</span>
@@ -363,32 +416,74 @@ function StrategyTab({ report }: { report: NicheReport }) {
 
 export function ProductSearch() {
   const [query, setQuery] = useState("");
+  const [site, setSite] = useState("CO");
   const [report, setReport] = useState<NicheReport | null>(null);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [realDataError, setRealDataError] = useState<string | null>(null);
+  // Las sugerencias se calculan a partir de lo que el usuario escribió, no
+  // de lo último que se buscó — si no, al hacer clic en una sugerencia (que
+  // ya trae prefijos como "mini ") se le vuelven a pegar los mismos
+  // prefijos encima ("mini mini mini ...") en cada clic sucesivo.
+  const [pinnedKeywords, setPinnedKeywords] = useState<string[]>([]);
+
+  const { available: extensionAvailable, startSearch } = useExtensionBridge(
+    (label) => {
+      setProgressLabel(label);
+      setRealDataError(null);
+    },
+    (resultQuery, rows, ok) => {
+      setProgressLabel(null);
+      if (!ok || rows.length === 0) {
+        setRealDataError(
+          "No pudimos leer resultados de Mercado Libre para esta búsqueda. Verifica que tengas sesión iniciada en mercadolibre.com en este navegador e intenta de nuevo.",
+        );
+        return;
+      }
+      setReport(buildNicheReport(resultQuery, rows, { isRealData: true }));
+    },
+  );
 
   function runSearch(value: string) {
     if (!value.trim()) return;
     setQuery(value);
+    setRealDataError(null);
+
+    if (extensionAvailable) {
+      setProgressLabel(`Analizando "${value}"...`);
+      setReport(null);
+      startSearch(value, site);
+      return;
+    }
+
     setReport(generateMockNicheReport(value));
   }
 
   return (
     <div>
-      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
-        Datos de ejemplo (simulados) — todavía no hay una fuente de datos real
-        conectada. Mercado Libre exige sesión logueada para ver resultados de
-        búsqueda, así que traer esto en vivo requiere una extensión de
-        navegador (como la que usa Selltrix), no solo el servidor.
-      </div>
+      {extensionAvailable ? (
+        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
+          Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
+          imagen). Visitas y facturación siguen siendo una estimación por posición: Mercado Libre no expone las
+          vistas reales de publicaciones ajenas a nadie.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
+          Datos de ejemplo (simulados) — instala la extensión de MeliBoost para traer publicaciones reales de
+          Mercado Libre (con imagen) usando tu propia sesión ya logueada.
+        </div>
+      )}
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          setPinnedKeywords(buildRelatedKeywords(query));
           runSearch(query);
         }}
         className="mt-6 flex flex-wrap items-center gap-3"
       >
         <select
-          defaultValue="CO"
+          value={site}
+          onChange={(e) => setSite(e.target.value)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           aria-label="País"
         >
@@ -405,21 +500,28 @@ export function ProductSearch() {
           placeholder="Buscar producto o nicho (ej: auriculares bluetooth)"
           className="max-w-md flex-1"
         />
-        <Button type="submit">
+        <Button type="submit" disabled={Boolean(progressLabel)}>
           <Search className="mr-2 h-4 w-4" />
-          Analizar
+          {progressLabel ? "Analizando…" : "Analizar"}
         </Button>
         <Badge variant="secondary" className="ml-auto">
           Búsquedas: ilimitado
         </Badge>
       </form>
 
-      {report && report.relatedKeywords.length > 0 && (
+      {progressLabel && <p className="mt-3 text-sm text-muted-foreground">{progressLabel}</p>}
+      {realDataError && (
+        <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          {realDataError}
+        </p>
+      )}
+
+      {report && pinnedKeywords.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="flex items-center gap-1 text-muted-foreground">
-            <Search className="h-3.5 w-3.5" /> Búsquedas IA:
+            <Search className="h-3.5 w-3.5" /> Búsquedas relacionadas:
           </span>
-          {report.relatedKeywords.map((kw) => (
+          {pinnedKeywords.map((kw) => (
             <button
               key={kw}
               type="button"

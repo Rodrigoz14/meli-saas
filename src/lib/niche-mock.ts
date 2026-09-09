@@ -1,4 +1,6 @@
-// Generador de resultados de ejemplo para "Búsqueda de productos".
+// Generador de resultados de ejemplo para "Búsqueda de productos", y la
+// lógica de agregación (compartida con datos reales que traiga la
+// extensión de Chrome — ver `useExtensionBridge` en product-search.tsx).
 //
 // La estructura de este reporte (pestañas Demanda/Mercado/Estrategia,
 // columnas de la tabla, fórmula de facturación estimada) está calcada de
@@ -7,10 +9,11 @@
 // reales de esa herramienta que:
 //   facturación estimada = precio × visitas × 3% (tasa de conversión asumida)
 //
-// Sigue sin haber una fuente de datos real conectada: Mercado Libre exige
-// sesión logueada para ver resultados de búsqueda, así que esto sigue siendo
-// mock hasta que se resuelva ese acceso (extensión de navegador o sesión
-// autenticada compartida).
+// También confirmamos matemáticamente (unidades implícitas = facturación /
+// precio no son enteras) que "visitas" NO es un dato medido ni siquiera en
+// Selltrix — Mercado Libre nunca expone las vistas reales de una
+// publicación ajena a nadie. Es una estimación por posición, igual en su
+// producto real que en el nuestro.
 
 const ASSUMED_CONVERSION_RATE = 0.03;
 
@@ -24,12 +27,15 @@ export type NicheRow = {
   isCatalog: boolean;
   origin: "Local" | "Internacional";
   seller: string;
+  thumbnail?: string | null;
+  permalink?: string | null;
 };
 
 export type NicheReport = {
   query: string;
   currencyId: string;
   relatedKeywords: string[];
+  isRealData: boolean;
   rows: NicheRow[];
   demand: {
     totalVisits: number;
@@ -127,47 +133,68 @@ function capitalize(value: string) {
   return value.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function generateMockNicheReport(query: string): NicheReport {
+export function buildRelatedKeywords(query: string): string[] {
   const cleanQuery = query.trim();
-  const rand = mulberry32(seedFromString(cleanQuery.toLowerCase()));
-  const rowCount = 15 + Math.floor(rand() * 16); // 15 a 30, como "Publicaciones (30)" de Selltrix
+  if (!cleanQuery) return [];
+  return Array.from(
+    new Set(
+      RELATED_SUFFIXES.map((suffix, i) => `${RELATED_PREFIXES[i % RELATED_PREFIXES.length]}${cleanQuery} ${suffix}`.trim()),
+    ),
+  );
+}
 
-  const rows: NicheRow[] = Array.from({ length: rowCount }, (_, i) => {
-    const price = Math.round((20000 + rand() * 480000) / 100) * 100;
-    const visits = Math.round(3 + rand() * rand() * 2500);
-    const isFull = rand() < 0.25; // en el video, solo ~20% de un mercado usa Full
-    const isCatalog = rand() < 0.3; // ~30% en catálogo, igual que en el video
-    const origin: NicheRow["origin"] = rand() < 0.3 ? "Internacional" : "Local";
-    const seller = SELLERS[Math.floor(rand() * SELLERS.length)];
-    const suffix = SUFFIXES[Math.floor(rand() * SUFFIXES.length)];
-    const title = cleanQuery ? `${capitalize(cleanQuery)} ${suffix}` : `Producto de ejemplo ${suffix}`;
+// Toma publicaciones ya extraídas (mock o reales) y arma el reporte
+// completo de las 3 pestañas. Comparte la misma fórmula y los mismos
+// textos de veredicto sin importar de dónde vinieron las filas.
+export function buildNicheReport(
+  query: string,
+  rows: NicheRow[],
+  options: { relatedKeywords?: string[]; totalPublications?: number; isRealData?: boolean } = {},
+): NicheReport {
+  const cleanQuery = query.trim();
+  const relatedKeywords = options.relatedKeywords ?? buildRelatedKeywords(cleanQuery);
+  const isRealData = options.isRealData ?? false;
 
+  if (rows.length === 0) {
     return {
-      id: `mock-${i}`,
-      title,
-      price,
-      visits,
-      estimatedRevenue: Math.round(price * visits * ASSUMED_CONVERSION_RATE),
-      isFull,
-      isCatalog,
-      origin,
-      seller,
+      query: cleanQuery,
+      currencyId: "COP",
+      relatedKeywords,
+      isRealData,
+      rows: [],
+      demand: {
+        totalVisits: 0,
+        avgVisitsPerListing: 0,
+        estimatedSales: 0,
+        estimatedRevenue: 0,
+        highDemandListings: 0,
+        highRevenueListings: 0,
+        top3SharePercent: 0,
+        potentialText: "No encontramos publicaciones para este término.",
+        verdict: "riesgo",
+        verdictText: "Sin datos suficientes para dar un veredicto.",
+      },
+      market: {
+        totalPublications: 0,
+        fullPercent: 0,
+        catalogPercent: 0,
+        internationalPercent: 0,
+        avgPrice: 0,
+        minPrice: 0,
+        maxPrice: 0,
+        marketShare: [],
+        opportunityText: "",
+        verdictText: "",
+        readingText: "",
+        actionPlan: { producto: "", logistica: "", precio: "", posicionamiento: "" },
+      },
+      strategy: { demandLabel: "", growthText: "", catalogText: "", verdictText: "" },
     };
-  });
-
-  const relatedKeywords = cleanQuery
-    ? Array.from(
-        new Set(
-          RELATED_SUFFIXES.map(
-            (suffix, i) => `${RELATED_PREFIXES[i % RELATED_PREFIXES.length]}${cleanQuery} ${suffix}`.trim(),
-          ),
-        ),
-      )
-    : [];
+  }
 
   // --- Demanda ---
   const totalVisits = rows.reduce((sum, r) => sum + r.visits, 0);
-  const avgVisitsPerListing = Math.round(totalVisits / (rows.length || 1));
+  const avgVisitsPerListing = Math.round(totalVisits / rows.length);
   const totalEstimatedRevenue = rows.reduce((sum, r) => sum + r.estimatedRevenue, 0);
   const estimatedSales = Math.round(totalVisits * ASSUMED_CONVERSION_RATE);
   const highDemandListings = rows.filter((r) => r.visits > avgVisitsPerListing).length;
@@ -190,7 +217,7 @@ export function generateMockNicheReport(query: string): NicheReport {
       : "NICHO EN RIESGO. Pocos ganadores o demanda insuficiente — evalúa diferenciarte fuerte antes de invertir.";
 
   // --- Mercado ---
-  const totalPublications = Math.round(rowCount * (10 + rand() * 15));
+  const totalPublications = options.totalPublications ?? rows.length;
   const fullCount = rows.filter((r) => r.isFull).length;
   const catalogCount = rows.filter((r) => r.isCatalog).length;
   const internationalCount = rows.filter((r) => r.origin === "Internacional").length;
@@ -214,7 +241,11 @@ export function generateMockNicheReport(query: string): NicheReport {
       : "Las ventas están bien distribuidas entre varios vendedores — hay espacio para entrar sin enfrentar un solo dominador.";
 
   const saturationLabel =
-    totalPublications >= 1000 ? "alta (1000+ publicaciones)" : totalPublications >= 500 ? "moderada (500-999 publicaciones)" : "baja (menos de 500 publicaciones)";
+    totalPublications >= 1000
+      ? "alta (1000+ publicaciones)"
+      : totalPublications >= 500
+        ? "moderada (500-999 publicaciones)"
+        : "baja (menos de 500 publicaciones)";
 
   const marketVerdictText =
     leaderShare < 40 && fullPercent < 40
@@ -260,6 +291,7 @@ export function generateMockNicheReport(query: string): NicheReport {
     query: cleanQuery,
     currencyId: "COP",
     relatedKeywords,
+    isRealData,
     rows,
     demand: {
       totalVisits,
@@ -294,4 +326,41 @@ export function generateMockNicheReport(query: string): NicheReport {
       verdictText: strategyVerdictText,
     },
   };
+}
+
+export function generateMockNicheReport(query: string): NicheReport {
+  const cleanQuery = query.trim();
+  const rand = mulberry32(seedFromString(cleanQuery.toLowerCase()));
+  const rowCount = 15 + Math.floor(rand() * 16); // 15 a 30, como "Publicaciones (30)" de Selltrix
+
+  const rows: NicheRow[] = Array.from({ length: rowCount }, (_, i) => {
+    const price = Math.round((20000 + rand() * 480000) / 100) * 100;
+    const visits = Math.round(3 + rand() * rand() * 2500);
+    const isFull = rand() < 0.25; // en el video, solo ~20% de un mercado usa Full
+    const isCatalog = rand() < 0.3; // ~30% en catálogo, igual que en el video
+    const origin: NicheRow["origin"] = rand() < 0.3 ? "Internacional" : "Local";
+    const seller = SELLERS[Math.floor(rand() * SELLERS.length)];
+    const suffix = SUFFIXES[Math.floor(rand() * SUFFIXES.length)];
+    const title = cleanQuery ? `${capitalize(cleanQuery)} ${suffix}` : `Producto de ejemplo ${suffix}`;
+
+    return {
+      id: `mock-${i}`,
+      title,
+      price,
+      visits,
+      estimatedRevenue: Math.round(price * visits * ASSUMED_CONVERSION_RATE),
+      isFull,
+      isCatalog,
+      origin,
+      seller,
+    };
+  });
+
+  const totalPublications = Math.round(rowCount * (10 + rand() * 15));
+
+  return buildNicheReport(cleanQuery, rows, {
+    relatedKeywords: buildRelatedKeywords(cleanQuery),
+    totalPublications,
+    isRealData: false,
+  });
 }
