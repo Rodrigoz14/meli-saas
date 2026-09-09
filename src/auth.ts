@@ -37,6 +37,11 @@ const mercadoLibreProvider = {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  // Sin esto, Auth.js usa el AUTH_URL fijo de .env para construir el
+  // redirect_uri de OAuth — en Vercel eso rompe cualquier dominio que no sea
+  // exactamente ese valor (incluye producción si AUTH_URL sigue apuntando a
+  // localhost). trustHost hace que tome el host real de cada request.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
