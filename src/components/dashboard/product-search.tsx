@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowDown, ArrowUp, ArrowUpDown, Package, Search, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Package, Puzzle, Search, Zap } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -16,13 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import {
-  buildNicheReport,
-  buildRelatedKeywords,
-  generateMockNicheReport,
-  type NicheReport,
-  type NicheRow,
-} from "@/lib/niche-mock";
+import { buildNicheReport, buildRelatedKeywords, type NicheReport, type NicheRow } from "@/lib/niche-mock";
+
+// TODO: reemplazar REPLACE_WITH_EXTENSION_ID por el id real una vez que la
+// extensión de MeliBoost quede publicada en la Chrome Web Store (se ve en
+// la URL del listado, igual que en la de Selltrix que analizamos:
+// chromewebstore.google.com/detail/<nombre>/<id>). Hasta entonces esto es
+// un marcador de posición con la forma correcta de la URL final.
+const EXTENSION_WEBSTORE_URL = "https://chromewebstore.google.com/detail/REPLACE_WITH_EXTENSION_ID";
 
 type SortKey = "title" | "price" | "visits" | "estimatedRevenue" | "seller";
 
@@ -444,34 +445,47 @@ export function ProductSearch() {
   );
 
   function runSearch(value: string) {
-    if (!value.trim()) return;
+    if (!value.trim() || !extensionAvailable) return;
     setQuery(value);
     setRealDataError(null);
+    setProgressLabel(`Analizando "${value}"...`);
+    setReport(null);
+    startSearch(value, site);
+  }
 
-    if (extensionAvailable) {
-      setProgressLabel(`Analizando "${value}"...`);
-      setReport(null);
-      startSearch(value, site);
-      return;
-    }
-
-    setReport(generateMockNicheReport(value));
+  // Esta función depende por completo de leer Mercado Libre desde el propio
+  // navegador del usuario — sin la extensión instalada no hay ninguna forma
+  // de traer datos reales, así que en vez de caer a un mock, se bloquea el
+  // resto de la pantalla hasta que la instale.
+  if (!extensionAvailable) {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
+          <Puzzle className="h-6 w-6 text-amber-500" />
+        </div>
+        <h2 className="font-display text-xl font-bold">Necesitas la extensión de MeliBoost</h2>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Esta función lee resultados reales de Mercado Libre desde tu propio navegador ya logueado — por eso es
+          obligatorio instalar la extensión de MeliBoost. Sin ella no hay ninguna forma de traer datos reales aquí.
+        </p>
+        <Button render={<a href={EXTENSION_WEBSTORE_URL} target="_blank" rel="noreferrer" />} nativeButton={false}>
+          <Puzzle className="mr-2 h-4 w-4" />
+          Instalar extensión
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          (Todavía no publicada en la Chrome Web Store — este botón es un marcador de posición)
+        </p>
+      </div>
+    );
   }
 
   return (
     <div>
-      {extensionAvailable ? (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
-          Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
-          imagen). Visitas y facturación siguen siendo una estimación por posición: Mercado Libre no expone las
-          vistas reales de publicaciones ajenas a nadie.
-        </div>
-      ) : (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
-          Datos de ejemplo (simulados) — instala la extensión de MeliBoost para traer publicaciones reales de
-          Mercado Libre (con imagen) usando tu propia sesión ya logueada.
-        </div>
-      )}
+      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
+        Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
+        imagen). Visitas y facturación siguen siendo una estimación por posición: Mercado Libre no expone las
+        vistas reales de publicaciones ajenas a nadie.
+      </div>
 
       <form
         onSubmit={(e) => {
