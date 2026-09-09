@@ -3,6 +3,7 @@ import { auth, signOut } from "@/auth";
 import { Logo } from "@/components/marketing/logo";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
+import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
   const session = await auth();
@@ -31,6 +32,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
           </div>
         </div>
       </header>
+      <DashboardNav />
       <main className="flex-1 bg-muted/20">{children}</main>
     </div>
   );
