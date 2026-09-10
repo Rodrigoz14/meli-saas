@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import type { BillingSummary } from "@/lib/meli-api";
 import {
   addOperatingCost,
   addTaxEntry,
@@ -56,6 +57,67 @@ function formatMoney(value: number, currencyId: string) {
   } catch {
     return `$${value.toLocaleString()}`;
   }
+}
+
+function formatDate(iso: string) {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString("es", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; currencyId: string }) {
+  const totalCharges = summary.charges.reduce((sum, c) => sum + c.amount, 0);
+  const totalBonuses = summary.bonuses.reduce((sum, c) => sum + c.amount, 0);
+
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">Factura Real de Mercado Libre</p>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+          Período {formatDate(summary.periodFrom)} – {formatDate(summary.periodTo)}
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Factura oficial y cerrada de tu cuenta de Mercado Libre — incluye cargos que la rentabilidad
+        calculada por orden no captura (publicidad, asesoría comercial, envíos Full, devoluciones).
+      </p>
+      <div className="mt-3 grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-medium text-rose-500">Cargos ({formatMoney(totalCharges, currencyId)})</p>
+          <div className="mt-2 space-y-1.5">
+            {summary.charges.map((c, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                <span className="text-muted-foreground">{c.label}</span>
+                <span className="shrink-0">{formatMoney(c.amount, currencyId)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-emerald-500">
+            Bonificaciones ({formatMoney(totalBonuses, currencyId)})
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {summary.bonuses.length === 0 && (
+              <p className="text-xs text-muted-foreground">Sin bonificaciones.</p>
+            )}
+            {summary.bonuses.map((c, i) => (
+              <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                <span className="text-muted-foreground">{c.label}</span>
+                <span className="shrink-0 text-emerald-500">{formatMoney(c.amount, currencyId)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm font-semibold">
+        <span>Total facturado</span>
+        <span>{formatMoney(summary.totalAmount, currencyId)}</span>
+      </div>
+    </div>
+  );
 }
 
 function downloadCsv(filename: string, rows: string[][]) {
@@ -311,10 +373,12 @@ function ExpensesTab({
   currencyId,
   costs,
   taxEntries,
+  billingSummary,
 }: {
   currencyId: string;
   costs: OperatingCost[];
   taxEntries: TaxEntryItem[];
+  billingSummary: BillingSummary | null;
 }) {
   const router = useRouter();
   const [label, setLabel] = useState("");
@@ -426,6 +490,8 @@ function ExpensesTab({
           <p className="mt-1 text-xl font-bold">{formatMoney(total, currencyId)}</p>
         </div>
       </div>
+
+      {billingSummary && <BillingSummaryCard summary={billingSummary} currencyId={currencyId} />}
 
       {byCategory.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -614,11 +680,13 @@ export function CostsExpensesSection({
   products,
   operatingCosts,
   taxEntries,
+  billingSummary,
 }: {
   currencyId: string;
   products: CostProduct[];
   operatingCosts: OperatingCost[];
   taxEntries: TaxEntryItem[];
+  billingSummary: BillingSummary | null;
 }) {
   return (
     <Tabs defaultValue="gastos">
@@ -630,7 +698,12 @@ export function CostsExpensesSection({
         </TabsTrigger>
       </TabsList>
       <TabsContent value="gastos" className="mt-6">
-        <ExpensesTab currencyId={currencyId} costs={operatingCosts} taxEntries={taxEntries} />
+        <ExpensesTab
+          currencyId={currencyId}
+          costs={operatingCosts}
+          taxEntries={taxEntries}
+          billingSummary={billingSummary}
+        />
       </TabsContent>
       <TabsContent value="costos" className="mt-6">
         <CostsTab products={products} currencyId={currencyId} />

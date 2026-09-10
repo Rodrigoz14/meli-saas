@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import {
-  debugProbeBillingAndAds,
   ensureFreshMeliToken,
   getItemsDetails,
+  getLatestClosedBillingSummary,
   getMeliUser,
   getOrderStats,
   getSaleFee,
   getUserItemIds,
+  type BillingSummary,
   type OrderStats,
 } from "@/lib/meli-api";
 import type { ProfitabilityRow } from "@/components/dashboard/profitability-table";
@@ -31,6 +32,7 @@ export type RentabilidadData =
       taxEntries: TaxEntry[];
       taxWithholdingPercent: number;
       orderStats: Record<string, OrderStats>;
+      billingSummary: BillingSummary | null;
     };
 
 // Compartido entre /dashboard (Rentabilidad) y /dashboard/costos-gastos —
@@ -47,6 +49,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
   let taxEntries: TaxEntry[] = [];
   let taxWithholdingPercent = 0;
   let orderStats: Record<string, OrderStats> = {};
+  let billingSummary: BillingSummary | null = null;
 
   try {
     const [costEntries, taxEntryRows] = await Promise.all([
@@ -78,7 +81,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + t.percent, 0);
 
     const meliUser = await getMeliUser(accessToken);
-    await debugProbeBillingAndAds(accessToken, meliUser.id);
+    billingSummary = await getLatestClosedBillingSummary(accessToken);
     const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const items = await getItemsDetails(accessToken, itemIds);
     orderStats = await getOrderStats(accessToken, meliUser.id, 30);
@@ -130,5 +133,14 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
       "No pudimos traer tus publicaciones de Mercado Libre en este momento. Intenta de nuevo en unos minutos.";
   }
 
-  return { connected: true, errorMessage, rows, operatingCosts, taxEntries, taxWithholdingPercent, orderStats };
+  return {
+    connected: true,
+    errorMessage,
+    rows,
+    operatingCosts,
+    taxEntries,
+    taxWithholdingPercent,
+    orderStats,
+    billingSummary,
+  };
 }

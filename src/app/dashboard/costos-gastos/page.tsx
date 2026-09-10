@@ -31,7 +31,7 @@ export default async function CostosGastosPage() {
     );
   }
 
-  const { rows, errorMessage, operatingCosts, taxEntries } = data;
+  const { rows, errorMessage, operatingCosts, taxEntries, billingSummary } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -64,6 +64,7 @@ export default async function CostosGastosPage() {
             }))}
             operatingCosts={operatingCosts}
             taxEntries={taxEntries}
+            billingSummary={billingSummary}
           />
         </div>
       )}

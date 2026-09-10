@@ -28,27 +28,85 @@ async function meliFetch<T>(path: string, accessToken: string): Promise<T> {
   return res.json();
 }
 
-// TEMPORAL: solo para descubrir la forma real de la API de Facturación
-// (retenciones) y Publicidad (ads) antes de construir sobre datos
-// inventados. Se borra una vez confirmemos los endpoints correctos.
-export async function debugProbeBillingAndAds(accessToken: string, sellerId: number) {
-  const probes: Record<string, string> = {
-    advertisers: "/advertising/advertisers?product_id=PADS",
-  };
+type MeliBillingPeriod = {
+  key: string;
+  amount: number;
+  period: { date_from: string; date_to: string };
+  period_status: "OPEN" | "CLOSED";
+};
 
-  for (const [name, path] of Object.entries(probes)) {
-    try {
-      const res = await fetch(`${MELI_API}${path}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        cache: "no-store",
-      });
-      const body = await res.text();
-      console.log(`DEBUG PROBE [${name}] ${path} -> ${res.status}:`, body.slice(0, 2000));
-    } catch (err) {
-      console.log(`DEBUG PROBE [${name}] ${path} threw:`, err);
-    }
+type MeliBillingChargeLine = { label: string; amount: number; type: string; group_description: string };
+
+type MeliBillingSummaryDetails = {
+  period: { date_from: string; date_to: string; key: string };
+  bill_includes: {
+    total_amount: number;
+    total_perception: number;
+    bonuses: MeliBillingChargeLine[];
+    charges: MeliBillingChargeLine[];
+  };
+};
+
+export type BillingSummary = {
+  periodFrom: string;
+  periodTo: string;
+  totalAmount: number;
+  totalPerception: number;
+  charges: { label: string; amount: number; group: string }[];
+  bonuses: { label: string; amount: number; group: string }[];
+};
+
+// Factura real y cerrada de Mercado Libre (ciclo de facturación oficial,
+// no una ventana móvil de 30 días) — incluye cargos que la rentabilidad
+// calculada por orden no captura (publicidad, asesoría comercial, Full,
+// devoluciones) y las bonificaciones que Mercado Libre devuelve. Best-effort:
+// si la cuenta no tiene historial de facturación todavía, devuelve null.
+async function meliFetchBilling<T>(path: string, accessToken: string): Promise<T> {
+  const res = await fetch(`${MELI_API}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}`, "Api-Version": "2" },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Mercado Libre Billing API ${path} -> ${res.status}: ${body}`);
   }
-  console.log("DEBUG PROBE sellerId:", sellerId);
+  return res.json();
+}
+
+export async function getLatestClosedBillingSummary(accessToken: string): Promise<BillingSummary | null> {
+  try {
+    const periods = await meliFetchBilling<{ results: MeliBillingPeriod[] }>(
+      "/billing/integration/monthly/periods?group=ML&document_type=BILL&limit=6",
+      accessToken,
+    );
+    const closed = periods.results.find((p) => p.period_status === "CLOSED");
+    if (!closed) return null;
+
+    const details = await meliFetchBilling<MeliBillingSummaryDetails>(
+      `/billing/integration/periods/key/${closed.key}/summary/details?group=ML&document_type=BILL&limit=100`,
+      accessToken,
+    );
+
+    return {
+      periodFrom: details.period.date_from,
+      periodTo: details.period.date_to,
+      totalAmount: details.bill_includes.total_amount,
+      totalPerception: details.bill_includes.total_perception,
+      charges: details.bill_includes.charges.map((c) => ({
+        label: c.label,
+        amount: c.amount,
+        group: c.group_description.trim(),
+      })),
+      bonuses: details.bill_includes.bonuses.map((c) => ({
+        label: c.label,
+        amount: c.amount,
+        group: c.group_description.trim(),
+      })),
+    };
+  } catch (err) {
+    console.error("getLatestClosedBillingSummary failed:", err);
+    return null;
+  }
 }
 
 // Refresca el access_token si está vencido (o vence en menos de 1 minuto) y
@@ -235,17 +293,6 @@ export async function getOrderStats(
 
   const restPages = await Promise.all(remainingOffsets.map((offset) => fetchPage(offset)));
   const allOrders = [first, ...restPages].flatMap((page) => page.results);
-
-  const debugTarget = "MCO3526089000";
-  const debugQty = allOrders
-    .flatMap((o) => o.order_items ?? [])
-    .filter((i) => i.item?.id === debugTarget)
-    .reduce((sum, i) => sum + (i.quantity ?? 0), 0);
-  console.log(
-    `DEBUG units for ${debugTarget}: ${debugQty} (from ${allOrders.length} orders, ` +
-      `window ${from.toISOString()} -> ${baseParams["order.date_created.to"]}, ` +
-      `paging.total=${first.paging.total})`,
-  );
 
   // Costo real de envío por embarque (no por publicación) — se pide aparte
   // porque no viene en la orden. Se piden con concurrencia limitada para no
