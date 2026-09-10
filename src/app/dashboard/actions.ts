@@ -54,9 +54,9 @@ export async function bulkUpdateProductCosts(entries: { meliItemId: string; cogs
 export async function addOperatingCost(label: string, amount: number, category: string, isFixed: boolean) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
-  if (!label.trim() || amount <= 0) return;
+  if (!label.trim() || amount <= 0) return null;
 
-  await prisma.costEntry.create({
+  const entry = await prisma.costEntry.create({
     data: {
       userId: session.user.id,
       label: label.trim(),
@@ -67,6 +67,7 @@ export async function addOperatingCost(label: string, amount: number, category: 
   });
 
   revalidateDashboards();
+  return { id: entry.id, label: entry.label, amount: Number(entry.amount), category: entry.category, isFixed: entry.isFixed };
 }
 
 export async function bulkAddOperatingCosts(
@@ -108,13 +109,14 @@ export async function deleteOperatingCost(costEntryId: string) {
 export async function addTaxEntry(label: string, percent: number) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
-  if (!label.trim() || percent <= 0) return;
+  if (!label.trim() || percent <= 0) return null;
 
-  await prisma.taxEntry.create({
+  const entry = await prisma.taxEntry.create({
     data: { userId: session.user.id, label: label.trim(), percent },
   });
 
   revalidateDashboards();
+  return { id: entry.id, label: entry.label, percent: Number(entry.percent) };
 }
 
 export async function deleteTaxEntry(taxEntryId: string) {

@@ -39,7 +39,14 @@ export type CostProduct = {
   cogs: number;
 };
 
-export type OperatingCost = { id: string; label: string; amount: number; category: string; isFixed: boolean };
+export type OperatingCost = {
+  id: string;
+  label: string;
+  amount: number;
+  category: string;
+  isFixed: boolean;
+  source?: "ml";
+};
 export type TaxEntryItem = { id: string; label: string; percent: number };
 
 const CATEGORY_OPTIONS = ["Nómina", "Empaque", "Publicidad", "Servicios", "Otros"];
@@ -138,15 +145,27 @@ function parseCsv(text: string): string[][] {
     .map((line) => line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, "")));
 }
 
-function InlineCogsInput({ productId, initialValue, currencyId }: { productId: string; initialValue: number; currencyId: string }) {
+function InlineCogsInput({
+  productId,
+  initialValue,
+  currencyId,
+  onSaved,
+}: {
+  productId: string;
+  initialValue: number;
+  currencyId: string;
+  onSaved: (cogs: number) => void;
+}) {
   const [value, setValue] = useState(String(initialValue || ""));
   const [isPending, startTransition] = useTransition();
 
   function save() {
+    const cogs = Number(value) || 0;
     startTransition(async () => {
       try {
-        await updateProductCosts(productId, Number(value) || 0);
+        await updateProductCosts(productId, cogs);
         toast.success("Costo actualizado");
+        onSaved(cogs);
       } catch {
         toast.error("No se pudo guardar el costo");
       }
@@ -175,18 +194,28 @@ function InlineCogsInput({ productId, initialValue, currencyId }: { productId: s
 
 function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyId: string }) {
   const router = useRouter();
+  const [prevProducts, setPrevProducts] = useState(products);
+  const [localProducts, setLocalProducts] = useState(products);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"todos" | "con" | "sin">("todos");
   const [fileName, setFileName] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const withCost = products.filter((p) => p.cogs > 0).length;
-  const withoutCost = products.length - withCost;
-  const progress = products.length > 0 ? Math.round((withCost / products.length) * 100) : 0;
+  // Re-sincroniza el estado local (editado de forma optimista) cuando el
+  // servidor manda props nuevas de verdad — sin useEffect, siguiendo el
+  // patrón recomendado por React para "ajustar estado durante el render".
+  if (products !== prevProducts) {
+    setPrevProducts(products);
+    setLocalProducts(products);
+  }
+
+  const withCost = localProducts.filter((p) => p.cogs > 0).length;
+  const withoutCost = localProducts.length - withCost;
+  const progress = localProducts.length > 0 ? Math.round((withCost / localProducts.length) * 100) : 0;
 
   const filtered = useMemo(() => {
-    return products.filter((p) => {
+    return localProducts.filter((p) => {
       if (filter === "con" && p.cogs <= 0) return false;
       if (filter === "sin" && p.cogs > 0) return false;
       if (search && !p.title.toLowerCase().includes(search.toLowerCase()) && !(p.meliItemId ?? "").includes(search)) {
@@ -194,12 +223,12 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
       }
       return true;
     });
-  }, [products, search, filter]);
+  }, [localProducts, search, filter]);
 
   function handleDownloadTemplate() {
     const rows = [
       ["ID Mercado Libre", "Producto", "COGS"],
-      ...products.map((p) => [p.meliItemId ?? "", p.title, String(p.cogs || "")]),
+      ...localProducts.map((p) => [p.meliItemId ?? "", p.title, String(p.cogs || "")]),
     ];
     downloadCsv("plantilla-cogs.csv", rows);
   }
@@ -225,6 +254,12 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
           .filter((e) => e.meliItemId && Number.isFinite(e.cogs));
         const { updated } = await bulkUpdateProductCosts(entries);
         toast.success(`${updated} costo(s) actualizados`);
+        setLocalProducts((prev) =>
+          prev.map((p) => {
+            const match = entries.find((e) => e.meliItemId === p.meliItemId);
+            return match ? { ...p, cogs: match.cogs } : p;
+          }),
+        );
         setFileName(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         router.refresh();
@@ -263,7 +298,7 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
             <Package className="h-4 w-4" />
             <span className="text-sm">Total Productos</span>
           </div>
-          <p className="mt-2 text-2xl font-bold">{products.length}</p>
+          <p className="mt-2 text-2xl font-bold">{localProducts.length}</p>
         </div>
       </div>
 
@@ -303,7 +338,7 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
           onChange={(e) => setFilter(e.target.value as typeof filter)}
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
-          <option value="todos">Todos ({products.length})</option>
+          <option value="todos">Todos ({localProducts.length})</option>
           <option value="con">Con costo ({withCost})</option>
           <option value="sin">Sin costo ({withoutCost})</option>
         </select>
@@ -339,7 +374,16 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
                 </td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{product.meliItemId ?? "-"}</td>
                 <td className="px-3 py-2">
-                  <InlineCogsInput productId={product.productId} initialValue={product.cogs} currencyId={currencyId} />
+                  <InlineCogsInput
+                    productId={product.productId}
+                    initialValue={product.cogs}
+                    currencyId={currencyId}
+                    onSaved={(cogs) =>
+                      setLocalProducts((prev) =>
+                        prev.map((p) => (p.productId === product.productId ? { ...p, cogs } : p)),
+                      )
+                    }
+                  />
                 </td>
                 <td className="px-3 py-2 text-center">
                   {product.cogs > 0 ? (
@@ -381,6 +425,10 @@ function ExpensesTab({
   billingSummary: BillingSummary | null;
 }) {
   const router = useRouter();
+  const [prevCosts, setPrevCosts] = useState(costs);
+  const [localCosts, setLocalCosts] = useState(costs);
+  const [prevTaxEntries, setPrevTaxEntries] = useState(taxEntries);
+  const [localTaxEntries, setLocalTaxEntries] = useState(taxEntries);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(CATEGORY_OPTIONS[0]);
@@ -391,28 +439,49 @@ function ExpensesTab({
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const totalFixed = costs.filter((c) => c.isFixed).reduce((sum, c) => sum + c.amount, 0);
-  const totalVariable = costs.filter((c) => !c.isFixed).reduce((sum, c) => sum + c.amount, 0);
+  // Mismo patrón que CostsTab: re-sincroniza con props nuevas del servidor
+  // sin pasar por useEffect (evita el cascading-render que marca el linter).
+  if (costs !== prevCosts) {
+    setPrevCosts(costs);
+    setLocalCosts(costs);
+  }
+  if (taxEntries !== prevTaxEntries) {
+    setPrevTaxEntries(taxEntries);
+    setLocalTaxEntries(taxEntries);
+  }
+
+  const totalFixed = localCosts.filter((c) => c.isFixed).reduce((sum, c) => sum + c.amount, 0);
+  const totalVariable = localCosts.filter((c) => !c.isFixed).reduce((sum, c) => sum + c.amount, 0);
   const total = totalFixed + totalVariable;
 
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
-    for (const c of costs) map.set(c.category, (map.get(c.category) ?? 0) + c.amount);
+    for (const c of localCosts) map.set(c.category, (map.get(c.category) ?? 0) + c.amount);
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [costs]);
+  }, [localCosts]);
 
+  // Actualización optimista: el cambio se ve al instante en la UI sin esperar
+  // el refetch completo de la página (que trae datos en vivo de Mercado
+  // Libre y puede tardar 15-20s) — la persistencia real ocurre en paralelo.
   function handleAdd() {
     const amountValue = Number(amount);
     if (!label.trim() || !amountValue) return;
+    const labelValue = label.trim();
+    setLabel("");
+    setAmount("");
     startTransition(async () => {
-      await addOperatingCost(label, amountValue, category, isFixed);
-      setLabel("");
-      setAmount("");
-      toast.success("Gasto agregado");
+      const entry = await addOperatingCost(labelValue, amountValue, category, isFixed);
+      if (entry) {
+        setLocalCosts((prev) => [...prev, entry]);
+        toast.success("Gasto agregado");
+      } else {
+        toast.error("No se pudo agregar el gasto");
+      }
     });
   }
 
   function handleDelete(id: string) {
+    setLocalCosts((prev) => prev.filter((c) => c.id !== id));
     startTransition(async () => {
       await deleteOperatingCost(id);
     });
@@ -421,15 +490,22 @@ function ExpensesTab({
   function handleAddTax() {
     const percentValue = Number(taxPercent);
     if (!taxLabel.trim() || !percentValue) return;
+    const labelValue = taxLabel.trim();
+    setTaxLabel("");
+    setTaxPercent("");
     startTransition(async () => {
-      await addTaxEntry(taxLabel, percentValue);
-      setTaxLabel("");
-      setTaxPercent("");
-      toast.success("Impuesto agregado");
+      const entry = await addTaxEntry(labelValue, percentValue);
+      if (entry) {
+        setLocalTaxEntries((prev) => [...prev, entry]);
+        toast.success("Impuesto agregado");
+      } else {
+        toast.error("No se pudo agregar el impuesto");
+      }
     });
   }
 
   function handleDeleteTax(id: string) {
+    setLocalTaxEntries((prev) => prev.filter((t) => t.id !== id));
     startTransition(async () => {
       await deleteTaxEntry(id);
     });
@@ -588,7 +664,7 @@ function ExpensesTab({
           deducción.
         </p>
         <div className="mt-3 space-y-2">
-          {taxEntries.map((tax) => (
+          {localTaxEntries.map((tax) => (
             <div key={tax.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm">
               <span>{tax.label}</span>
               <div className="flex items-center gap-3">
@@ -599,7 +675,7 @@ function ExpensesTab({
               </div>
             </div>
           ))}
-          {taxEntries.length === 0 && <p className="text-sm text-muted-foreground">No hay impuestos registrados.</p>}
+          {localTaxEntries.length === 0 && <p className="text-sm text-muted-foreground">No hay impuestos registrados.</p>}
         </div>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <div className="min-w-[140px] flex-1 space-y-1">
@@ -617,7 +693,7 @@ function ExpensesTab({
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold">Gastos Registrados ({costs.length})</p>
+        <p className="text-sm font-semibold">Gastos Registrados ({localCosts.length})</p>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -630,9 +706,18 @@ function ExpensesTab({
               </tr>
             </thead>
             <tbody>
-              {costs.map((cost) => (
+              {localCosts.map((cost) => (
                 <tr key={cost.id} className="border-b border-border/60 last:border-0">
-                  <td className="py-2 pr-3 font-medium">{cost.label}</td>
+                  <td className="py-2 pr-3 font-medium">
+                    <span className="inline-flex items-center gap-1.5">
+                      {cost.label}
+                      {cost.source === "ml" && (
+                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-normal text-primary">
+                          Automático (ML)
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="py-2 pr-3 text-muted-foreground">{cost.category}</td>
                   <td className="py-2 pr-3">
                     <span
@@ -654,13 +739,15 @@ function ExpensesTab({
                     {formatMoney(cost.amount, currencyId)}
                   </td>
                   <td className="py-2 text-right">
-                    <button onClick={() => handleDelete(cost.id)} aria-label="Eliminar gasto" className="text-muted-foreground hover:text-destructive">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {cost.source !== "ml" && (
+                      <button onClick={() => handleDelete(cost.id)} aria-label="Eliminar gasto" className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
-              {costs.length === 0 && (
+              {localCosts.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-4 text-center text-muted-foreground">
                     Sin gastos operativos registrados.

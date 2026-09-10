@@ -18,7 +18,36 @@ export type OperatingCostEntry = {
   amount: number;
   category: string;
   isFixed: boolean;
+  source?: "ml";
 };
+
+// Grupos de la factura real de ML que representan gastos operativos que hoy
+// no se capturan en ningún otro lado (a diferencia de "Cargos por venta" y
+// "Cargos por envíos", que ya se calculan por orden en Rentabilidad — si los
+// sumáramos también aquí, se contarían dos veces).
+const AUTO_EXPENSE_GROUPS: Record<string, { category: string; isFixed: boolean }> = {
+  Publicidad: { category: "Publicidad", isFixed: false },
+  "Cargos especiales": { category: "Servicios", isFixed: false },
+  "Cargos de envíos full": { category: "Otros", isFixed: false },
+  "Cargos de eShop": { category: "Servicios", isFixed: true },
+};
+
+function buildAutoOperatingCosts(summary: BillingSummary | null): OperatingCostEntry[] {
+  if (!summary) return [];
+  return summary.charges
+    .filter((c) => c.group in AUTO_EXPENSE_GROUPS)
+    .map((c, i) => {
+      const meta = AUTO_EXPENSE_GROUPS[c.group];
+      return {
+        id: `ml-${summary.periodFrom}-${i}`,
+        label: `${c.label} (ML)`,
+        amount: c.amount,
+        category: meta.category,
+        isFixed: meta.isFixed,
+        source: "ml" as const,
+      };
+    });
+}
 
 export type TaxEntry = { id: string; label: string; percent: number };
 
@@ -82,6 +111,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
 
     const meliUser = await getMeliUser(accessToken);
     billingSummary = await getLatestClosedBillingSummary(accessToken);
+    operatingCosts = [...buildAutoOperatingCosts(billingSummary), ...operatingCosts];
     const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const items = await getItemsDetails(accessToken, itemIds);
     orderStats = await getOrderStats(accessToken, meliUser.id, 30);
