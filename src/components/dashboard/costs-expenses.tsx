@@ -43,6 +43,9 @@ export type TaxEntryItem = { id: string; label: string; percent: number };
 
 const CATEGORY_OPTIONS = ["Nómina", "Empaque", "Publicidad", "Servicios", "Otros"];
 
+const PROGRESS_BAR_CLASS =
+  "rounded-full bg-gradient-to-r from-blue-500 to-purple-500 shadow-[0_0_14px_2px_rgba(139,92,246,0.55)]";
+
 function formatMoney(value: number, currencyId: string) {
   try {
     return new Intl.NumberFormat("es", {
@@ -185,11 +188,8 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
             </div>
             <p className="text-xl font-bold">{progress}%</p>
           </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-2 rounded-full bg-gradient-to-r from-amber-500 to-rose-500"
-              style={{ width: `${progress}%` }}
-            />
+          <div className="mt-3 h-3.5 w-full overflow-hidden rounded-full bg-muted">
+            <div className={cn("h-3.5", PROGRESS_BAR_CLASS)} style={{ width: `${progress}%` }} />
           </div>
           <div className="mt-2 flex items-center justify-between text-xs">
             <span className="text-emerald-500">{withCost} con costo</span>
@@ -428,26 +428,26 @@ function ExpensesTab({
       </div>
 
       {byCategory.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <p className="text-sm font-semibold">Distribución por Categoría</p>
-          <div className="mt-3 space-y-3">
-            {byCategory.map(([cat, amt]) => (
-              <div key={cat}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">{cat}</span>
-                  <span>
-                    {formatMoney(amt, currencyId)}{" "}
-                    <span className="text-xs text-muted-foreground">({((amt / total) * 100).toFixed(1)}%)</span>
-                  </span>
+          <div className="mt-4 space-y-4">
+            {byCategory.map(([cat, amt]) => {
+              const pct = total > 0 ? (amt / total) * 100 : 0;
+              return (
+                <div key={cat}>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{cat}</span>
+                    <span>
+                      {formatMoney(amt, currencyId)}{" "}
+                      <span className="text-xs text-muted-foreground">({pct.toFixed(1)}%)</span>
+                    </span>
+                  </div>
+                  <div className="mt-2 h-3.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className={cn("h-3.5", PROGRESS_BAR_CLASS)} style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
-                <div className="mt-1 h-1.5 w-full rounded-full bg-muted">
-                  <div
-                    className="h-1.5 rounded-full bg-gradient-to-r from-amber-500 to-rose-500"
-                    style={{ width: `${(amt / total) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
