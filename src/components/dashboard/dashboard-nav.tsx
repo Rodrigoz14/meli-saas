@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Wallet } from "lucide-react";
+import { Receipt, Search, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: "/dashboard", label: "Rentabilidad", icon: Wallet },
+  { href: "/dashboard/costos-gastos", label: "Costos y gastos", icon: Receipt },
   { href: "/dashboard/busqueda-productos", label: "Búsqueda de productos", icon: Search },
 ];
 

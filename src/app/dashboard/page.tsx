@@ -5,31 +5,20 @@ import { auth } from "@/auth";
 // Mercado Libre puede tomar más de los 10s por defecto de Vercel.
 export const maxDuration = 60;
 
-import { prisma } from "@/lib/prisma";
-import {
-  debugProbeBillingAndAds,
-  ensureFreshMeliToken,
-  getItemsDetails,
-  getMeliUser,
-  getOrderStats,
-  getSaleFee,
-  getUserItemIds,
-  type OrderStats,
-} from "@/lib/meli-api";
 import { Button } from "@/components/ui/button";
-import { ProfitabilityTable, type ProfitabilityRow } from "@/components/dashboard/profitability-table";
+import { ProfitabilityTable } from "@/components/dashboard/profitability-table";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { RevenueSummary } from "@/components/dashboard/revenue-summary";
-import { CostsExpensesSection } from "@/components/dashboard/costs-expenses";
 import { computePeriodProfit } from "@/lib/profitability";
+import { getRentabilidadData } from "@/lib/dashboard-data";
 
 export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const accessToken = await ensureFreshMeliToken(userId);
+  const data = await getRentabilidadData(userId);
 
-  if (!accessToken) {
+  if (!data.connected) {
     return (
       <div className="container mx-auto flex flex-col items-center gap-4 px-6 py-24 text-center">
         <h1 className="font-display text-2xl font-bold">
@@ -45,82 +34,7 @@ export default async function DashboardPage() {
     );
   }
 
-  let rows: ProfitabilityRow[] = [];
-  let errorMessage: string | null = null;
-  let operatingCosts: { id: string; label: string; amount: number }[] = [];
-  let taxWithholdingPercent = 0;
-  let orderStats: Record<string, OrderStats> = {};
-
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { taxWithholdingPercent: true },
-    });
-    taxWithholdingPercent = user?.taxWithholdingPercent
-      ? Number(user.taxWithholdingPercent)
-      : 0;
-
-    const costEntries = await prisma.costEntry.findMany({
-      where: { userId, productId: null },
-      orderBy: { createdAt: "asc" },
-    });
-    operatingCosts = costEntries.map((entry) => ({
-      id: entry.id,
-      label: entry.label,
-      amount: Number(entry.amount),
-    }));
-
-    const meliUser = await getMeliUser(accessToken);
-    await debugProbeBillingAndAds(accessToken, meliUser.id);
-    const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
-    const items = await getItemsDetails(accessToken, itemIds);
-    orderStats = await getOrderStats(accessToken, meliUser.id, 30);
-
-    rows = await Promise.all(
-      items.map(async (item) => {
-        const product = await prisma.product.upsert({
-          where: { userId_meliItemId: { userId, meliItemId: item.id } },
-          update: { title: item.title, price: item.price },
-          create: {
-            userId,
-            meliItemId: item.id,
-            title: item.title,
-            price: item.price,
-          },
-        });
-
-        const saleFee = await getSaleFee(
-          accessToken,
-          meliUser.site_id,
-          item.price,
-          item.category_id,
-          item.listing_type_id,
-        );
-
-        const stats = orderStats[item.id] ?? { quantity: 0, revenue: 0, commission: 0, shipping: 0 };
-
-        return {
-          productId: product.id,
-          title: item.title,
-          thumbnail: item.thumbnail,
-          permalink: item.permalink,
-          price: item.price,
-          currencyId: item.currency_id,
-          availableQuantity: item.available_quantity,
-          saleFee: saleFee ?? 0,
-          cogs: product.cogs ? Number(product.cogs) : 0,
-          unitsSold30d: stats.quantity,
-          revenue30d: stats.revenue,
-          commission30d: stats.commission,
-          shipping30d: stats.shipping,
-        } satisfies ProfitabilityRow;
-      }),
-    );
-  } catch (err) {
-    console.error("Dashboard Mercado Libre fetch failed:", err);
-    errorMessage =
-      "No pudimos traer tus publicaciones de Mercado Libre en este momento. Intenta de nuevo en unos minutos.";
-  }
+  const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -184,23 +98,6 @@ export default async function DashboardPage() {
                     totalShipping={totalShipping}
                     totalCogs={totalCogs}
                     totalOperatingCosts={totalOperatingCosts}
-                    taxWithholdingPercent={taxWithholdingPercent}
-                  />
-                </div>
-
-                <div className="mt-8">
-                  <CostsExpensesSection
-                    currencyId={rows[0].currencyId}
-                    products={rows.map((row) => ({
-                      productId: row.productId,
-                      title: row.title,
-                      thumbnail: row.thumbnail,
-                      price: row.price,
-                      cogs: row.cogs,
-                    }))}
-                    totalCogs={totalCogs}
-                    totalRevenue={totalRevenue}
-                    operatingCosts={operatingCosts}
                     taxWithholdingPercent={taxWithholdingPercent}
                   />
                 </div>

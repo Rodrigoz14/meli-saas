@@ -1,0 +1,111 @@
+import { prisma } from "@/lib/prisma";
+import {
+  debugProbeBillingAndAds,
+  ensureFreshMeliToken,
+  getItemsDetails,
+  getMeliUser,
+  getOrderStats,
+  getSaleFee,
+  getUserItemIds,
+  type OrderStats,
+} from "@/lib/meli-api";
+import type { ProfitabilityRow } from "@/components/dashboard/profitability-table";
+
+export type OperatingCostEntry = { id: string; label: string; amount: number };
+
+export type RentabilidadData =
+  | { connected: false }
+  | {
+      connected: true;
+      errorMessage: string | null;
+      rows: ProfitabilityRow[];
+      operatingCosts: OperatingCostEntry[];
+      taxWithholdingPercent: number;
+      orderStats: Record<string, OrderStats>;
+    };
+
+// Compartido entre /dashboard (Rentabilidad) y /dashboard/costos-gastos —
+// ambos necesitan lo mismo (publicaciones reales de Mercado Libre + costos
+// definidos por el usuario), así que la llamada en vivo a la API vive en un
+// solo lugar en vez de duplicarse entre las dos páginas.
+export async function getRentabilidadData(userId: string): Promise<RentabilidadData> {
+  const accessToken = await ensureFreshMeliToken(userId);
+  if (!accessToken) return { connected: false };
+
+  let rows: ProfitabilityRow[] = [];
+  let errorMessage: string | null = null;
+  let operatingCosts: OperatingCostEntry[] = [];
+  let taxWithholdingPercent = 0;
+  let orderStats: Record<string, OrderStats> = {};
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { taxWithholdingPercent: true },
+    });
+    taxWithholdingPercent = user?.taxWithholdingPercent ? Number(user.taxWithholdingPercent) : 0;
+
+    const costEntries = await prisma.costEntry.findMany({
+      where: { userId, productId: null },
+      orderBy: { createdAt: "asc" },
+    });
+    operatingCosts = costEntries.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      amount: Number(entry.amount),
+    }));
+
+    const meliUser = await getMeliUser(accessToken);
+    await debugProbeBillingAndAds(accessToken, meliUser.id);
+    const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
+    const items = await getItemsDetails(accessToken, itemIds);
+    orderStats = await getOrderStats(accessToken, meliUser.id, 30);
+
+    rows = await Promise.all(
+      items.map(async (item) => {
+        const product = await prisma.product.upsert({
+          where: { userId_meliItemId: { userId, meliItemId: item.id } },
+          update: { title: item.title, price: item.price },
+          create: {
+            userId,
+            meliItemId: item.id,
+            title: item.title,
+            price: item.price,
+          },
+        });
+
+        const saleFee = await getSaleFee(
+          accessToken,
+          meliUser.site_id,
+          item.price,
+          item.category_id,
+          item.listing_type_id,
+        );
+
+        const stats = orderStats[item.id] ?? { quantity: 0, revenue: 0, commission: 0, shipping: 0 };
+
+        return {
+          productId: product.id,
+          title: item.title,
+          thumbnail: item.thumbnail,
+          permalink: item.permalink,
+          price: item.price,
+          currencyId: item.currency_id,
+          availableQuantity: item.available_quantity,
+          saleFee: saleFee ?? 0,
+          cogs: product.cogs ? Number(product.cogs) : 0,
+          unitsSold30d: stats.quantity,
+          revenue30d: stats.revenue,
+          commission30d: stats.commission,
+          shipping30d: stats.shipping,
+        } satisfies ProfitabilityRow;
+      }),
+    );
+  } catch (err) {
+    console.error("Dashboard Mercado Libre fetch failed:", err);
+    errorMessage =
+      "No pudimos traer tus publicaciones de Mercado Libre en este momento. Intenta de nuevo en unos minutos.";
+  }
+
+  return { connected: true, errorMessage, rows, operatingCosts, taxWithholdingPercent, orderStats };
+}
