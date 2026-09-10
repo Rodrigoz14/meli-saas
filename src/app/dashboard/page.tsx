@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { ProfitabilityTable, type ProfitabilityRow } from "@/components/dashboard/profitability-table";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { RevenueSummary } from "@/components/dashboard/revenue-summary";
-import { OperatingCostsManager } from "@/components/dashboard/operating-costs";
+import { CostsExpensesSection } from "@/components/dashboard/costs-expenses";
 import { computePeriodProfit } from "@/lib/profitability";
 
 export default async function DashboardPage() {
@@ -189,9 +189,18 @@ export default async function DashboardPage() {
                 </div>
 
                 <div className="mt-8">
-                  <OperatingCostsManager
+                  <CostsExpensesSection
                     currencyId={rows[0].currencyId}
-                    costs={operatingCosts}
+                    products={rows.map((row) => ({
+                      productId: row.productId,
+                      title: row.title,
+                      thumbnail: row.thumbnail,
+                      price: row.price,
+                      cogs: row.cogs,
+                    }))}
+                    totalCogs={totalCogs}
+                    totalRevenue={totalRevenue}
+                    operatingCosts={operatingCosts}
                     taxWithholdingPercent={taxWithholdingPercent}
                   />
                 </div>

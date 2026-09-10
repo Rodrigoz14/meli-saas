@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
-import { toast } from "sonner";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
   Table,
@@ -12,11 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { updateProductCosts } from "@/app/dashboard/actions";
 import { computePeriodProfit, diagnose } from "@/lib/profitability";
 
 export type ProfitabilityRow = {
@@ -102,17 +98,13 @@ function SortableHead({
   );
 }
 
-function EditableRow({
+function Row({
   row,
   taxWithholdingPercent,
 }: {
   row: ProfitabilityRow;
   taxWithholdingPercent: number;
 }) {
-  const [cogs, setCogs] = useState(String(row.cogs || ""));
-  const [isPending, startTransition] = useTransition();
-
-  const cogsValue = Number(cogs) || 0;
   const {
     netProfit: totalProfit,
     margin,
@@ -120,25 +112,14 @@ function EditableRow({
   } = computePeriodProfit({
     price: row.price,
     saleFee: row.saleFee,
-    cogs: cogsValue,
+    cogs: row.cogs,
     unitsSold: row.unitsSold30d,
     revenue: row.revenue30d,
     commission: row.commission30d,
     shipping: row.shipping30d,
     taxWithholdingPercent,
   });
-  const diagnosis = diagnose(margin, cogsValue > 0);
-
-  function handleSave() {
-    startTransition(async () => {
-      try {
-        await updateProductCosts(row.productId, cogsValue);
-        toast.success("Costo actualizado");
-      } catch {
-        toast.error("No se pudo guardar el costo");
-      }
-    });
-  }
+  const diagnosis = diagnose(margin, row.cogs > 0);
 
   return (
     <TableRow>
@@ -163,15 +144,8 @@ function EditableRow({
       <TableCell className="text-center">{row.unitsSold30d}</TableCell>
       <TableCell>{formatMoney(row.revenue30d, row.currencyId)}</TableCell>
       <TableCell>{formatMoney(row.price, row.currencyId)}</TableCell>
-      <TableCell>
-        <Input
-          type="number"
-          inputMode="decimal"
-          value={cogs}
-          onChange={(e) => setCogs(e.target.value)}
-          className="w-28"
-          placeholder="0"
-        />
+      <TableCell className={row.cogs > 0 ? undefined : "text-muted-foreground"}>
+        {row.cogs > 0 ? formatMoney(row.cogs, row.currencyId) : "Sin costo"}
       </TableCell>
       <TableCell className="text-muted-foreground">
         -{formatMoney(row.commission30d || row.saleFee, row.currencyId)}
@@ -195,11 +169,6 @@ function EditableRow({
       </TableCell>
       <TableCell className="max-w-[200px] text-xs text-muted-foreground">
         {diagnosis}
-      </TableCell>
-      <TableCell>
-        <Button size="sm" variant="outline" onClick={handleSave} disabled={isPending}>
-          {isPending ? "Guardando…" : "Guardar"}
-        </Button>
       </TableCell>
     </TableRow>
   );
@@ -292,7 +261,7 @@ export function ProfitabilityTable({
               direction={sortDir}
               onSort={handleSort}
             />
-            <TableHead>Costo producto</TableHead>
+            <TableHead title="Se edita en la sección Costos y gastos">Costo producto</TableHead>
             <SortableHead
               label="Comisión ML"
               sortKey="commission"
@@ -323,16 +292,11 @@ export function ProfitabilityTable({
               onSort={handleSort}
             />
             <TableHead>Diagnóstico</TableHead>
-            <TableHead />
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedRows.map(({ row }) => (
-            <EditableRow
-              key={row.productId}
-              row={row}
-              taxWithholdingPercent={taxWithholdingPercent}
-            />
+            <Row key={row.productId} row={row} taxWithholdingPercent={taxWithholdingPercent} />
           ))}
         </TableBody>
       </Table>
