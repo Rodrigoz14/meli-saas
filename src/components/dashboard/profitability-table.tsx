@@ -17,6 +17,7 @@ import { computePeriodProfit, diagnose } from "@/lib/profitability";
 
 export type ProfitabilityRow = {
   productId: string;
+  meliItemId: string | null;
   title: string;
   thumbnail: string;
   permalink: string;

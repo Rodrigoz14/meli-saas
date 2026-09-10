@@ -11,7 +11,15 @@ import {
 } from "@/lib/meli-api";
 import type { ProfitabilityRow } from "@/components/dashboard/profitability-table";
 
-export type OperatingCostEntry = { id: string; label: string; amount: number };
+export type OperatingCostEntry = {
+  id: string;
+  label: string;
+  amount: number;
+  category: string;
+  isFixed: boolean;
+};
+
+export type TaxEntry = { id: string; label: string; percent: number };
 
 export type RentabilidadData =
   | { connected: false }
@@ -20,6 +28,7 @@ export type RentabilidadData =
       errorMessage: string | null;
       rows: ProfitabilityRow[];
       operatingCosts: OperatingCostEntry[];
+      taxEntries: TaxEntry[];
       taxWithholdingPercent: number;
       orderStats: Record<string, OrderStats>;
     };
@@ -35,25 +44,38 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
   let rows: ProfitabilityRow[] = [];
   let errorMessage: string | null = null;
   let operatingCosts: OperatingCostEntry[] = [];
+  let taxEntries: TaxEntry[] = [];
   let taxWithholdingPercent = 0;
   let orderStats: Record<string, OrderStats> = {};
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { taxWithholdingPercent: true },
-    });
-    taxWithholdingPercent = user?.taxWithholdingPercent ? Number(user.taxWithholdingPercent) : 0;
-
-    const costEntries = await prisma.costEntry.findMany({
-      where: { userId, productId: null },
-      orderBy: { createdAt: "asc" },
-    });
+    const [costEntries, taxEntryRows] = await Promise.all([
+      prisma.costEntry.findMany({
+        where: { userId, productId: null },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.taxEntry.findMany({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
     operatingCosts = costEntries.map((entry) => ({
       id: entry.id,
       label: entry.label,
       amount: Number(entry.amount),
+      category: entry.category,
+      isFixed: entry.isFixed,
     }));
+    taxEntries = taxEntryRows.map((entry) => ({
+      id: entry.id,
+      label: entry.label,
+      percent: Number(entry.percent),
+    }));
+    // Suma de todos los impuestos con nombre (IVA, Renta, etc.) — la
+    // retención "% sobre ventas" que usa toda la cuenta de rentabilidad
+    // sigue siendo un solo número, solo que ahora se compone de varias
+    // entradas nombradas en vez de un único campo en User.
+    taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + t.percent, 0);
 
     const meliUser = await getMeliUser(accessToken);
     await debugProbeBillingAndAds(accessToken, meliUser.id);
@@ -86,6 +108,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
 
         return {
           productId: product.id,
+          meliItemId: product.meliItemId,
           title: item.title,
           thumbnail: item.thumbnail,
           permalink: item.permalink,
@@ -107,5 +130,5 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
       "No pudimos traer tus publicaciones de Mercado Libre en este momento. Intenta de nuevo en unos minutos.";
   }
 
-  return { connected: true, errorMessage, rows, operatingCosts, taxWithholdingPercent, orderStats };
+  return { connected: true, errorMessage, rows, operatingCosts, taxEntries, taxWithholdingPercent, orderStats };
 }

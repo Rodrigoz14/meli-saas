@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Banknote,
   Receipt,
@@ -48,12 +49,13 @@ export function RevenueSummary({
       ? Math.ceil((totalOperatingCosts + retenciones) / contributionMarginPerUnit)
       : null;
 
+  // Costo de producto (COGS) y Gastos operativos ya no se desglosan acá —
+  // se editan y se ven en detalle en su propia sección (Costos y gastos).
+  // Sí siguen sumando al Total costos / Utilidad neta de abajo.
   const breakdown = [
     { label: "Comisiones Mercado Libre", value: totalCommission, color: "text-orange-500" },
     { label: "Costo de envío", value: totalShipping, color: "text-cyan-500" },
     { label: "Retenciones", value: retenciones, color: "text-amber-500" },
-    { label: "Costo de producto (COGS)", value: totalCogs, color: "text-rose-500" },
-    { label: "Gastos operativos", value: totalOperatingCosts, color: "text-amber-500" },
   ];
 
   return (
@@ -136,7 +138,12 @@ export function RevenueSummary({
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="font-semibold">Desglose de costos (30d)</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">Desglose de costos (30d)</h3>
+          <Link href="/dashboard/costos-gastos" className="text-xs text-primary hover:underline">
+            Ver costo de producto y gastos operativos →
+          </Link>
+        </div>
         <div className="mt-3 space-y-2">
           {breakdown.map((item) => {
             const pct = totalRevenue > 0 ? (item.value / totalRevenue) * 100 : 0;

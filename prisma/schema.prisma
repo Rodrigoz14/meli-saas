@@ -67,6 +67,7 @@ model User {
   creditBalance    CreditBalance?
   products         Product[]
   costEntries      CostEntry[]
+  taxEntries       TaxEntry[]
   nicheAnalyses    NicheAnalysis[]
   seoOptimizations SeoOptimization[]
   generatedImages  GeneratedImage[]
@@ -205,10 +206,29 @@ model CostEntry {
   label     String
   amount    Decimal  @db.Decimal(12, 2)
   isFixed   Boolean  @default(false)
+  // Nómina, Empaque, Publicidad, Otros... — para el desglose "Distribución
+  // por categoría" de la sección Costos y gastos.
+  category  String   @default("Otros")
   createdAt DateTime @default(now())
 
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+// Impuestos/retenciones con nombre propio (IVA, Renta, etc.) — reemplaza el
+// % único de User.taxWithholdingPercent (que queda sin usar, no se borra
+// para no perder el dato de cuentas que ya lo tenían) por varios impuestos
+// nombrados que se suman.
+model TaxEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  label     String
+  percent   Decimal  @db.Decimal(5, 2)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

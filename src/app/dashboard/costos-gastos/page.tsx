@@ -31,14 +31,12 @@ export default async function CostosGastosPage() {
     );
   }
 
-  const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts } = data;
+  const { rows, errorMessage, operatingCosts, taxEntries } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl font-bold">Costos y gastos</h1>
-      <p className="mt-1 text-muted-foreground">
-        Costos = lo que te cuesta cada producto. Gastos = lo que gasta tu negocio en general.
-      </p>
+      <h1 className="font-display text-2xl font-bold">Gestión de Costos</h1>
+      <p className="mt-1 text-muted-foreground">Gastos operativos y costos de producto (COGS).</p>
 
       {errorMessage && (
         <p className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
@@ -58,15 +56,14 @@ export default async function CostosGastosPage() {
             currencyId={rows[0].currencyId}
             products={rows.map((row) => ({
               productId: row.productId,
+              meliItemId: row.meliItemId,
               title: row.title,
               thumbnail: row.thumbnail,
               price: row.price,
               cogs: row.cogs,
             }))}
-            totalCogs={rows.reduce((sum, r) => sum + r.cogs * r.unitsSold30d, 0)}
-            totalRevenue={Object.values(orderStats).reduce((sum, s) => sum + s.revenue, 0)}
             operatingCosts={operatingCosts}
-            taxWithholdingPercent={taxWithholdingPercent}
+            taxEntries={taxEntries}
           />
         </div>
       )}
