@@ -5,6 +5,7 @@ import {
   ImageIcon,
   LineChart,
   Link2,
+  Receipt,
   Search,
   ShieldCheck,
   Sparkles,
@@ -108,6 +109,14 @@ export const features = [
       "Crea descripciones e infografías de nivel profesional con IA en minutos, sin diseñador.",
     span: "md:col-span-4",
     accent: "secondary" as const,
+  },
+  {
+    icon: Receipt,
+    title: "Gestión de Costos y Gastos",
+    description:
+      "Asigna el COGS de cada producto, registra gastos operativos fijos y variables, e impuestos personalizados — con carga masiva por CSV y todo en un panel dedicado.",
+    span: "md:col-span-12",
+    accent: "primary" as const,
   },
 ];
 
