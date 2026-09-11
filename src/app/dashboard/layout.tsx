@@ -10,7 +10,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   if (!session?.user) redirect("/login");
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex min-h-screen flex-col"
+      style={{ "--font-display-raw": "var(--font-dashboard-display)" } as React.CSSProperties}
+    >
       <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-lg">
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
           <Logo />

@@ -35,7 +35,7 @@ export function SummaryCards({
 
   return (
     <div className="grid gap-6 md:grid-cols-3">
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="group rounded-xl border border-emerald-500/20 bg-card p-6 shadow-[0_0_20px_-12px_rgba(16,185,129,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(16,185,129,0.85)]">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Wallet className="h-4 w-4" />
           <span className="text-sm font-medium">Margen de Contribución Total</span>
@@ -43,12 +43,12 @@ export function SummaryCards({
         <p className="mt-1 text-xs text-muted-foreground/70">
           Disponible para gastos operativos (últimos 30 días)
         </p>
-        <p className="mt-3 font-display text-3xl font-bold text-emerald-500">
+        <p className="mt-3 font-display text-3xl font-bold tracking-tight text-emerald-500">
           {formatMoney(totalNetProfit, currencyId)}
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="group rounded-xl border border-border bg-card p-6 shadow-[0_0_20px_-14px_rgba(99,102,241,0.5)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.7)]">
         <div className="flex items-center gap-2 text-muted-foreground">
           <PieChart className="h-4 w-4" />
           <span className="text-sm font-medium">Salud del Portafolio</span>
@@ -70,7 +70,7 @@ export function SummaryCards({
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="group rounded-xl border border-amber-500/20 bg-card p-6 shadow-[0_0_20px_-12px_rgba(245,158,11,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(245,158,11,0.8)]">
         <div className="flex items-center gap-2 text-muted-foreground">
           <AlertTriangle className="h-4 w-4" />
           <span className="text-sm font-medium">Completitud de Costos</span>

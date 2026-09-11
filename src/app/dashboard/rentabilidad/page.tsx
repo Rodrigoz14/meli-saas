@@ -37,8 +37,8 @@ export default async function RentabilidadPage() {
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl font-bold">Rentabilidad</h1>
-      <p className="mt-1 text-muted-foreground">
+      <h1 className="font-display text-3xl font-bold tracking-tight">Rentabilidad</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
         Margen de contribución por publicación · Meta: <span className="text-emerald-500">&gt;30%</span> ·
         últimos 30 días
       </p>

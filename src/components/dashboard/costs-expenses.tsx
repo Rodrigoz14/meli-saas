@@ -105,15 +105,15 @@ function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; 
       </div>
 
       <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-[0_0_18px_-12px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(244,63,94,0.85)]">
           <p className="text-xs text-muted-foreground">Total Cargos</p>
           <p className="mt-1 text-lg font-bold text-rose-500">{formatMoney(totalCharges, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-[0_0_18px_-12px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(16,185,129,0.85)]">
           <p className="text-xs text-muted-foreground">Total Bonificaciones</p>
           <p className="mt-1 text-lg font-bold text-emerald-500">{formatMoney(totalBonuses, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-[0_0_18px_-12px_rgba(99,102,241,0.8)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.9)]">
           <p className="text-xs text-muted-foreground">Total Facturado</p>
           <p className="mt-1 text-lg font-bold text-primary">{formatMoney(summary.totalAmount, currencyId)}</p>
         </div>
@@ -182,15 +182,15 @@ function MlChargesTab({
       </p>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-[0_0_18px_-12px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(244,63,94,0.85)]">
           <p className="text-xs text-muted-foreground">Fijos (mes)</p>
           <p className="mt-1 text-xl font-bold text-rose-500">{formatMoney(totalFixed, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-[0_0_18px_-12px_rgba(245,158,11,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(245,158,11,0.85)]">
           <p className="text-xs text-muted-foreground">Variables</p>
           <p className="mt-1 text-xl font-bold text-amber-500">{formatMoney(totalVariable, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-[0_0_18px_-14px_rgba(99,102,241,0.6)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.8)]">
           <p className="text-xs text-muted-foreground">Total Automático</p>
           <p className="mt-1 text-xl font-bold">{formatMoney(total, currencyId)}</p>
         </div>
@@ -709,15 +709,15 @@ function ExpensesTab({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-[0_0_18px_-12px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(244,63,94,0.85)]">
           <p className="text-xs text-muted-foreground">Gastos Fijos (mes)</p>
           <p className="mt-1 text-xl font-bold text-rose-500">{formatMoney(totalFixed, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-[0_0_18px_-12px_rgba(245,158,11,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(245,158,11,0.85)]">
           <p className="text-xs text-muted-foreground">Gastos Variables</p>
           <p className="mt-1 text-xl font-bold text-amber-500">{formatMoney(totalVariable, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-[0_0_18px_-14px_rgba(99,102,241,0.6)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.8)]">
           <p className="text-xs text-muted-foreground">Total Costos</p>
           <p className="mt-1 text-xl font-bold">{formatMoney(total, currencyId)}</p>
         </div>

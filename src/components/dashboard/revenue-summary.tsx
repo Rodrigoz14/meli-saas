@@ -68,37 +68,37 @@ export function RevenueSummary({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6">
+        <div className="group rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-12px_rgba(99,102,241,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.85)]">
           <div className="flex items-center gap-2 text-primary">
             <Banknote className="h-5 w-5" />
             <span className="text-sm font-medium">Ventas Reales (30d)</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold">
+          <p className="mt-3 font-display text-2xl font-bold tracking-tight">
             {formatMoney(totalRevenue, currencyId)}
           </p>
         </div>
-        <div className="rounded-2xl border border-secondary/20 bg-secondary/5 p-6">
+        <div className="group rounded-2xl border border-secondary/20 bg-secondary/5 p-6 shadow-[0_0_20px_-12px_rgba(20,184,166,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(20,184,166,0.85)]">
           <div className="flex items-center gap-2 text-secondary">
             <ShoppingCart className="h-5 w-5" />
             <span className="text-sm font-medium">Unidades Vendidas</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold">{totalUnits}</p>
+          <p className="mt-3 font-display text-2xl font-bold tracking-tight">{totalUnits}</p>
         </div>
-        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6">
+        <div className="group rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 shadow-[0_0_20px_-12px_rgba(249,115,22,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(249,115,22,0.85)]">
           <div className="flex items-center gap-2 text-orange-500">
             <Receipt className="h-5 w-5" />
             <span className="text-sm font-medium">Comisiones Mercado Libre</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold text-orange-500">
+          <p className="mt-3 font-display text-2xl font-bold tracking-tight text-orange-500">
             -{formatMoney(totalCommission, currencyId)}
           </p>
         </div>
-        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6">
+        <div className="group rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6 shadow-[0_0_20px_-12px_rgba(6,182,212,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.85)]">
           <div className="flex items-center gap-2 text-cyan-500">
             <Truck className="h-5 w-5" />
             <span className="text-sm font-medium">Costo de Envío</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold text-cyan-500">
+          <p className="mt-3 font-display text-2xl font-bold tracking-tight text-cyan-500">
             -{formatMoney(totalShipping, currencyId)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">envío gratis asumido por ti</p>
@@ -106,19 +106,19 @@ export function RevenueSummary({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6">
+        <div className="group rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6 shadow-[0_0_20px_-12px_rgba(139,92,246,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(139,92,246,0.85)]">
           <div className="flex items-center gap-2 text-violet-500">
             <Target className="h-5 w-5" />
             <span className="text-sm font-medium">Inversión en Publicidad</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold text-violet-500">
+          <p className="mt-3 font-display text-2xl font-bold tracking-tight text-violet-500">
             -{formatMoney(totalAds, currencyId)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">últimos 30 días</p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-8">
+      <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-8 shadow-[0_0_32px_-14px_rgba(16,185,129,0.6)]">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
           <div>
             <p className="text-sm text-muted-foreground">Ventas Reales</p>

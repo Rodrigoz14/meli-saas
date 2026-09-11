@@ -35,8 +35,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl font-bold">Dashboard</h1>
-      <p className="mt-1 text-muted-foreground">
+      <h1 className="font-display text-3xl font-bold tracking-tight">Dashboard</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
         Ingresos, comisión y costo de envío vienen directo de Mercado Libre
         (datos reales de cada venta, no estimaciones). Solo ingresa el costo
         de tu producto.

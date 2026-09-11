@@ -35,8 +35,8 @@ export default async function CostosGastosPage() {
 
   return (
     <div className="container mx-auto px-6 py-10">
-      <h1 className="font-display text-2xl font-bold">Gestión de Costos</h1>
-      <p className="mt-1 text-muted-foreground">Gastos operativos y costos de producto (COGS).</p>
+      <h1 className="font-display text-3xl font-bold tracking-tight">Gestión de Costos</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">Gastos operativos y costos de producto (COGS).</p>
 
       {errorMessage && (
         <p className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">

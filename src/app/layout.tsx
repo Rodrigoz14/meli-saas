@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Unbounded } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -10,9 +10,17 @@ const bodyFont = Inter({
 });
 
 const displayFont = Unbounded({
-  variable: "--font-display",
+  variable: "--font-display-raw",
   subsets: ["latin"],
   weight: ["500", "700", "800", "900"],
+});
+
+// Tipografía del panel (app/dashboard) — más limpia y estándar que Unbounded
+// (reservada para la landing), inspirada en la tipografía de Selltrix.
+const dashboardDisplayFont = Plus_Jakarta_Sans({
+  variable: "--font-dashboard-display",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es"
       suppressHydrationWarning
-      className={`${bodyFont.variable} ${displayFont.variable}`}
+      className={`${bodyFont.variable} ${displayFont.variable} ${dashboardDisplayFont.variable}`}
     >
       <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <ThemeProvider

@@ -16,8 +16,8 @@ export function DashboardNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-b border-border/60 bg-background/80">
-      <div className="container mx-auto flex h-11 items-center gap-6 px-6">
+    <nav className="sticky top-16 z-40 border-b border-border/60 bg-background/95 shadow-sm backdrop-blur-lg">
+      <div className="container mx-auto flex h-16 items-center gap-2 px-6">
         {TABS.map((tab) => {
           const isActive = pathname === tab.href;
           const Icon = tab.icon;
@@ -26,11 +26,12 @@ export function DashboardNav() {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground",
-                isActive && "font-medium text-foreground",
+                "relative flex items-center gap-2.5 rounded-full px-5 py-2.5 text-base text-muted-foreground transition-all duration-200 hover:bg-muted/60 hover:text-foreground",
+                isActive &&
+                  "bg-primary/10 font-semibold text-primary shadow-[0_0_16px_-4px_var(--primary)] hover:bg-primary/15 hover:text-primary",
               )}
             >
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-5 w-5" />
               {tab.label}
             </Link>
           );
