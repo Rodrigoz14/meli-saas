@@ -5,6 +5,7 @@ import {
   getLatestClosedBillingSummary,
   getMeliUser,
   getOrderStats,
+  getRollingAdsSpend,
   getSaleFee,
   getUserItemIds,
   type BillingSummary,
@@ -24,9 +25,11 @@ export type OperatingCostEntry = {
 // Grupos de la factura real de ML que representan gastos operativos que hoy
 // no se capturan en ningún otro lado (a diferencia de "Cargos por venta" y
 // "Cargos por envíos", que ya se calculan por orden en Rentabilidad — si los
-// sumáramos también aquí, se contarían dos veces).
+// sumáramos también aquí, se contarían dos veces). "Publicidad" queda afuera
+// a propósito: tiene su propia métrica en Rentabilidad (como "Inversión en
+// Publicidad"), igual que Comisión/Envío, en vez de mezclarse con Gastos
+// Operativos.
 const AUTO_EXPENSE_GROUPS: Record<string, { category: string; isFixed: boolean }> = {
-  Publicidad: { category: "Publicidad", isFixed: false },
   "Cargos especiales": { category: "Servicios", isFixed: false },
   "Cargos de envíos full": { category: "Otros", isFixed: false },
   "Cargos de eShop": { category: "Servicios", isFixed: true },
@@ -62,6 +65,7 @@ export type RentabilidadData =
       taxWithholdingPercent: number;
       orderStats: Record<string, OrderStats>;
       billingSummary: BillingSummary | null;
+      totalAds: number;
     };
 
 // Compartido entre /dashboard (Rentabilidad) y /dashboard/costos-gastos —
@@ -79,6 +83,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
   let taxWithholdingPercent = 0;
   let orderStats: Record<string, OrderStats> = {};
   let billingSummary: BillingSummary | null = null;
+  let totalAds = 0;
 
   try {
     const [costEntries, taxEntryRows] = await Promise.all([
@@ -110,7 +115,12 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + t.percent, 0);
 
     const meliUser = await getMeliUser(accessToken);
-    billingSummary = await getLatestClosedBillingSummary(accessToken);
+    const [closedBilling, rollingAds] = await Promise.all([
+      getLatestClosedBillingSummary(accessToken),
+      getRollingAdsSpend(accessToken, 30),
+    ]);
+    billingSummary = closedBilling;
+    totalAds = rollingAds ?? 0;
     operatingCosts = [...buildAutoOperatingCosts(billingSummary), ...operatingCosts];
     const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const items = await getItemsDetails(accessToken, itemIds);
@@ -172,5 +182,6 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     taxWithholdingPercent,
     orderStats,
     billingSummary,
+    totalAds,
   };
 }

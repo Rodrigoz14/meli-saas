@@ -3,6 +3,7 @@ import {
   Banknote,
   Receipt,
   ShoppingCart,
+  Target,
   Truck,
 } from "lucide-react";
 
@@ -26,6 +27,7 @@ export function RevenueSummary({
   totalShipping,
   totalCogs,
   totalOperatingCosts,
+  totalAds,
   taxWithholdingPercent,
 }: {
   currencyId: string;
@@ -35,10 +37,12 @@ export function RevenueSummary({
   totalShipping: number;
   totalCogs: number;
   totalOperatingCosts: number;
+  totalAds: number;
   taxWithholdingPercent: number;
 }) {
   const retenciones = totalRevenue * (taxWithholdingPercent / 100);
-  const totalCosts = totalCommission + totalShipping + totalCogs + totalOperatingCosts + retenciones;
+  const totalCosts =
+    totalCommission + totalShipping + totalCogs + totalOperatingCosts + totalAds + retenciones;
   const utilidadNeta = totalRevenue - totalCosts;
   const margenNeto = totalRevenue > 0 ? (utilidadNeta / totalRevenue) * 100 : 0;
 
@@ -46,15 +50,18 @@ export function RevenueSummary({
     totalUnits > 0 ? (totalRevenue - totalCommission - totalShipping - totalCogs) / totalUnits : 0;
   const breakEvenUnits =
     contributionMarginPerUnit > 0
-      ? Math.ceil((totalOperatingCosts + retenciones) / contributionMarginPerUnit)
+      ? Math.ceil((totalOperatingCosts + totalAds + retenciones) / contributionMarginPerUnit)
       : null;
 
   // Costo de producto (COGS) y Gastos operativos ya no se desglosan acá —
   // se editan y se ven en detalle en su propia sección (Costos y gastos).
-  // Sí siguen sumando al Total costos / Utilidad neta de abajo.
+  // Publicidad sí se desglosa porque, a diferencia de COGS/Gastos, es un
+  // solo número real extraído de la factura de ML, no una lista editable.
+  // Todos siguen sumando al Total costos / Utilidad neta de abajo.
   const breakdown = [
     { label: "Comisiones Mercado Libre", value: totalCommission, color: "text-orange-500" },
     { label: "Costo de envío", value: totalShipping, color: "text-cyan-500" },
+    { label: "Inversión en Publicidad", value: totalAds, color: "text-violet-500" },
     { label: "Retenciones", value: retenciones, color: "text-amber-500" },
   ];
 
@@ -95,6 +102,19 @@ export function RevenueSummary({
             -{formatMoney(totalShipping, currencyId)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">envío gratis asumido por ti</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6">
+          <div className="flex items-center gap-2 text-violet-500">
+            <Target className="h-5 w-5" />
+            <span className="text-sm font-medium">Inversión en Publicidad</span>
+          </div>
+          <p className="mt-3 font-display text-2xl font-bold text-violet-500">
+            -{formatMoney(totalAds, currencyId)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">últimos 30 días</p>
         </div>
       </div>
 

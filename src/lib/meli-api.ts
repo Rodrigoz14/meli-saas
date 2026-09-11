@@ -73,6 +73,30 @@ async function meliFetchBilling<T>(path: string, accessToken: string): Promise<T
   return res.json();
 }
 
+async function fetchBillingSummaryDetails(accessToken: string, periodKey: string): Promise<BillingSummary> {
+  const details = await meliFetchBilling<MeliBillingSummaryDetails>(
+    `/billing/integration/periods/key/${periodKey}/summary/details?group=ML&document_type=BILL&limit=100`,
+    accessToken,
+  );
+
+  return {
+    periodFrom: details.period.date_from,
+    periodTo: details.period.date_to,
+    totalAmount: details.bill_includes.total_amount,
+    totalPerception: details.bill_includes.total_perception,
+    charges: details.bill_includes.charges.map((c) => ({
+      label: c.label,
+      amount: c.amount,
+      group: c.group_description.trim(),
+    })),
+    bonuses: details.bill_includes.bonuses.map((c) => ({
+      label: c.label,
+      amount: c.amount,
+      group: c.group_description.trim(),
+    })),
+  };
+}
+
 export async function getLatestClosedBillingSummary(accessToken: string): Promise<BillingSummary | null> {
   try {
     const periods = await meliFetchBilling<{ results: MeliBillingPeriod[] }>(
@@ -82,29 +106,67 @@ export async function getLatestClosedBillingSummary(accessToken: string): Promis
     const closed = periods.results.find((p) => p.period_status === "CLOSED");
     if (!closed) return null;
 
-    const details = await meliFetchBilling<MeliBillingSummaryDetails>(
-      `/billing/integration/periods/key/${closed.key}/summary/details?group=ML&document_type=BILL&limit=100`,
+    return await fetchBillingSummaryDetails(accessToken, closed.key);
+  } catch (err) {
+    console.error("getLatestClosedBillingSummary failed:", err);
+    return null;
+  }
+}
+
+function daysBetween(a: Date, b: Date) {
+  return (b.getTime() - a.getTime()) / 86400000;
+}
+
+// Mercado Libre factura por ciclos de calendario (ej. 5 de un mes al 4 del
+// siguiente), no por "últimos 30 días" — no hay un endpoint de métricas de
+// Ads con ventana móvil accesible para esta app (probado, devuelve 404). Para
+// aproximar una ventana real de últimos N días con datos 100% reales de la
+// factura, se prorratea el gasto de cada ciclo de facturación que se solape
+// con esa ventana, proporcional a cuántos días de ese ciclo caen dentro de
+// ella — no es una estimación inventada, es la misma plata real repartida
+// por día en vez de por ciclo calendario completo.
+export async function getRollingAdsSpend(accessToken: string, days = 30): Promise<number | null> {
+  try {
+    const periods = await meliFetchBilling<{ results: MeliBillingPeriod[] }>(
+      "/billing/integration/monthly/periods?group=ML&document_type=BILL&limit=6",
       accessToken,
     );
 
-    return {
-      periodFrom: details.period.date_from,
-      periodTo: details.period.date_to,
-      totalAmount: details.bill_includes.total_amount,
-      totalPerception: details.bill_includes.total_perception,
-      charges: details.bill_includes.charges.map((c) => ({
-        label: c.label,
-        amount: c.amount,
-        group: c.group_description.trim(),
-      })),
-      bonuses: details.bill_includes.bonuses.map((c) => ({
-        label: c.label,
-        amount: c.amount,
-        group: c.group_description.trim(),
-      })),
-    };
+    const windowEnd = new Date();
+    const windowStart = new Date(windowEnd.getTime() - days * 86400000);
+
+    const overlapping = periods.results.filter((p) => {
+      const from = new Date(p.period.date_from);
+      const to = new Date(p.period.date_to);
+      return from <= windowEnd && to >= windowStart;
+    });
+    if (overlapping.length === 0) return null;
+
+    const details = await Promise.all(
+      overlapping.map((p) => fetchBillingSummaryDetails(accessToken, p.key)),
+    );
+
+    let total = 0;
+    for (let i = 0; i < overlapping.length; i++) {
+      const period = overlapping[i];
+      const summary = details[i];
+      const periodFrom = new Date(period.period.date_from);
+      const periodTo = new Date(period.period.date_to);
+      const periodLengthDays = Math.max(daysBetween(periodFrom, periodTo), 1);
+
+      const overlapFrom = periodFrom > windowStart ? periodFrom : windowStart;
+      const overlapTo = periodTo < windowEnd ? periodTo : windowEnd;
+      const overlapDays = Math.max(daysBetween(overlapFrom, overlapTo), 0);
+
+      const adsInPeriod = summary.charges
+        .filter((c) => c.group === "Publicidad")
+        .reduce((sum, c) => sum + c.amount, 0);
+
+      total += adsInPeriod * (overlapDays / periodLengthDays);
+    }
+    return Math.round(total);
   } catch (err) {
-    console.error("getLatestClosedBillingSummary failed:", err);
+    console.error("getRollingAdsSpend failed:", err);
     return null;
   }
 }

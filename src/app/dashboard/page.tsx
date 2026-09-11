@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts } = data;
+  const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts, totalAds } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -98,6 +98,7 @@ export default async function DashboardPage() {
                     totalShipping={totalShipping}
                     totalCogs={totalCogs}
                     totalOperatingCosts={totalOperatingCosts}
+                    totalAds={totalAds}
                     taxWithholdingPercent={taxWithholdingPercent}
                   />
                 </div>

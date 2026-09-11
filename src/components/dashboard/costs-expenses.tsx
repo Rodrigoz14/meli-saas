@@ -677,6 +677,18 @@ function ExpensesTab({
           ))}
           {localTaxEntries.length === 0 && <p className="text-sm text-muted-foreground">No hay impuestos registrados.</p>}
         </div>
+        {currencyId === "COP" && (
+          <button
+            type="button"
+            onClick={() => {
+              setTaxLabel("Retención estimada (Colombia)");
+              setTaxPercent("0.57");
+            }}
+            className="mt-2 text-xs text-primary hover:underline"
+          >
+            + Sugerir retención estándar Colombia (~0.57% — ReteFuente/ReteICA, revisa antes de agregar)
+          </button>
+        )}
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <div className="min-w-[140px] flex-1 space-y-1">
             <Label className="text-xs">Concepto (ej: IVA, Renta)</Label>
