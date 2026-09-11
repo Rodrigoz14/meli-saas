@@ -28,6 +28,7 @@ async function meliFetch<T>(path: string, accessToken: string): Promise<T> {
   return res.json();
 }
 
+
 type MeliBillingPeriod = {
   key: string;
   amount: number;
@@ -365,9 +366,14 @@ export async function getOrderStats(
   accessToken: string,
   sellerId: number,
   days = 30,
+  range?: { from: Date; to: Date },
 ): Promise<Record<string, OrderStats>> {
-  const from = new Date();
-  from.setDate(from.getDate() - days);
+  const from = range?.from ?? (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d;
+  })();
+  const to = range?.to ?? new Date();
 
   const pageSize = 50;
   const maxOrders = 5000; // tope de seguridad
@@ -376,7 +382,7 @@ export async function getOrderStats(
     seller: String(sellerId),
     "order.status": "paid",
     "order.date_created.from": from.toISOString(),
-    "order.date_created.to": new Date().toISOString(),
+    "order.date_created.to": to.toISOString(),
     sort: "date_desc",
     limit: String(pageSize),
   };
@@ -476,4 +482,53 @@ export async function getSaleFee(
     console.error(`getSaleFee(${categoryId}, price=${price}) failed:`, err);
     return null;
   }
+}
+
+// La API de Visitas solo admite UN item por llamada ("maximum amount of
+// items to query is 1") — a diferencia de /items que acepta 20. Para
+// Analytics necesitamos el período actual Y el anterior (misma duración),
+// así que en vez de pedir /items/visits dos veces por producto se pide UNA
+// vez el desglose diario de los últimos `days*2` días
+// (/visits/time_window) y se parte localmente en dos mitades — la mitad de
+// las llamadas a la API para el mismo dato.
+async function getItemVisitsSplit(
+  accessToken: string,
+  itemId: string,
+  days: number,
+): Promise<{ current: number; previous: number }> {
+  try {
+    const data = await meliFetch<{ results?: { date: string; total: number }[] }>(
+      `/items/${itemId}/visits/time_window?last=${days * 2}&unit=day`,
+      accessToken,
+    );
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - days);
+
+    let current = 0;
+    let previous = 0;
+    for (const day of data.results ?? []) {
+      if (new Date(day.date) >= cutoff) current += day.total;
+      else previous += day.total;
+    }
+    return { current, previous };
+  } catch {
+    return { current: 0, previous: 0 };
+  }
+}
+
+export async function getVisitsSplitForItems(
+  accessToken: string,
+  itemIds: string[],
+  days: number,
+): Promise<{ current: Record<string, number>; previous: Record<string, number> }> {
+  const results = await mapWithConcurrency(itemIds, 25, (id) =>
+    getItemVisitsSplit(accessToken, id, days),
+  );
+  const current: Record<string, number> = {};
+  const previous: Record<string, number> = {};
+  itemIds.forEach((id, i) => {
+    current[id] = results[i].current;
+    previous[id] = results[i].previous;
+  });
+  return { current, previous };
 }
