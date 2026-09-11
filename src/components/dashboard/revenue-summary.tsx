@@ -155,6 +155,11 @@ export function RevenueSummary({
             )}
           </div>
         </div>
+        <div className="mt-4 flex justify-end">
+          <Link href="/dashboard/rentabilidad" className="text-xs text-emerald-600 hover:underline dark:text-emerald-400">
+            Ver margen de contribución y detalle por producto →
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6">

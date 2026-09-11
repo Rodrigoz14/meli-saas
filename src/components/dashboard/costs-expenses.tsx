@@ -178,7 +178,7 @@ function MlChargesTab({
       <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
         <span className="font-semibold text-foreground">Exclusivo de MeliBoost:</span> estos cargos se extraen
         automáticamente de tu factura real de Mercado Libre — no los escribes tú, y no cuentan dos veces en
-        Rentabilidad (Comisión y Envío ya se calculan por orden en otro lado).
+        el Dashboard (Comisión y Envío ya se calculan por orden en otro lado).
       </p>
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -527,7 +527,7 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
 
       <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
         <span className="font-semibold text-foreground">Importante:</span> el COGS que ingreses aquí se usa en{" "}
-        <span className="font-medium text-foreground">Rentabilidad</span> para calcular tu margen real.
+        <span className="font-medium text-foreground">Dashboard</span> para calcular tu margen real.
       </p>
     </div>
   );
@@ -814,8 +814,8 @@ function ExpensesTab({
       <div className="rounded-xl border border-border bg-card p-4">
         <p className="text-sm font-semibold">Impuestos (% sobre ventas)</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Registra impuestos como un porcentaje aplicado sobre tus ventas reales. Se muestran en Rentabilidad como
-          deducción.
+          Registra impuestos como un porcentaje aplicado sobre tus ventas reales. Se muestran en el Dashboard
+          como deducción.
         </p>
         <div className="mt-3 space-y-2">
           {localTaxEntries.map((tax) => (

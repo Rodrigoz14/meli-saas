@@ -77,14 +77,25 @@ export function SummaryCards({
         </div>
         <p className="mt-1 text-xs text-muted-foreground/70">Integridad de datos de COGS</p>
         <div className="mt-3 flex items-center gap-4">
-          <span
-            className={cn(
-              "font-display text-3xl font-bold",
-              completeness === 100 ? "text-emerald-500" : "text-amber-500",
-            )}
+          <div
+            className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: `conic-gradient(${
+                completeness === 100 ? "#10b981" : "#f59e0b"
+              } ${completeness}%, var(--muted) ${completeness}%)`,
+            }}
           >
-            {completeness}%
-          </span>
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
+              <span
+                className={cn(
+                  "text-sm font-bold",
+                  completeness === 100 ? "text-emerald-500" : "text-amber-500",
+                )}
+              >
+                {completeness}%
+              </span>
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
             {missing > 0
               ? `Faltan ${missing} producto${missing === 1 ? "" : "s"} sin costo asignado`
