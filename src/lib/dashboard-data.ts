@@ -1,11 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
+  getBillingData,
   getItemsDetails,
-  getLatestClosedBillingSummary,
   getMeliUser,
   getOrderStats,
-  getRollingAdsSpend,
   getSaleFee,
   getUserItemIds,
   type BillingSummary,
@@ -115,12 +114,9 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + t.percent, 0);
 
     const meliUser = await getMeliUser(accessToken);
-    const [closedBilling, rollingAds] = await Promise.all([
-      getLatestClosedBillingSummary(accessToken),
-      getRollingAdsSpend(accessToken, 30),
-    ]);
-    billingSummary = closedBilling;
-    totalAds = rollingAds ?? 0;
+    const billingData = await getBillingData(accessToken, 30);
+    billingSummary = billingData.closedSummary;
+    totalAds = billingData.rollingAdsSpend ?? 0;
     operatingCosts = [...buildAutoOperatingCosts(billingSummary), ...operatingCosts];
     const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const items = await getItemsDetails(accessToken, itemIds);

@@ -93,6 +93,27 @@ export async function bulkAddOperatingCosts(
   return { added: valid.length };
 }
 
+export async function updateOperatingCost(
+  costEntryId: string,
+  label: string,
+  amount: number,
+  category: string,
+  isFixed: boolean,
+) {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+  if (!label.trim() || amount <= 0) return null;
+
+  const entry = await prisma.costEntry.updateMany({
+    where: { id: costEntryId, userId: session.user.id },
+    data: { label: label.trim(), amount, isFixed, category: category.trim() || "Otros" },
+  });
+  if (entry.count === 0) return null;
+
+  revalidateDashboards();
+  return { id: costEntryId, label: label.trim(), amount, category: category.trim() || "Otros", isFixed };
+}
+
 export async function deleteOperatingCost(costEntryId: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");

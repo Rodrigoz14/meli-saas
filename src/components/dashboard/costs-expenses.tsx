@@ -6,13 +6,16 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
   Clock,
   Download,
   Package,
+  Pencil,
   RefreshCw,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +30,7 @@ import {
   bulkUpdateProductCosts,
   deleteOperatingCost,
   deleteTaxEntry,
+  updateOperatingCost,
   updateProductCosts,
 } from "@/app/dashboard/actions";
 
@@ -436,6 +440,11 @@ function ExpensesTab({
   const [taxLabel, setTaxLabel] = useState("");
   const [taxPercent, setTaxPercent] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editCategory, setEditCategory] = useState("Otros");
+  const [editIsFixed, setEditIsFixed] = useState(true);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -484,6 +493,39 @@ function ExpensesTab({
     setLocalCosts((prev) => prev.filter((c) => c.id !== id));
     startTransition(async () => {
       await deleteOperatingCost(id);
+    });
+  }
+
+  function startEdit(cost: OperatingCost) {
+    setEditingId(cost.id);
+    setEditLabel(cost.label);
+    setEditAmount(String(cost.amount));
+    setEditCategory(cost.category);
+    setEditIsFixed(cost.isFixed);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  function saveEdit(id: string) {
+    const amountValue = Number(editAmount);
+    if (!editLabel.trim() || !amountValue) return;
+    const labelValue = editLabel.trim();
+    const categoryValue = editCategory.trim() || "Otros";
+    setLocalCosts((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, label: labelValue, amount: amountValue, category: categoryValue, isFixed: editIsFixed } : c,
+      ),
+    );
+    setEditingId(null);
+    startTransition(async () => {
+      const updated = await updateOperatingCost(id, labelValue, amountValue, categoryValue, editIsFixed);
+      if (updated) {
+        toast.success("Gasto actualizado");
+      } else {
+        toast.error("No se pudo actualizar el gasto");
+      }
     });
   }
 
@@ -718,47 +760,105 @@ function ExpensesTab({
               </tr>
             </thead>
             <tbody>
-              {localCosts.map((cost) => (
-                <tr key={cost.id} className="border-b border-border/60 last:border-0">
-                  <td className="py-2 pr-3 font-medium">
-                    <span className="inline-flex items-center gap-1.5">
-                      {cost.label}
-                      {cost.source === "ml" && (
-                        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-normal text-primary">
-                          Automático (ML)
-                        </span>
+              {localCosts.map((cost) => {
+                if (editingId === cost.id) {
+                  return (
+                    <tr key={cost.id} className="border-b border-border/60 last:border-0 bg-muted/30">
+                      <td className="py-2 pr-3">
+                        <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-8" />
+                      </td>
+                      <td className="py-2 pr-3">
+                        <select
+                          value={editCategory}
+                          onChange={(e) => setEditCategory(e.target.value)}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          {CATEGORY_OPTIONS.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <select
+                          value={editIsFixed ? "fijo" : "variable"}
+                          onChange={(e) => setEditIsFixed(e.target.value === "fijo")}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                        >
+                          <option value="fijo">Fijo (mensual)</option>
+                          <option value="variable">Variable</option>
+                        </select>
+                      </td>
+                      <td className="py-2 pr-3 text-right">
+                        <Input
+                          type="number"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="h-8 text-right"
+                        />
+                      </td>
+                      <td className="py-2 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => saveEdit(cost.id)} aria-label="Guardar gasto" className="text-emerald-500 hover:text-emerald-600">
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button onClick={cancelEdit} aria-label="Cancelar edición" className="text-muted-foreground hover:text-destructive">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                return (
+                  <tr key={cost.id} className="border-b border-border/60 last:border-0">
+                    <td className="py-2 pr-3 font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        {cost.label}
+                        {cost.source === "ml" && (
+                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-normal text-primary">
+                            Automático (ML)
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-muted-foreground">{cost.category}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs",
+                          cost.isFixed ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500",
+                        )}
+                      >
+                        {cost.isFixed ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Fijo/mes
+                          </span>
+                        ) : (
+                          "Variable"
+                        )}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-right text-amber-600 dark:text-amber-400">
+                      {formatMoney(cost.amount, currencyId)}
+                    </td>
+                    <td className="py-2 text-right">
+                      {cost.source !== "ml" && (
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => startEdit(cost)} aria-label="Editar gasto" className="text-muted-foreground hover:text-primary">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(cost.id)} aria-label="Eliminar gasto" className="text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       )}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-3 text-muted-foreground">{cost.category}</td>
-                  <td className="py-2 pr-3">
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-xs",
-                        cost.isFixed ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500",
-                      )}
-                    >
-                      {cost.isFixed ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> Fijo/mes
-                        </span>
-                      ) : (
-                        "Variable"
-                      )}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-3 text-right text-amber-600 dark:text-amber-400">
-                    {formatMoney(cost.amount, currencyId)}
-                  </td>
-                  <td className="py-2 text-right">
-                    {cost.source !== "ml" && (
-                      <button onClick={() => handleDelete(cost.id)} aria-label="Eliminar gasto" className="text-muted-foreground hover:text-destructive">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
               {localCosts.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-4 text-center text-muted-foreground">

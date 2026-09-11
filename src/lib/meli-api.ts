@@ -61,11 +61,19 @@ export type BillingSummary = {
 // calculada por orden no captura (publicidad, asesoría comercial, Full,
 // devoluciones) y las bonificaciones que Mercado Libre devuelve. Best-effort:
 // si la cuenta no tiene historial de facturación todavía, devuelve null.
-async function meliFetchBilling<T>(path: string, accessToken: string): Promise<T> {
+// El rate limit de la API de Facturación de ML es angosto y se dispara con
+// facilidad cuando dos páginas piden datos de facturación casi al mismo
+// tiempo (429 "local_rate_limited") — es transitorio, así que reintenta un
+// par de veces con espera antes de darse por vencido.
+async function meliFetchBilling<T>(path: string, accessToken: string, attempt = 0): Promise<T> {
   const res = await fetch(`${MELI_API}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}`, "Api-Version": "2" },
     cache: "no-store",
   });
+  if (res.status === 429 && attempt < 2) {
+    await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+    return meliFetchBilling<T>(path, accessToken, attempt + 1);
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Mercado Libre Billing API ${path} -> ${res.status}: ${body}`);
@@ -97,26 +105,23 @@ async function fetchBillingSummaryDetails(accessToken: string, periodKey: string
   };
 }
 
-export async function getLatestClosedBillingSummary(accessToken: string): Promise<BillingSummary | null> {
-  try {
-    const periods = await meliFetchBilling<{ results: MeliBillingPeriod[] }>(
-      "/billing/integration/monthly/periods?group=ML&document_type=BILL&limit=6",
-      accessToken,
-    );
-    const closed = periods.results.find((p) => p.period_status === "CLOSED");
-    if (!closed) return null;
-
-    return await fetchBillingSummaryDetails(accessToken, closed.key);
-  } catch (err) {
-    console.error("getLatestClosedBillingSummary failed:", err);
-    return null;
-  }
-}
-
 function daysBetween(a: Date, b: Date) {
   return (b.getTime() - a.getTime()) / 86400000;
 }
 
+export type BillingData = {
+  closedSummary: BillingSummary | null;
+  rollingAdsSpend: number | null;
+};
+
+// Junta en una sola pasada lo que antes eran dos funciones separadas
+// (factura del período cerrado + gasto de Ads en ventana móvil): ambas
+// necesitaban la misma lista de períodos y, casi siempre, el mismo detalle
+// del período cerrado — pedirlo dos veces duplicaba las llamadas a la API de
+// Facturación de ML y terminaba disparando su rate limit (429) cuando se
+// navegaba rápido entre Rentabilidad y Costos y Gastos, dejando la página
+// sin datos. Acá cada período se pide como máximo una vez.
+//
 // Mercado Libre factura por ciclos de calendario (ej. 5 de un mes al 4 del
 // siguiente), no por "últimos 30 días" — no hay un endpoint de métricas de
 // Ads con ventana móvil accesible para esta app (probado, devuelve 404). Para
@@ -125,31 +130,71 @@ function daysBetween(a: Date, b: Date) {
 // con esa ventana, proporcional a cuántos días de ese ciclo caen dentro de
 // ella — no es una estimación inventada, es la misma plata real repartida
 // por día en vez de por ciclo calendario completo.
-export async function getRollingAdsSpend(accessToken: string, days = 30): Promise<number | null> {
+// La factura de un período no cambia de un minuto a otro, así que no vale la
+// pena volver a pedirla cada vez que se navega entre Rentabilidad y Costos y
+// Gastos dentro de la misma sesión — eso era justo lo que agotaba el rate
+// limit de la API de Facturación de ML. Cache en memoria con TTL corto.
+const billingCache = new Map<string, { data: BillingData; expiresAt: number }>();
+const BILLING_CACHE_TTL_MS = 10 * 60 * 1000;
+
+export async function getBillingData(accessToken: string, days = 30): Promise<BillingData> {
+  const cacheKey = `${accessToken}:${days}`;
+  const cached = billingCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   try {
-    const periods = await meliFetchBilling<{ results: MeliBillingPeriod[] }>(
-      "/billing/integration/monthly/periods?group=ML&document_type=BILL&limit=6",
-      accessToken,
-    );
+    const result = await fetchBillingData(accessToken, days);
+    billingCache.set(cacheKey, { data: result, expiresAt: Date.now() + BILLING_CACHE_TTL_MS });
+    return result;
+  } catch (err) {
+    // No cachear un fallo total (ej. rate limit) — que la próxima carga
+    // pueda reintentar en vez de quedarse 10 minutos sin datos.
+    console.error("getBillingData failed:", err);
+    return { closedSummary: null, rollingAdsSpend: null };
+  }
+}
 
-    const windowEnd = new Date();
-    const windowStart = new Date(windowEnd.getTime() - days * 86400000);
+async function fetchBillingData(accessToken: string, days: number): Promise<BillingData> {
+  const periods = await meliFetchBilling<{ results: MeliBillingPeriod[] }>(
+    "/billing/integration/monthly/periods?group=ML&document_type=BILL&limit=6",
+    accessToken,
+  );
 
-    const overlapping = periods.results.filter((p) => {
-      const from = new Date(p.period.date_from);
-      const to = new Date(p.period.date_to);
-      return from <= windowEnd && to >= windowStart;
-    });
-    if (overlapping.length === 0) return null;
+  const closed = periods.results.find((p) => p.period_status === "CLOSED") ?? null;
 
-    const details = await Promise.all(
-      overlapping.map((p) => fetchBillingSummaryDetails(accessToken, p.key)),
-    );
+  const windowEnd = new Date();
+  const windowStart = new Date(windowEnd.getTime() - days * 86400000);
+  const overlapping = periods.results.filter((p) => {
+    const from = new Date(p.period.date_from);
+    const to = new Date(p.period.date_to);
+    return from <= windowEnd && to >= windowStart;
+  });
 
+  // Un solo fetch por período distinto, aunque se use para ambas cosas.
+  const keysToFetch = new Set<string>(overlapping.map((p) => p.key));
+  if (closed) keysToFetch.add(closed.key);
+
+  const detailsByKey = new Map<string, BillingSummary>();
+  await Promise.all(
+    [...keysToFetch].map(async (key) => {
+      try {
+        detailsByKey.set(key, await fetchBillingSummaryDetails(accessToken, key));
+      } catch (err) {
+        console.error(`fetchBillingSummaryDetails(${key}) failed:`, err);
+      }
+    }),
+  );
+
+  const closedSummary = closed ? (detailsByKey.get(closed.key) ?? null) : null;
+
+  let rollingAdsSpend: number | null = null;
+  if (overlapping.length > 0) {
     let total = 0;
-    for (let i = 0; i < overlapping.length; i++) {
-      const period = overlapping[i];
-      const summary = details[i];
+    for (const period of overlapping) {
+      const summary = detailsByKey.get(period.key);
+      if (!summary) continue;
       const periodFrom = new Date(period.period.date_from);
       const periodTo = new Date(period.period.date_to);
       const periodLengthDays = Math.max(daysBetween(periodFrom, periodTo), 1);
@@ -164,11 +209,10 @@ export async function getRollingAdsSpend(accessToken: string, days = 30): Promis
 
       total += adsInPeriod * (overlapDays / periodLengthDays);
     }
-    return Math.round(total);
-  } catch (err) {
-    console.error("getRollingAdsSpend failed:", err);
-    return null;
+    rollingAdsSpend = Math.round(total);
   }
+
+  return { closedSummary, rollingAdsSpend };
 }
 
 // Refresca el access_token si está vencido (o vence en menos de 1 minuto) y
