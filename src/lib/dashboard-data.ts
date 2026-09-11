@@ -60,6 +60,7 @@ export type RentabilidadData =
       errorMessage: string | null;
       rows: ProfitabilityRow[];
       operatingCosts: OperatingCostEntry[];
+      autoExpenses: OperatingCostEntry[];
       taxEntries: TaxEntry[];
       taxWithholdingPercent: number;
       orderStats: Record<string, OrderStats>;
@@ -78,6 +79,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
   let rows: ProfitabilityRow[] = [];
   let errorMessage: string | null = null;
   let operatingCosts: OperatingCostEntry[] = [];
+  let autoExpenses: OperatingCostEntry[] = [];
   let taxEntries: TaxEntry[] = [];
   let taxWithholdingPercent = 0;
   let orderStats: Record<string, OrderStats> = {};
@@ -117,7 +119,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     const billingData = await getBillingData(accessToken, 30);
     billingSummary = billingData.closedSummary;
     totalAds = billingData.rollingAdsSpend ?? 0;
-    operatingCosts = [...buildAutoOperatingCosts(billingSummary), ...operatingCosts];
+    autoExpenses = buildAutoOperatingCosts(billingSummary);
     const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const items = await getItemsDetails(accessToken, itemIds);
     orderStats = await getOrderStats(accessToken, meliUser.id, 30);
@@ -174,6 +176,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     errorMessage,
     rows,
     operatingCosts,
+    autoExpenses,
     taxEntries,
     taxWithholdingPercent,
     orderStats,

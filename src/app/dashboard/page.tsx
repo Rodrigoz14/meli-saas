@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     );
   }
 
-  const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts, totalAds } = data;
+  const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts, autoExpenses, totalAds } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -85,7 +85,13 @@ export default async function DashboardPage() {
             const totalShipping = allOrderStats.reduce((sum, s) => sum + s.shipping, 0);
             // COGS solo se conoce para publicaciones activas con costo asignado.
             const totalCogs = rows.reduce((sum, r) => sum + r.cogs * r.unitsSold30d, 0);
-            const totalOperatingCosts = operatingCosts.reduce((sum, c) => sum + c.amount, 0);
+            // Total costos operativos = lo que el usuario registra a mano +
+            // los cargos reales que Mercado Libre ya facturó (Asesoría, Full,
+            // eShop) — aunque estos últimos se muestren en su propia pestaña
+            // en Costos y Gastos, siguen siendo plata real que hay que restar.
+            const totalOperatingCosts =
+              operatingCosts.reduce((sum, c) => sum + c.amount, 0) +
+              autoExpenses.reduce((sum, c) => sum + c.amount, 0);
 
             return (
               <>

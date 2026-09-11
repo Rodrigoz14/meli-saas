@@ -10,8 +10,11 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  Gift,
+  Landmark,
   Package,
   Pencil,
+  Receipt,
   RefreshCw,
   Trash2,
   Upload,
@@ -83,50 +86,163 @@ function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; 
   const totalBonuses = summary.bonuses.reduce((sum, c) => sum + c.amount, 0);
 
   return (
-    <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold">Factura Real de Mercado Libre</p>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-          Período {formatDate(summary.periodFrom)} – {formatDate(summary.periodTo)}
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <Receipt className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">Factura Real de Mercado Libre</p>
+            <p className="text-xs text-muted-foreground">
+              {formatDate(summary.periodFrom)} – {formatDate(summary.periodTo)}
+            </p>
+          </div>
+        </div>
+        <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
+          Ciclo de facturación oficial
         </span>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
-        Factura oficial y cerrada de tu cuenta de Mercado Libre — incluye cargos que la rentabilidad
-        calculada por orden no captura (publicidad, asesoría comercial, envíos Full, devoluciones).
-      </p>
-      <div className="mt-3 grid gap-4 sm:grid-cols-2">
+
+      <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+          <p className="text-xs text-muted-foreground">Total Cargos</p>
+          <p className="mt-1 text-lg font-bold text-rose-500">{formatMoney(totalCharges, currencyId)}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+          <p className="text-xs text-muted-foreground">Total Bonificaciones</p>
+          <p className="mt-1 text-lg font-bold text-emerald-500">{formatMoney(totalBonuses, currencyId)}</p>
+        </div>
+        <div className="rounded-xl border border-primary/30 bg-primary/10 p-4">
+          <p className="text-xs text-muted-foreground">Total Facturado</p>
+          <p className="mt-1 text-lg font-bold text-primary">{formatMoney(summary.totalAmount, currencyId)}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 border-t border-border p-5 sm:grid-cols-2">
         <div>
-          <p className="text-xs font-medium text-rose-500">Cargos ({formatMoney(totalCharges, currencyId)})</p>
-          <div className="mt-2 space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-rose-500">
+            <Receipt className="h-3.5 w-3.5" /> Cargos
+          </p>
+          <div className="mt-3 space-y-2">
             {summary.charges.map((c, i) => (
-              <div key={i} className="flex items-center justify-between gap-3 text-xs">
+              <div
+                key={i}
+                className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 px-3 py-2 text-xs"
+              >
                 <span className="text-muted-foreground">{c.label}</span>
-                <span className="shrink-0">{formatMoney(c.amount, currencyId)}</span>
+                <span className="shrink-0 font-medium">{formatMoney(c.amount, currencyId)}</span>
               </div>
             ))}
           </div>
         </div>
         <div>
-          <p className="text-xs font-medium text-emerald-500">
-            Bonificaciones ({formatMoney(totalBonuses, currencyId)})
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-500">
+            <Gift className="h-3.5 w-3.5" /> Bonificaciones
           </p>
-          <div className="mt-2 space-y-1.5">
+          <div className="mt-3 space-y-2">
             {summary.bonuses.length === 0 && (
               <p className="text-xs text-muted-foreground">Sin bonificaciones.</p>
             )}
             {summary.bonuses.map((c, i) => (
-              <div key={i} className="flex items-center justify-between gap-3 text-xs">
+              <div
+                key={i}
+                className="flex items-center justify-between gap-3 rounded-lg bg-emerald-500/5 px-3 py-2 text-xs"
+              >
                 <span className="text-muted-foreground">{c.label}</span>
-                <span className="shrink-0 text-emerald-500">{formatMoney(c.amount, currencyId)}</span>
+                <span className="shrink-0 font-medium text-emerald-500">{formatMoney(c.amount, currencyId)}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <div className="mt-4 flex items-center justify-between rounded-lg bg-muted px-3 py-2 text-sm font-semibold">
-        <span>Total facturado</span>
-        <span>{formatMoney(summary.totalAmount, currencyId)}</span>
+    </div>
+  );
+}
+
+function MlChargesTab({
+  autoExpenses,
+  billingSummary,
+  currencyId,
+}: {
+  autoExpenses: OperatingCost[];
+  billingSummary: BillingSummary | null;
+  currencyId: string;
+}) {
+  const totalFixed = autoExpenses.filter((c) => c.isFixed).reduce((sum, c) => sum + c.amount, 0);
+  const totalVariable = autoExpenses.filter((c) => !c.isFixed).reduce((sum, c) => sum + c.amount, 0);
+  const total = totalFixed + totalVariable;
+
+  return (
+    <div className="space-y-4">
+      <p className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">Exclusivo de MeliBoost:</span> estos cargos se extraen
+        automáticamente de tu factura real de Mercado Libre — no los escribes tú, y no cuentan dos veces en
+        Rentabilidad (Comisión y Envío ya se calculan por orden en otro lado).
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+          <p className="text-xs text-muted-foreground">Fijos (mes)</p>
+          <p className="mt-1 text-xl font-bold text-rose-500">{formatMoney(totalFixed, currencyId)}</p>
+        </div>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+          <p className="text-xs text-muted-foreground">Variables</p>
+          <p className="mt-1 text-xl font-bold text-amber-500">{formatMoney(totalVariable, currencyId)}</p>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Total Automático</p>
+          <p className="mt-1 text-xl font-bold">{formatMoney(total, currencyId)}</p>
+        </div>
       </div>
+
+      {autoExpenses.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <p className="text-sm font-semibold">Cargos Automáticos ({autoExpenses.length})</p>
+          <div className="mt-3 space-y-2">
+            {autoExpenses.map((cost) => (
+              <div
+                key={cost.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <span>{cost.label.replace(" (ML)", "")}</span>
+                  <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+                    {cost.category}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      "rounded-full px-2 py-0.5 text-xs",
+                      cost.isFixed ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500",
+                    )}
+                  >
+                    {cost.isFixed ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> Fijo/mes
+                      </span>
+                    ) : (
+                      "Variable"
+                    )}
+                  </span>
+                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                    {formatMoney(cost.amount, currencyId)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {billingSummary ? (
+        <BillingSummaryCard summary={billingSummary} currencyId={currencyId} />
+      ) : (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          Todavía no hay una factura cerrada disponible en tu cuenta de Mercado Libre.
+        </p>
+      )}
     </div>
   );
 }
@@ -421,12 +537,10 @@ function ExpensesTab({
   currencyId,
   costs,
   taxEntries,
-  billingSummary,
 }: {
   currencyId: string;
   costs: OperatingCost[];
   taxEntries: TaxEntryItem[];
-  billingSummary: BillingSummary | null;
 }) {
   const router = useRouter();
   const [prevCosts, setPrevCosts] = useState(costs);
@@ -608,8 +722,6 @@ function ExpensesTab({
           <p className="mt-1 text-xl font-bold">{formatMoney(total, currencyId)}</p>
         </div>
       </div>
-
-      {billingSummary && <BillingSummaryCard summary={billingSummary} currencyId={currencyId} />}
 
       {byCategory.length > 0 && (
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -878,12 +990,14 @@ export function CostsExpensesSection({
   currencyId,
   products,
   operatingCosts,
+  autoExpenses,
   taxEntries,
   billingSummary,
 }: {
   currencyId: string;
   products: CostProduct[];
   operatingCosts: OperatingCost[];
+  autoExpenses: OperatingCost[];
   taxEntries: TaxEntryItem[];
   billingSummary: BillingSummary | null;
 }) {
@@ -892,20 +1006,21 @@ export function CostsExpensesSection({
       <TabsList>
         <TabsTrigger value="gastos">Gastos Operativos</TabsTrigger>
         <TabsTrigger value="costos">Costos de Producto (COGS)</TabsTrigger>
+        <TabsTrigger value="facturacion-ml">
+          <Landmark className="mr-1.5 h-3.5 w-3.5" /> Facturación ML
+        </TabsTrigger>
         <TabsTrigger value="calculadora" disabled>
           <Clock className="mr-1.5 h-3.5 w-3.5" /> Calculadora
         </TabsTrigger>
       </TabsList>
       <TabsContent value="gastos" className="mt-6">
-        <ExpensesTab
-          currencyId={currencyId}
-          costs={operatingCosts}
-          taxEntries={taxEntries}
-          billingSummary={billingSummary}
-        />
+        <ExpensesTab currencyId={currencyId} costs={operatingCosts} taxEntries={taxEntries} />
       </TabsContent>
       <TabsContent value="costos" className="mt-6">
         <CostsTab products={products} currencyId={currencyId} />
+      </TabsContent>
+      <TabsContent value="facturacion-ml" className="mt-6">
+        <MlChargesTab autoExpenses={autoExpenses} billingSummary={billingSummary} currencyId={currencyId} />
       </TabsContent>
       <TabsContent value="calculadora" className="mt-6">
         <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
