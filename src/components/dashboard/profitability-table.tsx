@@ -194,10 +194,10 @@ function Row({
         <TableCell className="text-right">
           {row.ads ? (
             <div className="flex flex-col items-end">
-              <span className="font-medium text-violet-500">{row.ads.ctr.toFixed(2)}%</span>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="font-medium text-violet-500">
                 {row.ads.clicks.toLocaleString()} clics / {formatMoney(row.ads.cost, row.currencyId)}
               </span>
+              <span className="text-[10px] text-muted-foreground">{row.ads.ctr.toFixed(2)}%</span>
             </div>
           ) : (
             <span className="text-muted-foreground/60">Sin Ads</span>
