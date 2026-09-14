@@ -6,6 +6,11 @@ export type MeliItem = {
   id: string;
   title: string;
   price: number;
+  // Precio antes del descuento activo — Mercado Libre lo manda en null si
+  // la publicación no tiene ninguna oferta corriendo. `price` ya viene con
+  // el descuento aplicado (coincide con lo que se ve en la publicación real),
+  // esto es solo para poder mostrar que ES un precio de oferta.
+  original_price: number | null;
   currency_id: string;
   thumbnail: string;
   category_id: string;

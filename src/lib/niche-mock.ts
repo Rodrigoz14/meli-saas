@@ -23,6 +23,10 @@ export type NicheRow = {
   id: string;
   title: string;
   price: number;
+  // Precio antes del descuento activo de esa publicación — null si no
+  // tiene ninguna oferta corriendo. Real, extraído del HTML de Mercado
+  // Libre por la extensión (no aplica al mock, que no tiene esa columna).
+  originalPrice?: number | null;
   visits: number;
   estimatedRevenue: number;
   isFull: boolean;

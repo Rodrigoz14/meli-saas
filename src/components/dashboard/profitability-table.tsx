@@ -26,6 +26,9 @@ export type ProfitabilityRow = {
   thumbnail: string;
   permalink: string;
   price: number;
+  // Precio antes del descuento activo, real de Mercado Libre — null si la
+  // publicación no tiene ninguna oferta corriendo en este momento.
+  originalPrice: number | null;
   currencyId: string;
   availableQuantity: number;
   saleFee: number;
@@ -155,7 +158,18 @@ function Row({
       </TableCell>
       <TableCell className="text-center">{row.unitsSold30d}</TableCell>
       <TableCell>{formatMoney(row.revenue30d, row.currencyId)}</TableCell>
-      <TableCell>{formatMoney(row.price, row.currencyId)}</TableCell>
+      <TableCell>
+        {row.originalPrice && row.originalPrice > row.price ? (
+          <div className="flex flex-col">
+            <span className="font-semibold text-emerald-500">{formatMoney(row.price, row.currencyId)}</span>
+            <span className="text-xs text-muted-foreground line-through">
+              {formatMoney(row.originalPrice, row.currencyId)}
+            </span>
+          </div>
+        ) : (
+          formatMoney(row.price, row.currencyId)
+        )}
+      </TableCell>
       <TableCell>
         <InlineCogsInput
           productId={row.productId}

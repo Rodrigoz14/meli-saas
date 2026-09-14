@@ -197,10 +197,14 @@ function render() {
       ? `<img class="thumb" src="${row.thumbnail}" alt="" />`
       : `<div class="thumb"></div>`;
 
+    const priceHtml = row.originalPrice
+      ? `<span style="color: var(--emerald); font-weight: 700">${money(row.price)}</span><br/><span style="text-decoration: line-through; color: var(--muted-foreground); font-size: 11px">${money(row.originalPrice)}</span>`
+      : money(row.price);
+
     tr.innerHTML = `
       <td>${thumbHtml}</td>
       <td class="title-cell" title="${escapeHtml(row.title)}">${escapeHtml(row.title)}${row.isFull ? ' <span class="full-badge">⚡Full</span>' : ""}</td>
-      <td>${money(row.price)}</td>
+      <td>${priceHtml}</td>
       <td>${row.visits.toLocaleString("es")}</td>
       <td>${money(row.estimatedRevenue)}</td>
     `;

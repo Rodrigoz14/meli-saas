@@ -163,6 +163,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
           thumbnail: item.thumbnail,
           permalink: item.permalink,
           price: item.price,
+          originalPrice: item.original_price ?? null,
           currencyId: item.currency_id,
           availableQuantity: item.available_quantity,
           saleFee: saleFee ?? 0,

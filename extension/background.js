@@ -125,6 +125,20 @@ async function scrapeMeliSearchResults() {
     return null;
   }
 
+  // Cuando una publicación tiene un descuento activo, Mercado Libre pinta
+  // DOS precios: el anterior (tachado, envuelto en un <s> o en un
+  // contenedor con clase que incluye "previous") y el actual — y el
+  // anterior aparece PRIMERO en el DOM. Tomar sin más "el primer precio
+  // encontrado" agarraba el precio viejo (más alto) en vez del que de
+  // verdad se cobra hoy. Esto separa ambos explícitamente.
+  function pickPriceFractions(card) {
+    const all = [...card.querySelectorAll(PRICE_SELECTOR)];
+    const isPrevious = (el) => Boolean(el.closest('s, [class*="previous"]'));
+    const current = all.find((el) => !isPrevious(el));
+    const previous = all.find((el) => isPrevious(el));
+    return { current: current || all[0] || null, previous: previous || null };
+  }
+
   function extractFromCard(card) {
     const link =
       card.querySelector(
@@ -136,10 +150,13 @@ async function scrapeMeliSearchResults() {
     const title = (titleEl?.textContent || link?.getAttribute("aria-label") || link?.title || "").trim();
     if (!title) return null;
 
-    const priceFractionEl = card.querySelector(PRICE_SELECTOR);
+    const { current: priceFractionEl, previous: previousFractionEl } = pickPriceFractions(card);
     const priceDigits = priceFractionEl?.textContent?.replace(/\D/g, "") || "";
     const price = priceDigits ? parseInt(priceDigits, 10) : 0;
     if (!price) return null;
+
+    const previousDigits = previousFractionEl?.textContent?.replace(/\D/g, "") || "";
+    const originalPrice = previousDigits ? parseInt(previousDigits, 10) : null;
 
     const imgEl = card.querySelector("img");
     const image = imgEl?.getAttribute("src") || imgEl?.getAttribute("data-src") || "";
@@ -148,7 +165,7 @@ async function scrapeMeliSearchResults() {
     const isFull = /\bfull\b/i.test(cardText);
     const isCatalog = /cat[aá]logo/i.test(cardText);
 
-    return { title, price, image, permalink, isFull, isCatalog };
+    return { title, price, originalPrice, image, permalink, isFull, isCatalog };
   }
 
   // Preferimos que la búsqueda tarde (hasta ~1 minuto en total está bien)
@@ -460,6 +477,7 @@ async function runNicheSearchInner(query, site) {
       id: `real-${i}`,
       title: item.title,
       price: item.price,
+      originalPrice: item.originalPrice && item.originalPrice > item.price ? item.originalPrice : null,
       visits: estimatedVisits,
       estimatedRevenue: Math.round(item.price * estimatedVisits * ASSUMED_CONVERSION_RATE),
       isFull: item.isFull,

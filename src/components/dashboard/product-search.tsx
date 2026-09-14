@@ -238,7 +238,18 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
                   )}
                 </TableCell>
                 <TableCell className="text-center">{row.visits.toLocaleString("es")}</TableCell>
-                <TableCell>{money(row.price, currencyId)}</TableCell>
+                <TableCell>
+                  {row.originalPrice && row.originalPrice > row.price ? (
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-emerald-500">{money(row.price, currencyId)}</span>
+                      <span className="text-xs text-muted-foreground line-through">
+                        {money(row.originalPrice, currencyId)}
+                      </span>
+                    </div>
+                  ) : (
+                    money(row.price, currencyId)
+                  )}
+                </TableCell>
                 <TableCell className="font-semibold">{money(row.estimatedRevenue, currencyId)}</TableCell>
                 <TableCell className="text-center">
                   {row.isCatalog ? (
