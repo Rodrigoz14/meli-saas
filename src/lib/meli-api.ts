@@ -310,6 +310,65 @@ export async function getItemsDetails(accessToken: string, ids: string[]) {
   return results;
 }
 
+type MeliPriceEntry = {
+  type: string;
+  amount: number;
+  regular_amount: number | null;
+  conditions?: { start_time: string | null; end_time: string | null };
+};
+
+function isPriceEntryActive(entry: MeliPriceEntry, now: number): boolean {
+  const start = entry.conditions?.start_time ? new Date(entry.conditions.start_time).getTime() : null;
+  const end = entry.conditions?.end_time ? new Date(entry.conditions.end_time).getTime() : null;
+  if (start && now < start) return false;
+  if (end && now > end) return false;
+  return true;
+}
+
+// El precio/original_price del endpoint /items (arriba) queda desactualizado
+// en cuanto Mercado Libre corre una campaña con ventana de tiempo propia
+// (ej. "Oferta", con start_time/end_time) — confirmado real: para un
+// producto con una campaña activa, /items devolvía $32.760 mientras la
+// publicación real ya mostraba $30.240 (el precio de la campaña vigente).
+// Este endpoint dedicado SÍ tiene la campaña vigente con su ventana de
+// fechas, así que es la fuente de verdad para el precio que el comprador
+// ve hoy — se usa para pisar price/originalPrice de getItemsDetails.
+async function getItemEffectivePrice(
+  accessToken: string,
+  itemId: string,
+  fallbackPrice: number,
+): Promise<{ price: number; originalPrice: number | null }> {
+  try {
+    const data = await meliFetch<{ prices: MeliPriceEntry[] }>(`/items/${itemId}/prices`, accessToken);
+    const now = Date.now();
+    const activePromos = (data.prices ?? []).filter(
+      (p) => p.type === "promotion" && isPriceEntryActive(p, now),
+    );
+    if (activePromos.length > 0) {
+      const best = activePromos.reduce((min, p) => (p.amount < min.amount ? p : min));
+      return { price: best.amount, originalPrice: best.regular_amount ?? null };
+    }
+    const standard = (data.prices ?? []).find((p) => p.type === "standard");
+    return { price: standard?.amount ?? fallbackPrice, originalPrice: null };
+  } catch {
+    return { price: fallbackPrice, originalPrice: null };
+  }
+}
+
+export async function getEffectivePrices(
+  accessToken: string,
+  items: { id: string; price: number }[],
+): Promise<Record<string, { price: number; originalPrice: number | null }>> {
+  const results = await mapWithConcurrency(items, 25, (item) =>
+    getItemEffectivePrice(accessToken, item.id, item.price),
+  );
+  const byId: Record<string, { price: number; originalPrice: number | null }> = {};
+  items.forEach((item, i) => {
+    byId[item.id] = results[i];
+  });
+  return byId;
+}
+
 type MeliOrder = {
   order_items?: {
     item?: { id?: string };

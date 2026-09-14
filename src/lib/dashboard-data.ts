@@ -3,6 +3,7 @@ import {
   ensureFreshMeliToken,
   getAdsItemMetrics,
   getBillingData,
+  getEffectivePrices,
   getItemsDetails,
   getMeliUser,
   getOrderStats,
@@ -131,25 +132,31 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     adsConnected = adsMetrics !== null;
     autoExpenses = buildAutoOperatingCosts(billingSummary);
     const items = await getItemsDetails(accessToken, itemIds);
-    orderStats = await getOrderStats(accessToken, meliUser.id, 30);
+    const [effectivePrices, orderStatsResult] = await Promise.all([
+      getEffectivePrices(accessToken, items.map((item) => ({ id: item.id, price: item.price }))),
+      getOrderStats(accessToken, meliUser.id, 30),
+    ]);
+    orderStats = orderStatsResult;
 
     rows = await Promise.all(
       items.map(async (item) => {
+        const effective = effectivePrices[item.id] ?? { price: item.price, originalPrice: item.original_price ?? null };
+
         const product = await prisma.product.upsert({
           where: { userId_meliItemId: { userId, meliItemId: item.id } },
-          update: { title: item.title, price: item.price },
+          update: { title: item.title, price: effective.price },
           create: {
             userId,
             meliItemId: item.id,
             title: item.title,
-            price: item.price,
+            price: effective.price,
           },
         });
 
         const saleFee = await getSaleFee(
           accessToken,
           meliUser.site_id,
-          item.price,
+          effective.price,
           item.category_id,
           item.listing_type_id,
         );
@@ -162,8 +169,8 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
           title: item.title,
           thumbnail: item.thumbnail,
           permalink: item.permalink,
-          price: item.price,
-          originalPrice: item.original_price ?? null,
+          price: effective.price,
+          originalPrice: effective.originalPrice,
           currencyId: item.currency_id,
           availableQuantity: item.available_quantity,
           saleFee: saleFee ?? 0,
