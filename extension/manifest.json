@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "MeliBoost - Investigación de Productos",
-  "version": "0.1.0",
-  "description": "Trae datos reales de nichos de Mercado Libre (título, precio, imagen) al dashboard de MeliBoost, usando tu propia sesión ya logueada.",
+  "name": "MeliBoost",
+  "version": "0.2.0",
+  "description": "Conecta tu cuenta de Mercado Libre para ver los datos reales de tus productos (ventas, stock, CTR de Ads) y busca nichos, todo desde el panel de tu navegador.",
   "permissions": ["scripting", "tabs", "storage", "sidePanel"],
   "host_permissions": [
     "*://*.mercadolibre.com/*",
@@ -25,7 +25,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "MeliBoost - Investigación de Productos (clic para abrir el panel)",
+    "default_title": "MeliBoost (clic para abrir el panel)",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png",

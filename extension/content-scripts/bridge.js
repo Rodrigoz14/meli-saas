@@ -34,8 +34,24 @@ window.addEventListener("message", (event) => {
   }
 });
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "MELIBOOST_SEARCH_RESULT" || message?.type === "MELIBOOST_SEARCH_PROGRESS") {
     window.postMessage({ source: "meliboost-extension", ...message }, "*");
+    return false;
   }
+
+  // El side panel de la extensión pide esto por medio del background (ver
+  // background.js) para mostrar los productos reales del propietario. Este
+  // content script corre DENTRO de esta pestaña ya logueada, así que el
+  // fetch sale con la sesión real de la app (cookie httpOnly incluida) sin
+  // necesitar CORS ni guardar ningún token en la extensión.
+  if (message?.type === "MELIBOOST_GET_DASHBOARD") {
+    fetch("/api/extension/dashboard", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => sendResponse(data))
+      .catch((err) => sendResponse({ connected: false, reason: "fetch-failed", error: String(err) }));
+    return true; // respuesta async — mantiene el canal de mensajes abierto
+  }
+
+  return false;
 });

@@ -295,6 +295,61 @@ function dedupeByPermalink(items) {
 // mensajes del background vía chrome.tabs.sendMessage(tabId, ...) — un
 // broadcast genérico nunca le llega. Por eso mandamos por los dos caminos.
 const APP_URL_PATTERNS = ["http://localhost:3000/*", "https://meli-saas.vercel.app/*"];
+const APP_BASE_URL = "https://meli-saas.vercel.app";
+
+// Los datos reales del propietario (Mi Negocio) requieren la sesión real de
+// la app — no hay ningún token que la extensión pueda guardar aparte, así
+// que se le pide a una pestaña de la app ya abierta que lo traiga ella
+// misma con su propia sesión (ver bridge.js). Si no hay ninguna pestaña de
+// la app abierta, no es un error: solo significa que el usuario todavía no
+// se conectó desde acá.
+async function sendDashboardRequest(tabId) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: "MELIBOOST_GET_DASHBOARD" });
+    if (response) return response;
+  } catch {
+    // Sin catch acá todavía no sabemos si falló por falta del content
+    // script o por otra cosa — reintentamos abajo reinyectándolo.
+  }
+  // Si la pestaña de la app ya estaba abierta ANTES de instalar o
+  // actualizar la extensión, su content script quedado corriendo es el
+  // viejo (Chrome no reinyecta solo en pestañas ya abiertas) y nunca va a
+  // reconocer MELIBOOST_GET_DASHBOARD — por eso la conexión "no funciona"
+  // aunque el código esté bien. Reinyectamos el bridge actual a la fuerza
+  // antes de rendirnos.
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ["content-scripts/bridge.js"],
+    });
+  } catch {
+    return null;
+  }
+  try {
+    return (await chrome.tabs.sendMessage(tabId, { type: "MELIBOOST_GET_DASHBOARD" })) || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getDashboardFromAppTab() {
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query({ url: APP_URL_PATTERNS });
+  } catch {
+    tabs = [];
+  }
+  if (tabs.length === 0) return { connected: false, reason: "no-tab" };
+
+  for (const tab of tabs) {
+    const response = await sendDashboardRequest(tab.id);
+    if (response) return response;
+  }
+  // Había una pestaña de la app abierta pero ninguna contestó ni después de
+  // reinyectar el content script — distinto de "no hay pestaña" para poder
+  // mostrar un mensaje más útil en el panel.
+  return { connected: false, reason: "tab-not-responding" };
+}
 
 function broadcast(message) {
   chrome.runtime.sendMessage(message).catch(() => {});
@@ -377,10 +432,39 @@ async function runNicheSearchInner(query, site) {
   broadcast({ type: "MELIBOOST_SEARCH_RESULT", query, ok: anyVariationSucceeded, rows });
 }
 
-chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type !== "MELIBOOST_START_SEARCH") return;
-  logDebug({ stage: "message-received", query: message.query, site: message.site });
-  runNicheSearch(message.query, message.site || "CO").catch((err) => {
-    logDebug({ stage: "runNicheSearch-uncaught", error: String(err?.message || err) });
-  });
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "MELIBOOST_START_SEARCH") {
+    logDebug({ stage: "message-received", query: message.query, site: message.site });
+    runNicheSearch(message.query, message.site || "CO").catch((err) => {
+      logDebug({ stage: "runNicheSearch-uncaught", error: String(err?.message || err) });
+    });
+    return false;
+  }
+
+  // Pedido del side panel (pestaña "Mi Negocio") para traer los datos
+  // reales del propietario — ver getDashboardFromAppTab arriba.
+  if (message?.type === "MELIBOOST_GET_DASHBOARD") {
+    getDashboardFromAppTab().then(sendResponse);
+    return true; // respuesta async
+  }
+
+  // El side panel pide esto cuando el usuario toca "Conectar con Mercado
+  // Libre" — /dashboard ya redirige solo a /login si no hay sesión, y
+  // dentro del dashboard ya existe el flujo real de conexión con ML. Si ya
+  // hay una pestaña de la app abierta (ej. localhost:3000 en desarrollo, o
+  // ya la tenía abierta), la reusamos en vez de amontonar pestañas nuevas
+  // cada vez que se hace clic.
+  if (message?.type === "MELIBOOST_OPEN_APP") {
+    chrome.tabs.query({ url: APP_URL_PATTERNS }).then((tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { active: true }).catch(() => {});
+        chrome.windows.update(tabs[0].windowId, { focused: true }).catch(() => {});
+      } else {
+        chrome.tabs.create({ url: `${APP_BASE_URL}/dashboard` }).catch(() => {});
+      }
+    });
+    return false;
+  }
+
+  return false;
 });

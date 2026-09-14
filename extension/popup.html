@@ -2,21 +2,30 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>MeliBoost - Investigación de Productos</title>
+    <title>MeliBoost</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <style>
-      /* Misma paleta que src/app/globals.css (tema oscuro de MeliBoost). */
+      /* Misma paleta y tipografía que src/app/globals.css + layout.tsx
+         (tema oscuro de MeliBoost: Plus Jakarta Sans para números/títulos,
+         Inter para el resto, glow por color semántico en las tarjetas). */
       :root {
         --background: #0a0d17;
-        --card: #0f1220;
-        --border: #232842;
+        --card: #12162a;
+        --border: #23283f;
         --foreground: #f4f6fb;
-        --muted-foreground: #9aa3bd;
-        --muted: #171b2e;
-        --primary: #4660f5;
-        --secondary: #34d0e3;
+        --muted-foreground: #9aa4c2;
+        --muted: #1c2035;
+        --primary: #5670f0;
+        --secondary: #34cee0;
         --emerald: #10b981;
+        --violet: #8b5cf6;
         --amber: #f5a524;
-        --destructive: #f24d5c;
+        --destructive: #f23d63;
       }
       * {
         box-sizing: border-box;
@@ -24,13 +33,24 @@
       html,
       body {
         margin: 0;
-        min-width: 320px;
+        min-width: 340px;
         width: 100%;
-        font: 13px/1.45 -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        height: 100%;
+        font: 13px/1.45 "Inter", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
         color: var(--foreground);
         background: var(--background);
       }
+      body {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .font-display {
+        font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+        letter-spacing: -0.01em;
+      }
       header {
+        flex: 0 0 auto;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -46,6 +66,7 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        box-shadow: 0 0 16px -4px var(--primary);
       }
       .brand-mark svg {
         width: 13px;
@@ -53,17 +74,192 @@
         fill: white;
       }
       header .brand-name {
-        font-weight: 700;
+        font-weight: 800;
         font-size: 14px;
-        letter-spacing: -0.01em;
       }
+
+      /* Pills de navegación — mismo estilo que la barra de tabs del
+         dashboard (dashboard-nav.tsx): pill activa con fondo primary/10 y
+         glow, inactiva en muted-foreground. */
+      nav.tabs {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 6px;
+        padding: 10px 12px 0;
+      }
+      nav.tabs button {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted-foreground);
+        background: transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      nav.tabs button:hover {
+        color: var(--foreground);
+        background: var(--muted);
+      }
+      nav.tabs button.active {
+        color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 12%, transparent);
+        border-color: color-mix(in srgb, var(--primary) 25%, transparent);
+        box-shadow: 0 0 16px -4px var(--primary);
+      }
+
       .body-pad {
-        padding: 14px;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px 14px;
       }
-      form {
+      [hidden] {
+        display: none !important;
+      }
+      /* Ambas secciones ocupan todo el alto restante del panel (no solo el
+         alto de su contenido) para que la tabla de adentro pueda estirarse
+         hasta el fondo real del panel en vez de quedar pegada arriba con
+         un hueco vacío debajo. */
+      #view-negocio,
+      #view-busqueda {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      #negocio-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ----- Mi Negocio ----- */
+      .connect-card {
+        margin-top: 8px;
+        text-align: center;
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+        padding: 26px 16px;
+      }
+      .connect-icon {
+        width: 42px;
+        height: 42px;
+        margin: 0 auto 10px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--primary) 15%, transparent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .connect-icon svg {
+        width: 20px;
+        height: 20px;
+        stroke: var(--primary);
+      }
+      .connect-title {
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .connect-text {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--muted-foreground);
+        line-height: 1.5;
+      }
+      .btn-primary {
+        margin-top: 14px;
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 9px;
+        padding: 9px 18px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 0 20px -8px var(--primary);
+      }
+      .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .btn-ghost {
+        margin-top: 10px;
+        background: transparent;
+        color: var(--muted-foreground);
+        border: 1px solid var(--border);
+        border-radius: 9px;
+        padding: 7px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-ghost:hover {
+        color: var(--foreground);
+        border-color: var(--muted-foreground);
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .kpi-card {
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        box-shadow: 0 0 18px -14px var(--glow, var(--primary));
+      }
+      .kpi-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted-foreground);
+      }
+      .kpi-value {
+        margin-top: 3px;
+        font-size: 17px;
+        font-weight: 800;
+      }
+
+      .negocio-toolbar {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 12px;
+      }
+      .negocio-toolbar .section-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted-foreground);
+      }
+      .link-btn {
+        background: transparent;
+        border: none;
+        color: var(--primary);
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      /* ----- Búsqueda de Productos (form + tabla) ----- */
+      form#search-form {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
+        margin-top: 8px;
       }
       select,
       input[type="text"] {
@@ -82,17 +278,18 @@
       input[type="text"]:focus {
         border-color: var(--primary);
       }
-      button {
+      button.btn-search {
         background: var(--primary);
         color: #fff;
         border: none;
         border-radius: 8px;
         padding: 7px 16px;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 700;
         cursor: pointer;
+        box-shadow: 0 0 16px -8px var(--primary);
       }
-      button:disabled {
+      button.btn-search:disabled {
         opacity: 0.6;
         cursor: default;
       }
@@ -102,7 +299,8 @@
         color: var(--muted-foreground);
         min-height: 16px;
       }
-      #error {
+      #error,
+      .error-box {
         margin-top: 8px;
         font-size: 12px;
         color: var(--destructive);
@@ -110,41 +308,12 @@
         border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
         border-radius: 8px;
         padding: 8px 10px;
-        display: none;
       }
-      .kpis {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 12px;
-      }
-      .kpi-card {
-        flex: 1;
-        min-width: 110px;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 8px 10px;
-      }
-      .kpi-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--muted-foreground);
-      }
-      .kpi-value {
-        font-size: 15px;
-        font-weight: 700;
-        margin-top: 2px;
-      }
-      .kpi-value.emerald {
-        color: var(--emerald);
-      }
+
       table {
         width: 100%;
         border-collapse: collapse;
         font-size: 12px;
-        margin-top: 10px;
       }
       thead th {
         text-align: left;
@@ -178,7 +347,7 @@
         border: 1px solid var(--border);
       }
       .title-cell {
-        max-width: 190px;
+        max-width: 150px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -187,22 +356,33 @@
         color: var(--secondary);
         font-size: 11px;
       }
-      #table-wrap {
-        max-height: 360px;
+      .ctr-badge {
+        color: var(--violet);
+        font-weight: 600;
+      }
+      #table-wrap,
+      #negocio-table-wrap {
+        margin-top: 10px;
+        flex: 1 1 auto;
+        min-height: 80px;
         overflow-y: auto;
+        overflow-x: hidden;
         border-radius: 10px;
         border: 1px solid var(--border);
         background: var(--card);
       }
-      #table-wrap table {
+      #table-wrap table,
+      #negocio-table-wrap table {
         margin-top: 0;
       }
-      #table-wrap thead th {
+      #table-wrap thead th,
+      #negocio-table-wrap thead th {
         position: sticky;
         top: 0;
         background: var(--card);
       }
-      #empty-state {
+      #empty-state,
+      .empty-state {
         margin-top: 14px;
         color: var(--muted-foreground);
         text-align: center;
@@ -211,6 +391,22 @@
         border: 1px dashed var(--border);
         border-radius: 10px;
       }
+      .spinner {
+        display: inline-block;
+        width: 13px;
+        height: 13px;
+        border: 2px solid var(--border);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: -2px;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   </head>
   <body>
@@ -218,57 +414,134 @@
       <span class="brand-mark">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
       </span>
-      <span class="brand-name">MeliBoost</span>
+      <span class="brand-name font-display">MeliBoost</span>
     </header>
+
+    <nav class="tabs">
+      <button id="tab-btn-negocio" class="active" type="button">Mi Negocio</button>
+      <button id="tab-btn-busqueda" type="button">Búsqueda de Productos</button>
+    </nav>
+
     <div class="body-pad">
-      <form id="search-form">
-        <select id="site">
-          <option value="CO">🇨🇴 CO</option>
-          <option value="AR">🇦🇷 AR</option>
-          <option value="MX">🇲🇽 MX</option>
-          <option value="BR">🇧🇷 BR</option>
-          <option value="CL">🇨🇱 CL</option>
-          <option value="PE">🇵🇪 PE</option>
-        </select>
-        <input id="query" type="text" placeholder="Buscar producto o nicho..." autofocus />
-        <button id="submit-btn" type="submit">Analizar</button>
-      </form>
-      <div id="status"></div>
-      <div id="error"></div>
-
-      <div class="kpis" id="kpis" style="display: none">
-        <div class="kpi-card">
-          <div class="kpi-label">Visitas totales (30D)</div>
-          <div class="kpi-value" id="kpi-visits">—</div>
+      <!-- ================= MI NEGOCIO ================= -->
+      <section id="view-negocio">
+        <div id="negocio-loading">
+          <p style="color: var(--muted-foreground); margin-top: 10px">
+            <span class="spinner"></span>Comprobando tu conexión con Mercado Libre…
+          </p>
         </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Facturación estimada</div>
-          <div class="kpi-value emerald" id="kpi-revenue">—</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">Publicaciones</div>
-          <div class="kpi-value" id="kpi-count">—</div>
-        </div>
-      </div>
 
-      <div id="empty-state">Busca un producto o nicho para ver sus métricas reales de Mercado Libre.</div>
+        <div id="negocio-connect" class="connect-card" hidden>
+          <div class="connect-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2 3 14h7l-1 8 10-12h-7l1-8z" />
+            </svg>
+          </div>
+          <p class="connect-title font-display">Conecta tu cuenta de Mercado Libre</p>
+          <p class="connect-text" id="connect-text">
+            Para ver los datos reales de tus productos (ventas, stock, CTR de Ads) necesitamos que conectes tu
+            cuenta desde MeliBoost.
+          </p>
+          <button id="btn-connect" class="btn-primary" type="button">Conectar con Mercado Libre</button>
+          <br />
+          <button id="btn-recheck" class="btn-ghost" type="button">Ya conecté, actualizar</button>
+        </div>
 
-      <div id="table-wrap" style="display: none">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th></th>
-              <th data-sort="title">Publicación</th>
-              <th data-sort="price">Precio</th>
-              <th>Origen</th>
-              <th data-sort="visits">Visitas</th>
-              <th data-sort="estimatedRevenue">Fact. est.</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-      </div>
+        <div id="negocio-error" class="error-box" hidden></div>
+
+        <div id="negocio-content" hidden>
+          <div class="kpis">
+            <div class="kpi-card" style="--glow: rgba(99, 102, 241, 0.7)">
+              <div class="kpi-label">Ventas reales (30d)</div>
+              <div class="kpi-value font-display" id="n-kpi-revenue">—</div>
+            </div>
+            <div class="kpi-card" style="--glow: rgba(16, 185, 129, 0.7)">
+              <div class="kpi-label">Unidades vendidas</div>
+              <div class="kpi-value font-display" id="n-kpi-units">—</div>
+            </div>
+            <div class="kpi-card" style="--glow: rgba(139, 92, 246, 0.7)">
+              <div class="kpi-label">Inversión Ads (30d)</div>
+              <div class="kpi-value font-display" id="n-kpi-ads">—</div>
+            </div>
+            <div class="kpi-card" style="--glow: rgba(245, 165, 36, 0.7)">
+              <div class="kpi-label">Publicaciones activas</div>
+              <div class="kpi-value font-display" id="n-kpi-count">—</div>
+            </div>
+          </div>
+
+          <div class="negocio-toolbar">
+            <span class="section-title">TUS PRODUCTOS (TOP 20 POR INGRESOS)</span>
+            <button id="btn-refresh" class="link-btn" type="button">Actualizar</button>
+          </div>
+
+          <div id="negocio-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Publicación</th>
+                  <th>Precio</th>
+                  <th>Vtas 30d</th>
+                  <th>Ingresos 30d</th>
+                  <th>CTR Ads</th>
+                  <th>Stock</th>
+                </tr>
+              </thead>
+              <tbody id="negocio-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= BÚSQUEDA DE PRODUCTOS ================= -->
+      <section id="view-busqueda" hidden>
+        <form id="search-form">
+          <select id="site">
+            <option value="CO">🇨🇴 CO</option>
+            <option value="AR">🇦🇷 AR</option>
+            <option value="MX">🇲🇽 MX</option>
+            <option value="BR">🇧🇷 BR</option>
+            <option value="CL">🇨🇱 CL</option>
+            <option value="PE">🇵🇪 PE</option>
+          </select>
+          <input id="query" type="text" placeholder="Buscar producto o nicho..." />
+          <button id="submit-btn" class="btn-search" type="submit">Analizar</button>
+        </form>
+        <div id="status"></div>
+        <div id="error" style="display: none"></div>
+
+        <div class="kpis" id="kpis" style="display: none; margin-top: 12px">
+          <div class="kpi-card" style="--glow: rgba(99, 102, 241, 0.7)">
+            <div class="kpi-label">Visitas totales (30D)</div>
+            <div class="kpi-value font-display" id="kpi-visits">—</div>
+          </div>
+          <div class="kpi-card" style="--glow: rgba(16, 185, 129, 0.7)">
+            <div class="kpi-label">Facturación estimada</div>
+            <div class="kpi-value font-display" id="kpi-revenue" style="color: var(--emerald)">—</div>
+          </div>
+          <div class="kpi-card" style="--glow: rgba(245, 165, 36, 0.7); grid-column: span 2">
+            <div class="kpi-label">Publicaciones</div>
+            <div class="kpi-value font-display" id="kpi-count">—</div>
+          </div>
+        </div>
+
+        <div id="empty-state">Busca un producto o nicho para ver sus datos reales de Mercado Libre.</div>
+
+        <div id="table-wrap" style="display: none">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th data-sort="title">Publicación</th>
+                <th data-sort="price">Precio</th>
+                <th data-sort="visits">Visitas</th>
+                <th data-sort="estimatedRevenue">Fact. est.</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
     <script src="popup.js"></script>
   </body>
