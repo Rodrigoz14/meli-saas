@@ -126,17 +126,37 @@ async function scrapeMeliSearchResults() {
   }
 
   // Cuando una publicación tiene un descuento activo, Mercado Libre pinta
-  // DOS precios: el anterior (tachado, envuelto en un <s> o en un
-  // contenedor con clase que incluye "previous") y el actual — y el
-  // anterior aparece PRIMERO en el DOM. Tomar sin más "el primer precio
-  // encontrado" agarraba el precio viejo (más alto) en vez del que de
-  // verdad se cobra hoy. Esto separa ambos explícitamente.
+  // DOS (o tres, con cuotas) montos en la tarjeta. Adivinar nombres de
+  // clase (ej. "andes-money-amount--previous") es frágil porque cambian
+  // con cada rediseño — en cambio, el precio tachado SIEMPRE tiene
+  // text-decoration: line-through en su estilo real (sea con <s>, <del> o
+  // un <span> con su propia clase), y el precio vigente SIEMPRE se pinta
+  // en un tamaño de letra más grande que montos secundarios como "3 cuotas
+  // de $X". Usamos el estilo computado real de la página en vez de
+  // suponer una estructura de HTML fija.
+  function isStruckThrough(el) {
+    let node = el;
+    for (let i = 0; i < 4 && node; i++) {
+      const style = window.getComputedStyle(node);
+      if (style.textDecorationLine && style.textDecorationLine.includes("line-through")) return true;
+      node = node.parentElement;
+    }
+    return false;
+  }
+
   function pickPriceFractions(card) {
     const all = [...card.querySelectorAll(PRICE_SELECTOR)];
-    const isPrevious = (el) => Boolean(el.closest('s, [class*="previous"]'));
-    const current = all.find((el) => !isPrevious(el));
-    const previous = all.find((el) => isPrevious(el));
-    return { current: current || all[0] || null, previous: previous || null };
+    const withMeta = all.map((el) => ({
+      el,
+      previous: isStruckThrough(el),
+      fontSize: parseFloat(window.getComputedStyle(el).fontSize) || 0,
+    }));
+    const currentCandidates = withMeta.filter((m) => !m.previous).sort((a, b) => b.fontSize - a.fontSize);
+    const previous = withMeta.find((m) => m.previous);
+    return {
+      current: currentCandidates[0]?.el || all[0] || null,
+      previous: previous?.el || null,
+    };
   }
 
   function extractFromCard(card) {
@@ -222,7 +242,21 @@ async function scrapeMeliSearchResults() {
     iframeCount: document.querySelectorAll("iframe").length,
     totalElements: document.querySelectorAll("*").length,
     resultsExtracted: results.length,
+    discountsDetected: results.filter((r) => r.originalPrice).length,
     bodyTextSnippet: document.body.innerText.slice(0, 200),
+    // Muestra cruda de las primeras tarjetas para poder ajustar la
+    // detección de descuentos sin depender de atrapar la pestaña en vivo
+    // (que se cierra apenas termina la búsqueda) — ver chrome.storage.local
+    // "lastScrapeDebug" desde el inspector del service worker si el
+    // descuento sigue sin detectarse bien en algún caso puntual.
+    priceSample: cards.slice(0, 3).map((card) => {
+      const fractions = [...card.querySelectorAll(PRICE_SELECTOR)];
+      return fractions.map((el) => ({
+        text: el.textContent,
+        fontSize: window.getComputedStyle(el).fontSize,
+        strikeThrough: isStruckThrough(el),
+      }));
+    }),
   };
 
   return { results, diagnostics };
