@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { ArrowDown, ArrowUp, ArrowUpDown, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
 import {
@@ -18,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { computePeriodProfit, diagnose } from "@/lib/profitability";
 import type { AdsItemMetric } from "@/lib/meli-api";
+import { InlineCogsInput } from "@/components/dashboard/inline-cogs-input";
 
 export type ProfitabilityRow = {
   productId: string;
@@ -110,10 +110,12 @@ function Row({
   row,
   taxWithholdingPercent,
   adsConnected,
+  onCogsSaved,
 }: {
   row: ProfitabilityRow;
   taxWithholdingPercent: number;
   adsConnected: boolean;
+  onCogsSaved: (productId: string, cogs: number) => void;
 }) {
   const {
     netProfit: totalProfit,
@@ -155,16 +157,12 @@ function Row({
       <TableCell>{formatMoney(row.revenue30d, row.currencyId)}</TableCell>
       <TableCell>{formatMoney(row.price, row.currencyId)}</TableCell>
       <TableCell>
-        {row.cogs > 0 ? (
-          formatMoney(row.cogs, row.currencyId)
-        ) : (
-          <Link
-            href="/dashboard/costos-gastos"
-            className="rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-xs text-destructive hover:bg-destructive/20"
-          >
-            Ingresar
-          </Link>
-        )}
+        <InlineCogsInput
+          productId={row.productId}
+          initialValue={row.cogs}
+          currencyId={row.currencyId}
+          onSaved={(cogs) => onCogsSaved(row.productId, cogs)}
+        />
       </TableCell>
       <TableCell className="text-muted-foreground">
         -{formatMoney(row.commission30d || row.saleFee, row.currencyId)}
@@ -229,6 +227,20 @@ export function ProfitabilityTable({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [filterTab, setFilterTab] = useState<FilterTab>("todos");
   const [search, setSearch] = useState("");
+  const [prevRows, setPrevRows] = useState(rows);
+  const [localRows, setLocalRows] = useState(rows);
+
+  // Re-sincroniza el estado local (editado de forma optimista al guardar un
+  // costo) cuando el servidor manda props nuevas de verdad — mismo patrón
+  // que Costos y Gastos, sin useEffect.
+  if (rows !== prevRows) {
+    setPrevRows(rows);
+    setLocalRows(rows);
+  }
+
+  function handleCogsSaved(productId: string, cogs: number) {
+    setLocalRows((prev) => prev.map((r) => (r.productId === productId ? { ...r, cogs } : r)));
+  }
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
@@ -240,7 +252,7 @@ export function ProfitabilityTable({
   }
 
   const withMetrics = useMemo(() => {
-    return rows.map((row) => {
+    return localRows.map((row) => {
       const { netProfit, margin } = computePeriodProfit({
         price: row.price,
         saleFee: row.saleFee,
@@ -253,7 +265,7 @@ export function ProfitabilityTable({
       });
       return { row, netProfit, margin };
     });
-  }, [rows, taxWithholdingPercent]);
+  }, [localRows, taxWithholdingPercent]);
 
   const tabCounts = useMemo(
     () => ({
@@ -281,7 +293,7 @@ export function ProfitabilityTable({
     );
   }, [withMetrics]);
   const totalMargin = totals.revenue > 0 ? (totals.netProfit / totals.revenue) * 100 : 0;
-  const currencyId = rows[0]?.currencyId ?? "COP";
+  const currencyId = localRows[0]?.currencyId ?? "COP";
 
   const sortedRows = useMemo(() => {
     const filtered = withMetrics.filter((entry) => {
@@ -424,7 +436,13 @@ export function ProfitabilityTable({
         </TableHeader>
         <TableBody>
           {sortedRows.map(({ row }) => (
-            <Row key={row.productId} row={row} taxWithholdingPercent={taxWithholdingPercent} adsConnected={adsConnected} />
+            <Row
+              key={row.productId}
+              row={row}
+              taxWithholdingPercent={taxWithholdingPercent}
+              adsConnected={adsConnected}
+              onCogsSaved={handleCogsSaved}
+            />
           ))}
           {sortedRows.length === 0 && (
             <TableRow>
