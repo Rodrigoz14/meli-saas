@@ -473,7 +473,7 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
                       <div className="flex flex-col items-end">
                         <span className="font-medium text-violet-500">{item.ads.ctr.toFixed(2)}%</span>
                         <span className="text-[10px] text-muted-foreground">
-                          {item.ads.clicks.toLocaleString()} clics / {item.ads.prints.toLocaleString()} impr.
+                          {item.ads.clicks.toLocaleString()} clics / {formatMoney(item.ads.cost, currencyId)}
                         </span>
                       </div>
                     ) : (

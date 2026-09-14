@@ -196,7 +196,7 @@ function Row({
             <div className="flex flex-col items-end">
               <span className="font-medium text-violet-500">{row.ads.ctr.toFixed(2)}%</span>
               <span className="text-[10px] text-muted-foreground">
-                {row.ads.clicks.toLocaleString()} clics / {row.ads.prints.toLocaleString()} impr.
+                {row.ads.clicks.toLocaleString()} clics / {formatMoney(row.ads.cost, row.currencyId)}
               </span>
             </div>
           ) : (
