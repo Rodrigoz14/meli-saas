@@ -1,10 +1,12 @@
 import Link from "next/link";
 import {
   Banknote,
+  Package,
   Receipt,
   ShoppingCart,
   Target,
   Truck,
+  Wallet,
 } from "lucide-react";
 
 function formatMoney(value: number, currencyId: string) {
@@ -53,16 +55,13 @@ export function RevenueSummary({
       ? Math.ceil((totalOperatingCosts + totalAds + retenciones) / contributionMarginPerUnit)
       : null;
 
-  // Costo de producto (COGS) y Gastos operativos ya no se desglosan acá —
-  // se editan y se ven en detalle en su propia sección (Costos y gastos).
-  // Publicidad sí se desglosa porque, a diferencia de COGS/Gastos, es un
-  // solo número real extraído de la factura de ML, no una lista editable.
-  // Todos siguen sumando al Total costos / Utilidad neta de abajo.
   const breakdown = [
     { label: "Comisiones Mercado Libre", value: totalCommission, color: "text-orange-500" },
     { label: "Costo de envío", value: totalShipping, color: "text-cyan-500" },
     { label: "Inversión en Publicidad", value: totalAds, color: "text-violet-500" },
     { label: "Retenciones", value: retenciones, color: "text-amber-500" },
+    { label: "Costo de Producto (COGS)", value: totalCogs, color: "text-rose-500" },
+    { label: "Gastos Operativos", value: totalOperatingCosts, color: "text-slate-400" },
   ];
 
   return (
@@ -118,6 +117,44 @@ export function RevenueSummary({
         </div>
       </div>
 
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+            Costos Operativos (Propios)
+          </h3>
+          <Link href="/dashboard/costos-gastos" className="text-xs text-primary hover:underline">
+            Gestionar Costos →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="group rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-[0_0_20px_-12px_rgba(244,63,94,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(244,63,94,0.85)]">
+            <div className="flex items-center gap-2 text-rose-500">
+              <Package className="h-5 w-5" />
+              <span className="text-sm font-medium">Costo de Producto (COGS)</span>
+            </div>
+            <p className="mt-3 font-display text-2xl font-bold tracking-tight text-rose-500">
+              -{formatMoney(totalCogs, currencyId)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {totalRevenue > 0 ? ((totalCogs / totalRevenue) * 100).toFixed(1) : "0.0"}% de ventas
+            </p>
+          </div>
+          <div className="group rounded-2xl border border-slate-400/20 bg-slate-400/5 p-6 shadow-[0_0_20px_-12px_rgba(148,163,184,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(148,163,184,0.75)]">
+            <div className="flex items-center gap-2 text-slate-400">
+              <Wallet className="h-5 w-5" />
+              <span className="text-sm font-medium">Gastos Operativos</span>
+            </div>
+            <p className="mt-3 font-display text-2xl font-bold tracking-tight text-slate-400">
+              -{formatMoney(totalOperatingCosts, currencyId)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {totalRevenue > 0 ? ((totalOperatingCosts / totalRevenue) * 100).toFixed(1) : "0.0"}% de ventas
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-8 shadow-[0_0_32px_-14px_rgba(16,185,129,0.6)]">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-4">
           <div>
@@ -165,8 +202,8 @@ export function RevenueSummary({
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Desglose de costos (30d)</h3>
-          <Link href="/dashboard/costos-gastos" className="text-xs text-primary hover:underline">
-            Ver costo de producto y gastos operativos →
+          <Link href="/dashboard/rentabilidad" className="text-xs text-primary hover:underline">
+            Ver por publicación →
           </Link>
         </div>
         <div className="mt-3 space-y-2">

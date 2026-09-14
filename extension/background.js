@@ -35,11 +35,10 @@ function buildSearchUrl(site, query) {
   return `https://listado.${domain}/${encodeURIComponent(slug)}`;
 }
 
-// Variaciones simples del término para cubrir más del nicho en una sola
-// búsqueda (mismo espíritu que las "Búsquedas IA" de Selltrix, pero acá es
-// solo una heurística de texto, no un modelo de IA real — no hay
-// ANTHROPIC_API_KEY configurada para generar sinónimos de verdad).
-function buildVariations(query) {
+// Respaldo si la llamada a la IA (ver fetchAiSearchTerms) falla o no hay
+// red: variaciones de texto simples, sin sinónimos reales, solo para no
+// dejar la búsqueda sin ninguna variación.
+function buildFallbackVariations(query) {
   const trimmed = query.trim();
   const words = trimmed.split(/\s+/);
   const variations = [trimmed];
@@ -48,6 +47,48 @@ function buildVariations(query) {
   variations.push(`${trimmed} nuevo`);
   variations.push(`${trimmed} original`);
   return [...new Set(variations.map((v) => v.trim()).filter(Boolean))].slice(0, 4);
+}
+
+function dedupeVariations(list) {
+  const seen = new Set();
+  const out = [];
+  for (const v of list) {
+    const trimmed = (v || "").trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out.slice(0, 4);
+}
+
+// Le pide a nuestro propio backend (que sí tiene ANTHROPIC_API_KEY) 3
+// sinónimos/términos relacionados reales para el nicho — igual que Selltrix,
+// que mide sus búsquedas porque cada una dispara una llamada real a un LLM,
+// en vez de la heurística de texto que había antes (quitar la primera o
+// última palabra, agregar "nuevo"/"original", que casi nunca encontraba
+// nombres alternativos de verdad). No depende de sesión ni cookies, así que
+// se llama directo desde el service worker, sin pasar por el content script.
+async function fetchAiSearchTerms(query) {
+  try {
+    const res = await fetch(`${APP_BASE_URL}/api/extension/expand-query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data.terms) ? data.terms : [];
+  } catch {
+    return [];
+  }
+}
+
+async function buildVariations(query) {
+  const trimmed = query.trim();
+  const aiTerms = await fetchAiSearchTerms(trimmed);
+  if (aiTerms.length > 0) return dedupeVariations([trimmed, ...aiTerms]);
+  return buildFallbackVariations(trimmed);
 }
 
 // Se pasa como `func` a chrome.scripting.executeScript, así que corre
@@ -389,7 +430,8 @@ async function runNicheSearchInner(query, site) {
   // el foco al usuario cuando terminemos.
   const [previousActiveTab] = await chrome.tabs.query({ active: true, currentWindow: true }).catch(() => []);
 
-  const variations = buildVariations(query || "");
+  broadcast({ type: "MELIBOOST_SEARCH_PROGRESS", label: "Buscando términos relacionados con IA..." });
+  const variations = await buildVariations(query || "");
   const allItems = [];
   let anyVariationSucceeded = false;
 
