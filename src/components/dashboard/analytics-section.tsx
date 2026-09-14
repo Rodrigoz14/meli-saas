@@ -96,12 +96,14 @@ function KpiCard({
   prevValue,
   changePct,
   glowRgb,
+  hint,
 }: {
   label: string;
   value: string;
   prevValue: string;
   changePct: number;
   glowRgb: string;
+  hint?: React.ReactNode;
 }) {
   const isPositive = changePct >= 0;
   return (
@@ -118,6 +120,7 @@ function KpiCard({
           {Math.abs(changePct).toFixed(1)}%
         </span>
       </div>
+      {hint && <div className="mt-1.5 text-[11px] text-muted-foreground">{hint}</div>}
     </div>
   );
 }
@@ -180,7 +183,7 @@ function MoverCard({ item, currencyId }: { item: ItemAnalytics; currencyId: stri
 }
 
 function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
-  const { now, prev, impact, items, currencyId } = data;
+  const { now, prev, impact, items, currencyId, taxWithholdingPercent, retentionNow, retentionPrev } = data;
   const maxAbsImpact = Math.max(Math.abs(impact.visits), Math.abs(impact.conversion), Math.abs(impact.avgTicket), 1);
 
   const movers = useMemo(() => {
@@ -200,7 +203,9 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           <span className="font-semibold">Métricas Brutas</span> (igual que Mercado Libre). No descuenta
-          cancelaciones. Para ver ingresos netos, usa el Dashboard principal.
+          cancelaciones. La <span className="font-semibold">Retención Estimada</span> es un cálculo con la
+          tasa que configuraste en Costos y Gastos, no un dato que Mercado Libre entregue por API. Para ver
+          ingresos netos, usa el Dashboard principal.
         </span>
       </p>
 
@@ -208,7 +213,7 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
         {buildInsight(now, prev, impact, currencyId)}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard
           label="Ingresos Brutos"
           value={formatMoney(now.revenue, currencyId)}
@@ -236,6 +241,22 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
           prevValue={`${(prev.conversion * 100).toFixed(2)}%`}
           changePct={pctChange(now.conversion, prev.conversion)}
           glowRgb="rgba(139,92,246,0.7)"
+        />
+        <KpiCard
+          label="Retención Estimada"
+          value={formatMoney(retentionNow, currencyId)}
+          prevValue={formatMoney(retentionPrev, currencyId)}
+          changePct={pctChange(retentionNow, retentionPrev)}
+          glowRgb="rgba(245,158,11,0.7)"
+          hint={
+            taxWithholdingPercent > 0 ? (
+              `${taxWithholdingPercent.toFixed(2)}% sobre ingresos brutos`
+            ) : (
+              <Link href="/dashboard/costos-gastos" className="text-primary hover:underline">
+                Configura tu tasa →
+              </Link>
+            )
+          }
         />
       </div>
 
@@ -277,7 +298,7 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
 type Tier = "killer" | "potencial" | "cola";
 
 function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
-  const { items, currencyId, periodFrom, periodTo } = data;
+  const { items, currencyId, periodFrom, periodTo, adsConnected } = data;
   const [search, setSearch] = useState("");
 
   const classified = useMemo(() => {
@@ -325,18 +346,26 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
   }, [classified, search]);
 
   function handleDownload() {
+    const header = ["Pareto", "Publicación", "ID", "Ingresos", "% del total", "Visitas", "Ventas", "CVR %"];
+    if (adsConnected) header.push("Clics Ads", "CTR Ads %", "Costo Ads");
     const rows: (string | number)[][] = [
-      ["Pareto", "Publicación", "ID", "Ingresos", "% del total", "Visitas", "Ventas", "CVR %"],
-      ...classified.map((c) => [
-        c.tier.toUpperCase(),
-        c.item.title,
-        c.item.meliItemId,
-        c.item.revenueNow,
-        c.pctOfTotal.toFixed(1),
-        c.item.visitsNow,
-        c.item.unitsNow,
-        c.cvr.toFixed(2),
-      ]),
+      header,
+      ...classified.map((c) => {
+        const row: (string | number)[] = [
+          c.tier.toUpperCase(),
+          c.item.title,
+          c.item.meliItemId,
+          c.item.revenueNow,
+          c.pctOfTotal.toFixed(1),
+          c.item.visitsNow,
+          c.item.unitsNow,
+          c.cvr.toFixed(2),
+        ];
+        if (adsConnected) {
+          row.push(c.item.ads?.clicks ?? 0, (c.item.ads?.ctr ?? 0).toFixed(2), c.item.ads?.cost ?? 0);
+        }
+        return row;
+      }),
     ];
     downloadCsv(`analytics-publicaciones-${formatDate(periodFrom)}-${formatDate(periodTo)}.csv`, rows);
   }
@@ -400,6 +429,7 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
               <th className="px-3 py-2 text-right">Visitas</th>
               <th className="px-3 py-2 text-right">Ventas</th>
               <th className="px-3 py-2 text-right">CVR</th>
+              {adsConnected && <th className="px-3 py-2 text-right">CTR Ads</th>}
               <th className="px-3 py-2 text-right">Stock</th>
             </tr>
           </thead>
@@ -433,12 +463,23 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
                 <td className="px-3 py-2 text-right">{item.visitsNow.toLocaleString()}</td>
                 <td className="px-3 py-2 text-right">{item.unitsNow}</td>
                 <td className="px-3 py-2 text-right text-emerald-500">{cvr.toFixed(1)}%</td>
+                {adsConnected && (
+                  <td className="px-3 py-2 text-right">
+                    {item.ads ? (
+                      <span className="text-violet-500" title={`${item.ads.clicks} clics · ${formatMoney(item.ads.cost, currencyId)} invertido`}>
+                        {item.ads.ctr.toFixed(2)}%
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/60">Sin Ads</span>
+                    )}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-right text-muted-foreground">{item.availableQuantity}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={adsConnected ? 9 : 8} className="px-3 py-6 text-center text-muted-foreground">
                   Sin resultados.
                 </td>
               </tr>

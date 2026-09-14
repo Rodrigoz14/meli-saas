@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { computePeriodProfit, diagnose } from "@/lib/profitability";
+import type { AdsItemMetric } from "@/lib/meli-api";
 
 export type ProfitabilityRow = {
   productId: string;
@@ -33,6 +34,9 @@ export type ProfitabilityRow = {
   revenue30d: number;
   commission30d: number;
   shipping30d: number;
+  // Real, de la API de Product Ads de ML (últimos 30d) — null si esta
+  // publicación no tuvo inversión en Ads en el período.
+  ads: AdsItemMetric | null;
 };
 
 type SortKey =
@@ -105,9 +109,11 @@ function SortableHead({
 function Row({
   row,
   taxWithholdingPercent,
+  adsConnected,
 }: {
   row: ProfitabilityRow;
   taxWithholdingPercent: number;
+  adsConnected: boolean;
 }) {
   const {
     netProfit: totalProfit,
@@ -172,6 +178,20 @@ function Row({
       <TableCell className="font-semibold">
         {formatMoney(totalProfit, row.currencyId)}
       </TableCell>
+      {adsConnected && (
+        <TableCell className="text-right">
+          {row.ads ? (
+            <span
+              className="text-violet-500"
+              title={`${row.ads.clicks} clics · ${formatMoney(row.ads.cost, row.currencyId)} invertido`}
+            >
+              {row.ads.ctr.toFixed(2)}%
+            </span>
+          ) : (
+            <span className="text-muted-foreground/60">Sin Ads</span>
+          )}
+        </TableCell>
+      )}
       <TableCell>
         <Badge
           variant={margin >= 15 ? "secondary" : "destructive"}
@@ -199,9 +219,11 @@ const FILTER_TABS: { key: FilterTab; label: string; icon: typeof Flame }[] = [
 export function ProfitabilityTable({
   rows,
   taxWithholdingPercent,
+  adsConnected,
 }: {
   rows: ProfitabilityRow[];
   taxWithholdingPercent: number;
+  adsConnected: boolean;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("units");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -396,16 +418,17 @@ export function ProfitabilityTable({
               direction={sortDir}
               onSort={handleSort}
             />
+            {adsConnected && <TableHead className="text-right">CTR Ads (30d)</TableHead>}
             <TableHead>Diagnóstico</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {sortedRows.map(({ row }) => (
-            <Row key={row.productId} row={row} taxWithholdingPercent={taxWithholdingPercent} />
+            <Row key={row.productId} row={row} taxWithholdingPercent={taxWithholdingPercent} adsConnected={adsConnected} />
           ))}
           {sortedRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={10} className="py-6 text-center text-muted-foreground">
+              <TableCell colSpan={adsConnected ? 11 : 10} className="py-6 text-center text-muted-foreground">
                 Sin resultados.
               </TableCell>
             </TableRow>
@@ -425,6 +448,7 @@ export function ProfitabilityTable({
             </TableCell>
             <TableCell>—</TableCell>
             <TableCell className="font-semibold">{formatMoney(totals.netProfit, currencyId)}</TableCell>
+            {adsConnected && <TableCell />}
             <TableCell className="font-semibold">{totalMargin.toFixed(1)}%</TableCell>
             <TableCell />
           </TableRow>

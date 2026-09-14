@@ -532,3 +532,121 @@ export async function getVisitsSplitForItems(
   });
   return { current, previous };
 }
+
+export type AdsItemMetric = {
+  clicks: number;
+  prints: number;
+  cost: number;
+  ctr: number; // % — clicks/prints, recalculado tras sumar (no se puede promediar el ctr de la API entre campañas)
+  acos: number; // % — cost/totalAmount, recalculado tras sumar
+  totalAmount: number;
+  unitsQuantity: number;
+};
+
+// Encuentra el advertiser_id de Product Ads de esta cuenta, si tiene uno. No
+// toda cuenta usa Ads — que no exista no es un error.
+async function getAdvertiserId(accessToken: string, siteId: string): Promise<number | null> {
+  try {
+    const data = await meliFetch<{ advertisers?: { advertiser_id: number }[] }>(
+      `/advertising/advertisers?product_id=PADS&site_id=${siteId}`,
+      accessToken,
+    );
+    return data.advertisers?.[0]?.advertiser_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// La API de Product Ads vive en un microservicio distinto al resto (prefijo
+// /marketplace/advertising/{site_id}/... en vez de /advertising/..., que da
+// 404 aunque el token/scope sea válido) y exige el header Api-Version: 2.
+async function meliFetchAds<T>(path: string, accessToken: string, attempt = 0): Promise<T> {
+  const res = await fetch(`${MELI_API}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}`, "Api-Version": "2" },
+    cache: "no-store",
+  });
+  if (res.status === 429 && attempt < 2) {
+    await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+    return meliFetchAds<T>(path, accessToken, attempt + 1);
+  }
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Mercado Libre Ads API ${path} -> ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+type MeliAdItem = {
+  item_id: string;
+  metrics?: {
+    clicks?: number;
+    prints?: number;
+    cost?: number;
+    total_amount?: number;
+    units_quantity?: number;
+  };
+};
+
+// Métricas reales de Ads (clics, impresiones, costo, CTR, ACOS, ventas
+// atribuidas) por publicación, sumadas entre todas las campañas donde
+// aparece esa publicación en el rango de fechas — vienen directo de la API
+// de Product Ads de Mercado Libre, no son estimadas. Devuelve null si la
+// cuenta no tiene Product Ads activo (no es un error, solo no hay datos).
+export async function getAdsItemMetrics(
+  accessToken: string,
+  siteId: string,
+  from: Date,
+  to: Date,
+): Promise<Record<string, AdsItemMetric> | null> {
+  const advertiserId = await getAdvertiserId(accessToken, siteId);
+  if (!advertiserId) return null;
+
+  const dateFrom = from.toISOString().slice(0, 10);
+  const dateTo = to.toISOString().slice(0, 10);
+  const metricsParam = "clicks,prints,cost,total_amount,units_quantity";
+  const pageSize = 100;
+  const base = `/marketplace/advertising/${siteId}/advertisers/${advertiserId}/product_ads/ads/search`;
+  const query = (offset: number) =>
+    `${base}?date_from=${dateFrom}&date_to=${dateTo}&metrics=${metricsParam}&limit=${pageSize}&offset=${offset}`;
+
+  try {
+    const first = await meliFetchAds<{ paging: { total: number }; results: MeliAdItem[] }>(
+      query(0),
+      accessToken,
+    );
+    const remainingOffsets: number[] = [];
+    for (let offset = pageSize; offset < first.paging.total; offset += pageSize) {
+      remainingOffsets.push(offset);
+    }
+    const restPages = await Promise.all(
+      remainingOffsets.map((offset) =>
+        meliFetchAds<{ results: MeliAdItem[] }>(query(offset), accessToken),
+      ),
+    );
+    const allAds = [first, ...restPages].flatMap((page) => page.results);
+
+    const totals: Record<string, AdsItemMetric> = {};
+    for (const ad of allAds) {
+      const m = ad.metrics;
+      if (!m) continue;
+      if (!totals[ad.item_id]) {
+        totals[ad.item_id] = { clicks: 0, prints: 0, cost: 0, ctr: 0, acos: 0, totalAmount: 0, unitsQuantity: 0 };
+      }
+      const t = totals[ad.item_id];
+      t.clicks += m.clicks ?? 0;
+      t.prints += m.prints ?? 0;
+      t.cost += m.cost ?? 0;
+      t.totalAmount += m.total_amount ?? 0;
+      t.unitsQuantity += m.units_quantity ?? 0;
+    }
+    for (const key in totals) {
+      const t = totals[key];
+      t.ctr = t.prints > 0 ? (t.clicks / t.prints) * 100 : 0;
+      t.acos = t.totalAmount > 0 ? (t.cost / t.totalAmount) * 100 : 0;
+    }
+    return totals;
+  } catch (err) {
+    console.error("getAdsItemMetrics failed:", err);
+    return null;
+  }
+}

@@ -33,7 +33,7 @@ export default async function RentabilidadPage() {
     );
   }
 
-  const { rows, errorMessage, taxWithholdingPercent } = data;
+  const { rows, errorMessage, taxWithholdingPercent, adsConnected } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -89,7 +89,7 @@ export default async function RentabilidadPage() {
           })()}
 
           <div className="mt-8">
-            <ProfitabilityTable rows={rows} taxWithholdingPercent={taxWithholdingPercent} />
+            <ProfitabilityTable rows={rows} taxWithholdingPercent={taxWithholdingPercent} adsConnected={adsConnected} />
           </div>
         </>
       )}

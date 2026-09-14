@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
+  getAdsItemMetrics,
   getBillingData,
   getItemsDetails,
   getMeliUser,
@@ -66,6 +67,7 @@ export type RentabilidadData =
       orderStats: Record<string, OrderStats>;
       billingSummary: BillingSummary | null;
       totalAds: number;
+      adsConnected: boolean;
     };
 
 // Compartido entre /dashboard (Rentabilidad) y /dashboard/costos-gastos —
@@ -85,6 +87,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
   let orderStats: Record<string, OrderStats> = {};
   let billingSummary: BillingSummary | null = null;
   let totalAds = 0;
+  let adsConnected = false;
 
   try {
     const [costEntries, taxEntryRows] = await Promise.all([
@@ -116,11 +119,17 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + t.percent, 0);
 
     const meliUser = await getMeliUser(accessToken);
-    const billingData = await getBillingData(accessToken, 30);
+    const adsTo = new Date();
+    const adsFrom = new Date(adsTo.getTime() - 30 * 86400000);
+    const [billingData, itemIds, adsMetrics] = await Promise.all([
+      getBillingData(accessToken, 30),
+      getUserItemIds(accessToken, String(meliUser.id)),
+      getAdsItemMetrics(accessToken, meliUser.site_id, adsFrom, adsTo),
+    ]);
     billingSummary = billingData.closedSummary;
     totalAds = billingData.rollingAdsSpend ?? 0;
+    adsConnected = adsMetrics !== null;
     autoExpenses = buildAutoOperatingCosts(billingSummary);
-    const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const items = await getItemsDetails(accessToken, itemIds);
     orderStats = await getOrderStats(accessToken, meliUser.id, 30);
 
@@ -162,6 +171,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
           revenue30d: stats.revenue,
           commission30d: stats.commission,
           shipping30d: stats.shipping,
+          ads: adsMetrics?.[item.id] ?? null,
         } satisfies ProfitabilityRow;
       }),
     );
@@ -182,5 +192,6 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     orderStats,
     billingSummary,
     totalAds,
+    adsConnected,
   };
 }

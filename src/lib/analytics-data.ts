@@ -1,10 +1,13 @@
+import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
+  getAdsItemMetrics,
   getItemsDetails,
   getMeliUser,
   getOrderStats,
   getUserItemIds,
   getVisitsSplitForItems,
+  type AdsItemMetric,
   type OrderStats,
 } from "@/lib/meli-api";
 
@@ -22,6 +25,10 @@ export type ItemAnalytics = {
   unitsPrev: number;
   visitsNow: number;
   visitsPrev: number;
+  // Real, de la API de Product Ads de ML — null si esta publicación no tuvo
+  // inversión en Ads en el período (no confundir con "cuenta sin Ads", ver
+  // adsConnected en AnalyticsData).
+  ads: AdsItemMetric | null;
 };
 
 export type PeriodTotals = {
@@ -53,6 +60,15 @@ export type AnalyticsData =
       prev: PeriodTotals;
       impact: ImpactBreakdown;
       items: ItemAnalytics[];
+      // false si la cuenta no tiene Product Ads activo — en ese caso todos
+      // los items.ads vienen en null y no hay que mostrar la columna de Ads.
+      adsConnected: boolean;
+      // No es un dato que Mercado Libre entregue por API: es la tasa que el
+      // usuario configuró en Costos y Gastos, aplicada sobre los ingresos
+      // brutos del período. Ver retention-config en Costos y Gastos.
+      taxWithholdingPercent: number;
+      retentionNow: number;
+      retentionPrev: number;
     };
 
 function periodTotals(revenue: number, units: number, visits: number): PeriodTotals {
@@ -95,19 +111,27 @@ export async function getAnalyticsData(userId: string, days = 7): Promise<Analyt
   let items: ItemAnalytics[] = [];
   let nowTotals = periodTotals(0, 0, 0);
   let prevTotals = periodTotals(0, 0, 0);
+  let taxWithholdingPercent = 0;
+  let adsConnected = false;
 
   try {
-    const meliUser = await getMeliUser(accessToken);
+    const [meliUser, taxEntries] = await Promise.all([
+      getMeliUser(accessToken),
+      prisma.taxEntry.findMany({ where: { userId } }),
+    ]);
+    taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + Number(t.percent), 0);
     const itemIds = await getUserItemIds(accessToken, String(meliUser.id));
     const itemDetails = await getItemsDetails(accessToken, itemIds);
     if (itemDetails.length > 0) currencyId = itemDetails[0].currency_id;
 
-    const [statsNow, statsPrev, visits] = await Promise.all([
+    const [statsNow, statsPrev, visits, adsMetrics] = await Promise.all([
       getOrderStats(accessToken, meliUser.id, days, { from: periodFrom, to: periodTo }),
       getOrderStats(accessToken, meliUser.id, days, { from: prevFrom, to: prevTo }),
       getVisitsSplitForItems(accessToken, itemIds, days),
+      getAdsItemMetrics(accessToken, meliUser.site_id, periodFrom, periodTo),
     ]);
     const { current: visitsNow, previous: visitsPrev } = visits;
+    adsConnected = adsMetrics !== null;
 
     items = itemDetails.map((item) => {
       const now: OrderStats = statsNow[item.id] ?? { quantity: 0, revenue: 0, commission: 0, shipping: 0 };
@@ -126,6 +150,7 @@ export async function getAnalyticsData(userId: string, days = 7): Promise<Analyt
         unitsPrev: prev.quantity,
         visitsNow: visitsNow[item.id] ?? 0,
         visitsPrev: visitsPrev[item.id] ?? 0,
+        ads: adsMetrics?.[item.id] ?? null,
       } satisfies ItemAnalytics;
     });
 
@@ -156,5 +181,9 @@ export async function getAnalyticsData(userId: string, days = 7): Promise<Analyt
     prev: prevTotals,
     impact: computeImpact(nowTotals, prevTotals),
     items,
+    adsConnected,
+    taxWithholdingPercent,
+    retentionNow: nowTotals.revenue * (taxWithholdingPercent / 100),
+    retentionPrev: prevTotals.revenue * (taxWithholdingPercent / 100),
   };
 }
