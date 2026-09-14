@@ -429,7 +429,11 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
               <th className="px-3 py-2 text-right">Visitas</th>
               <th className="px-3 py-2 text-right">Ventas</th>
               <th className="px-3 py-2 text-right">CVR</th>
-              {adsConnected && <th className="px-3 py-2 text-right">CTR Ads</th>}
+              {adsConnected && (
+                <th className="px-3 py-2 text-right" title="Clics ÷ Impresiones de tus anuncios de Product Ads en este período">
+                  CTR Ads
+                </th>
+              )}
               <th className="px-3 py-2 text-right">Stock</th>
             </tr>
           </thead>
@@ -466,9 +470,12 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
                 {adsConnected && (
                   <td className="px-3 py-2 text-right">
                     {item.ads ? (
-                      <span className="text-violet-500" title={`${item.ads.clicks} clics · ${formatMoney(item.ads.cost, currencyId)} invertido`}>
-                        {item.ads.ctr.toFixed(2)}%
-                      </span>
+                      <div className="flex flex-col items-end">
+                        <span className="font-medium text-violet-500">{item.ads.ctr.toFixed(2)}%</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {item.ads.clicks.toLocaleString()} clics / {item.ads.prints.toLocaleString()} impr.
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-muted-foreground/60">Sin Ads</span>
                     )}
@@ -487,6 +494,12 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
           </tbody>
         </table>
       </div>
+      {adsConnected && (
+        <p className="text-xs text-muted-foreground">
+          CVR = Ventas ÷ Visitas. CTR Ads = Clics ÷ Impresiones de tus anuncios de Product Ads en este período —
+          qué tan atractivo es tu anuncio para quien lo ve, no tu tasa de venta.
+        </p>
+      )}
     </div>
   );
 }

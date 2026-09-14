@@ -193,12 +193,12 @@ function Row({
       {adsConnected && (
         <TableCell className="text-right">
           {row.ads ? (
-            <span
-              className="text-violet-500"
-              title={`${row.ads.clicks} clics · ${formatMoney(row.ads.cost, row.currencyId)} invertido`}
-            >
-              {row.ads.ctr.toFixed(2)}%
-            </span>
+            <div className="flex flex-col items-end">
+              <span className="font-medium text-violet-500">{row.ads.ctr.toFixed(2)}%</span>
+              <span className="text-[10px] text-muted-foreground">
+                {row.ads.clicks.toLocaleString()} clics / {row.ads.prints.toLocaleString()} impr.
+              </span>
+            </div>
           ) : (
             <span className="text-muted-foreground/60">Sin Ads</span>
           )}
@@ -437,6 +437,11 @@ export function ProfitabilityTable({
               direction={sortDir}
               onSort={handleSort}
             />
+            {adsConnected && (
+              <TableHead className="text-right" title="Clics ÷ Impresiones de tus anuncios de Product Ads (últimos 30 días)">
+                CTR Ads (30d)
+              </TableHead>
+            )}
             <SortableHead
               label="Margen %"
               sortKey="margin"
@@ -444,7 +449,6 @@ export function ProfitabilityTable({
               direction={sortDir}
               onSort={handleSort}
             />
-            {adsConnected && <TableHead className="text-right">CTR Ads (30d)</TableHead>}
             <TableHead>Diagnóstico</TableHead>
           </TableRow>
         </TableHeader>
@@ -489,6 +493,8 @@ export function ProfitabilityTable({
       </div>
       <p className="text-xs text-muted-foreground">
         Margen = Ingresos − Costo producto − Comisión − Envío − Retenciones.
+        {adsConnected &&
+          " CTR Ads = Clics ÷ Impresiones de tus anuncios de Product Ads en los últimos 30 días — qué tan atractivo es tu anuncio para quien lo ve, no tu tasa de venta."}
       </p>
     </div>
   );
