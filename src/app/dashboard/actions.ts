@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { generatePublicationCopy, type PublicationCopy } from "@/lib/ai";
 
 // Rentabilidad y Costos y gastos son páginas distintas pero comparten los
 // mismos datos (ver getRentabilidadData) — cualquier cambio hecho desde
@@ -149,4 +150,20 @@ export async function deleteTaxEntry(taxEntryId: string) {
   });
 
   revalidateDashboards();
+}
+
+// Título/descripción optimizados con IA para una publicación — no persiste
+// nada (el usuario decide si copia el resultado a su publicación real en
+// Mercado Libre desde ahí), así que solo valida sesión y devuelve el
+// resultado del modelo.
+export async function generateOptimizedCopy(input: {
+  currentTitle: string;
+  keyFeatures: string;
+  brand?: string;
+  category?: string;
+}): Promise<PublicationCopy | null> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  return generatePublicationCopy(input);
 }

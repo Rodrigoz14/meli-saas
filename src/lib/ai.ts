@@ -52,3 +52,81 @@ Dame 6 términos así para "${trimmed}". Responde ÚNICAMENTE con un array JSON 
     return [];
   }
 }
+
+export type PublicationCopyInput = {
+  currentTitle: string;
+  keyFeatures: string;
+  brand?: string;
+  category?: string;
+};
+
+export type PublicationCopy = {
+  title: string;
+  titleReasoning: string;
+  description: string;
+};
+
+// Título y descripción optimizados para Mercado Libre, siguiendo sus
+// reglas reales de publicación (no un texto de marketing genérico):
+// orden Marca+Producto+Modelo+Atributo clave+Cantidad, sin mayúsculas
+// sostenidas, sin palabras subjetivas ("el mejor", "increíble"), sin
+// emojis/símbolos, sin mencionar envío/garantía/promociones (Mercado
+// Libre rechaza publicaciones que lo hacen), y dentro del límite real de
+// caracteres del título (~60).
+export async function generatePublicationCopy(input: PublicationCopyInput): Promise<PublicationCopy | null> {
+  const currentTitle = input.currentTitle.trim().slice(0, 200);
+  const keyFeatures = input.keyFeatures.trim().slice(0, 800);
+  if (!currentTitle && !keyFeatures) return null;
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 700,
+    messages: [
+      {
+        role: "user",
+        content: `Sos un experto en optimización de publicaciones de Mercado Libre (Latinoamérica). Te paso los datos de un producto y necesito un título optimizado y una descripción, siguiendo las reglas REALES de Mercado Libre (no marketing genérico):
+
+Reglas del título:
+- Máximo 60 caracteres.
+- Orden: Marca (si aplica) + Producto + Modelo/Variante + Atributo clave (color/tamaño/material) + Cantidad si aplica.
+- Las palabras que más buscaría un comprador van primero.
+- SIN mayúsculas sostenidas, SIN emojis ni símbolos (~ * ¡ ¡), SIN palabras subjetivas ("el mejor", "increíble", "calidad premium"), SIN mencionar envío/garantía/promociones/precio (Mercado Libre rechaza publicaciones que lo hacen en el título).
+- No repetir palabras.
+
+Reglas de la descripción:
+- Empieza con 1-2 frases que resuelvan qué problema soluciona el producto (sin adjetivos vacíos).
+- Sigue con una lista de características/beneficios concretos (viñetas con "•"), basados SOLO en los datos que te doy — no inventes especificaciones que no te pasé.
+- Cierra con una línea de "Qué incluye" si se puede inferir de los datos.
+- Tono directo y claro, sin superlativos vacíos.
+
+Datos del producto:
+- Título actual (puede estar mal optimizado, es solo referencia): "${currentTitle || "(sin título actual)"}"
+- Marca: ${input.brand?.trim() || "(no especificada)"}
+- Categoría: ${input.category?.trim() || "(no especificada)"}
+- Características/detalles que me pasa el vendedor: "${keyFeatures || "(no especificadas, usa el título actual como única referencia)"}"
+
+Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicional:
+{"title": "...", "titleReasoning": "una frase corta explicando por qué ese orden/esas palabras", "description": "..."}`,
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (typeof parsed?.title !== "string" || typeof parsed?.description !== "string") return null;
+    return {
+      title: parsed.title.trim().slice(0, 60),
+      titleReasoning: typeof parsed.titleReasoning === "string" ? parsed.titleReasoning.trim() : "",
+      description: parsed.description.trim(),
+    };
+  } catch (err) {
+    console.error("generatePublicationCopy: no se pudo parsear la respuesta del modelo:", text, err);
+    return null;
+  }
+}
