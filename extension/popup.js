@@ -201,10 +201,11 @@ function render() {
       ? `<span style="color: var(--emerald); font-weight: 700">${money(row.price)}</span><br/><span style="text-decoration: line-through; color: var(--muted-foreground); font-size: 11px">${money(row.originalPrice)}</span>`
       : money(row.price);
 
-    const revenueHtml =
+    const revenueHtml = `${money(row.estimatedRevenue)}<br/><span style="color: var(--muted-foreground); font-size: 10px">estimado (30d)</span>${
       row.realSales != null
-        ? `${money(row.estimatedRevenue)}<br/><span style="color: var(--emerald); font-size: 10px" title="Ventas históricas reales de Mercado Libre">✓ +${row.realSales.toLocaleString("es")} vendidos</span>`
-        : `${money(row.estimatedRevenue)}<br/><span style="color: var(--muted-foreground); font-size: 10px">estimado</span>`;
+        ? `<br/><span style="color: var(--emerald); font-size: 10px" title="Ventas históricas acumuladas reales de Mercado Libre (no de los últimos 30 días)">✓ +${row.realSales.toLocaleString("es")} vendidos histórico</span>`
+        : ""
+    }`;
 
     tr.innerHTML = `
       <td>${thumbHtml}</td>

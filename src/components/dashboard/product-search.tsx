@@ -253,15 +253,14 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
                 <TableCell className="font-semibold">
                   <div className="flex flex-col">
                     <span>{money(row.estimatedRevenue, currencyId)}</span>
-                    {row.realSales != null ? (
+                    <span className="text-[10px] font-normal text-muted-foreground">estimado (30d)</span>
+                    {row.realSales != null && (
                       <span
                         className="text-[10px] font-normal text-emerald-500"
-                        title="Ventas históricas reales de Mercado Libre, no una estimación por posición"
+                        title="Ventas históricas acumuladas reales de Mercado Libre (no de los últimos 30 días)"
                       >
-                        ✓ +{row.realSales.toLocaleString("es")} vendidos (real)
+                        ✓ +{row.realSales.toLocaleString("es")} vendidos histórico
                       </span>
-                    ) : (
-                      <span className="text-[10px] font-normal text-muted-foreground">estimado</span>
                     )}
                   </div>
                 </TableCell>
@@ -508,10 +507,10 @@ export function ProductSearch() {
     <div>
       <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
         Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
-        imagen). Cuando una publicación muestra &ldquo;+N vendidos&rdquo; en Mercado Libre, usamos esa venta
-        histórica real para la facturación (marcada &ldquo;real&rdquo; en la tabla) — Mercado Libre no expone eso
-        para todas las publicaciones, así que el resto sigue siendo una estimación por posición (Mercado Libre no
-        expone las vistas reales de publicaciones ajenas a nadie).
+        imagen). Cuando una publicación muestra &ldquo;+N vendidos&rdquo; en Mercado Libre, se lo mostramos como
+        dato real (es un acumulado histórico, no de los últimos 30 días) y priorizamos esas publicaciones primero.
+        Visitas y facturación siguen siendo una estimación por posición para todas las filas — Mercado Libre no
+        expone las vistas reales de publicaciones ajenas a nadie.
       </div>
 
       <form

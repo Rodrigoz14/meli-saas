@@ -570,10 +570,14 @@ async function runNicheSearchInner(query, site) {
   const dedupedItems = dedupeByPermalink(withVisits).slice(0, MAX_COMBINED_RESULTS);
 
   const rows = dedupedItems.map((item, i) => {
-    const hasRealSales = item.soldCount != null;
-    const estimatedRevenue = hasRealSales
-      ? Math.round(item.price * item.soldCount)
-      : Math.round(item.price * item.estimatedVisits * ASSUMED_CONVERSION_RATE);
+    // "+N vendidos" es un acumulado histórico (a veces de años) — usarlo
+    // directo como facturación de 30 días da números absurdamente
+    // inflados para publicaciones viejas con miles de ventas acumuladas.
+    // Se usa solo como señal real de confianza/orden (arriba), la
+    // facturación sigue siendo la misma estimación por visitas para
+    // todas las filas, para no romper la consistencia con el resto de
+    // las métricas (que sí están pensadas como ventana de 30 días).
+    const estimatedRevenue = Math.round(item.price * item.estimatedVisits * ASSUMED_CONVERSION_RATE);
     return {
       id: `real-${i}`,
       title: item.title,
