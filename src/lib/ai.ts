@@ -15,11 +15,21 @@ export async function generateSearchTerms(query: string): Promise<string[]> {
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 200,
+    max_tokens: 300,
     messages: [
       {
         role: "user",
-        content: `Un vendedor de Mercado Libre (Latinoamérica) quiere investigar el nicho "${trimmed}". Dame 4 términos de búsqueda alternativos que un comprador real escribiría para encontrar el mismo tipo de producto (sinónimos, nombres alternativos, variaciones comunes o marcas genéricas del rubro) — NO productos distintos, NO accesorios. Responde ÚNICAMENTE con un array JSON de 4 strings cortos (2-4 palabras cada uno), sin texto adicional. Ejemplo para "reloj": ["smartwatch", "reloj inteligente", "reloj digital", "cronógrafo"]`,
+        content: `Un vendedor de Mercado Libre (Latinoamérica) quiere investigar el nicho "${trimmed}".
+
+Necesito las DIFERENTES FORMAS en que un comprador real llamaría a este mismo tipo de producto al buscarlo — NO variantes armadas agregándole un adjetivo al mismo nombre (evita cosas como "${trimmed} deportivo", "${trimmed} digital", "${trimmed} automático" — eso NO cuenta como término distinto). Quiero sinónimos genuinos, nombres alternativos o regionales, términos de la industria, y marcas genéricas del rubro que la gente usa como si fueran el nombre del producto — palabras distintas, no la misma palabra con un calificativo pegado.
+
+Ejemplos de lo que SÍ sirve:
+- "reloj" → "smartwatch", "pulsera inteligente", "cronómetro"
+- "auriculares" → "audífonos", "earbuds", "cascos"
+- "tenis" → "zapatillas", "calzado deportivo", "sneakers"
+- "licuadora" → "batidora", "procesadora de alimentos"
+
+Dame 6 términos así para "${trimmed}". Responde ÚNICAMENTE con un array JSON de 6 strings cortos (1-4 palabras cada uno), sin texto adicional.`,
       },
     ],
   });
@@ -36,7 +46,7 @@ export async function generateSearchTerms(query: string): Promise<string[]> {
     return parsed
       .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
       .map((t) => t.trim())
-      .slice(0, 4);
+      .slice(0, 6);
   } catch (err) {
     console.error("generateSearchTerms: no se pudo parsear la respuesta del modelo:", text, err);
     return [];

@@ -36,7 +36,7 @@ const RANK_BASELINE_VISITS = 800;
 // combinado más relevante (empieza con los resultados de tu término
 // exacto, después completa con los términos de IA) da un análisis más
 // concentrado y comparable al de herramientas curadas como Selltrix.
-const MAX_COMBINED_RESULTS = 60;
+const MAX_COMBINED_RESULTS = 70;
 
 function buildSearchUrl(site, query) {
   const domain = SITE_DOMAINS[site] || SITE_DOMAINS.CO;
@@ -55,7 +55,7 @@ function buildFallbackVariations(query) {
   if (words.length > 2) variations.push(words.slice(1).join(" ")); // sin la primera palabra
   variations.push(`${trimmed} nuevo`);
   variations.push(`${trimmed} original`);
-  return [...new Set(variations.map((v) => v.trim()).filter(Boolean))].slice(0, 5);
+  return [...new Set(variations.map((v) => v.trim()).filter(Boolean))].slice(0, 7);
 }
 
 function dedupeVariations(list) {
@@ -68,11 +68,12 @@ function dedupeVariations(list) {
     seen.add(key);
     out.push(trimmed);
   }
-  return out.slice(0, 5);
+  return out.slice(0, 7);
 }
 
-// Le pide a nuestro propio backend (que sí tiene ANTHROPIC_API_KEY) 4
-// sinónimos/términos relacionados reales para el nicho — igual que Selltrix,
+// Le pide a nuestro propio backend (que sí tiene ANTHROPIC_API_KEY) 6
+// sinónimos/nombres alternativos reales para el nicho (no solo el mismo
+// nombre con un adjetivo pegado) — igual que Selltrix,
 // que mide sus búsquedas porque cada una dispara una llamada real a un LLM,
 // en vez de la heurística de texto que había antes (quitar la primera o
 // última palabra, agregar "nuevo"/"original", que casi nunca encontraba
