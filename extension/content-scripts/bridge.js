@@ -53,5 +53,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // respuesta async — mantiene el canal de mensajes abierto
   }
 
+  // Igual que MELIBOOST_GET_DASHBOARD: la API de Tendencias de ML ya no
+  // responde sin token, así que se pide desde acá (con la sesión real de
+  // la app) en vez de directo desde el service worker.
+  if (message?.type === "MELIBOOST_GET_TRENDS") {
+    fetch(`/api/extension/trends?site=${encodeURIComponent(message.site || "CO")}`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => sendResponse(data))
+      .catch((err) => sendResponse({ connected: false, reason: "fetch-failed", error: String(err) }));
+    return true;
+  }
+
   return false;
 });

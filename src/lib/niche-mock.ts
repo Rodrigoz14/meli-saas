@@ -47,6 +47,12 @@ export type NicheReport = {
   query: string;
   currencyId: string;
   relatedKeywords: string[];
+  // Real: si el término buscado (o alguno de sus sinónimos de IA) aparece
+  // en la lista oficial de tendencias de Mercado Libre de esta semana
+  // (API /trends, ver extension/background.js). No es un invento — o está
+  // en la lista real, o no está.
+  isTrending?: boolean;
+  trendingKeyword?: string | null;
   isRealData: boolean;
   rows: NicheRow[];
   demand: {
@@ -111,7 +117,13 @@ export function buildRelatedKeywords(query: string): string[] {
 export function buildNicheReport(
   query: string,
   rows: NicheRow[],
-  options: { relatedKeywords?: string[]; totalPublications?: number; isRealData?: boolean } = {},
+  options: {
+    relatedKeywords?: string[];
+    totalPublications?: number;
+    isRealData?: boolean;
+    isTrending?: boolean;
+    trendingKeyword?: string | null;
+  } = {},
 ): NicheReport {
   const cleanQuery = query.trim();
   const relatedKeywords = options.relatedKeywords ?? buildRelatedKeywords(cleanQuery);
@@ -123,6 +135,8 @@ export function buildNicheReport(
       currencyId: "COP",
       relatedKeywords,
       isRealData,
+      isTrending: options.isTrending ?? false,
+      trendingKeyword: options.trendingKeyword ?? null,
       rows: [],
       demand: {
         totalVisits: 0,
@@ -254,6 +268,8 @@ export function buildNicheReport(
     currencyId: "COP",
     relatedKeywords,
     isRealData,
+    isTrending: options.isTrending ?? false,
+    trendingKeyword: options.trendingKeyword ?? null,
     rows,
     demand: {
       totalVisits,

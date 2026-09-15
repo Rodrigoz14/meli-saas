@@ -411,6 +411,31 @@ async function logDebug(entry) {
   }
 }
 
+function normalizeTerm(text) {
+  return (text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+}
+
+// Compara el término buscado y sus sinónimos de IA contra la lista real de
+// palabras en tendencia de ML (ver getTrendingKeywords) — devuelve la
+// palabra en tendencia que coincide, o null si ninguna coincide. Es una
+// coincidencia real de texto, no un invento: o el término está en la
+// lista oficial de esta semana, o no está.
+function findTrendingMatch(variations, keywords) {
+  const normVariations = variations.map(normalizeTerm).filter(Boolean);
+  for (const kw of keywords) {
+    const nkw = normalizeTerm(kw);
+    if (!nkw) continue;
+    for (const v of normVariations) {
+      if (nkw.includes(v) || v.includes(nkw)) return kw;
+    }
+  }
+  return null;
+}
+
 function dedupeByPermalink(items) {
   const seen = new Set();
   const out = [];
@@ -485,6 +510,43 @@ async function getDashboardFromAppTab() {
   return { connected: false, reason: "tab-not-responding" };
 }
 
+// Mismo patrón que sendDashboardRequest/getDashboardFromAppTab, para pedir
+// las palabras en tendencia real de ML (ver /api/extension/trends) — si no
+// hay ninguna pestaña de la app abierta y logueada, simplemente no se
+// muestra el badge de tendencia, la búsqueda sigue funcionando igual.
+async function sendTrendsRequest(tabId, site) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: "MELIBOOST_GET_TRENDS", site });
+    if (response) return response;
+  } catch {
+    // reintentamos abajo reinyectando el content script
+  }
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content-scripts/bridge.js"] });
+  } catch {
+    return null;
+  }
+  try {
+    return (await chrome.tabs.sendMessage(tabId, { type: "MELIBOOST_GET_TRENDS", site })) || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getTrendingKeywords(site) {
+  let tabs;
+  try {
+    tabs = await chrome.tabs.query({ url: APP_URL_PATTERNS });
+  } catch {
+    tabs = [];
+  }
+  for (const tab of tabs) {
+    const response = await sendTrendsRequest(tab.id, site);
+    if (response?.connected && Array.isArray(response.keywords)) return response.keywords;
+  }
+  return [];
+}
+
 function broadcast(message) {
   chrome.runtime.sendMessage(message).catch(() => {});
   chrome.tabs.query({ url: APP_URL_PATTERNS }).then((tabs) => {
@@ -525,6 +587,11 @@ async function runNicheSearchInner(query, site) {
 
   broadcast({ type: "MELIBOOST_SEARCH_PROGRESS", label: "Buscando términos relacionados con IA..." });
   const variations = await buildVariations(query || "");
+  // Se dispara en paralelo con el scraping (no hace falta esperarlo para
+  // empezar a buscar) — dato real de la API de Tendencias de ML, ver
+  // getTrendingKeywords. Si no hay ninguna pestaña de la app abierta,
+  // simplemente no se muestra el badge, la búsqueda sigue igual.
+  const trendsPromise = getTrendingKeywords(site).catch(() => []);
   const allItems = [];
   let anyVariationSucceeded = false;
 
@@ -595,7 +662,17 @@ async function runNicheSearchInner(query, site) {
     };
   });
 
-  broadcast({ type: "MELIBOOST_SEARCH_RESULT", query, ok: anyVariationSucceeded, rows });
+  const trendingKeywords = await trendsPromise;
+  const trendingMatch = findTrendingMatch(variations, trendingKeywords);
+
+  broadcast({
+    type: "MELIBOOST_SEARCH_RESULT",
+    query,
+    ok: anyVariationSucceeded,
+    rows,
+    isTrending: Boolean(trendingMatch),
+    trendingKeyword: trendingMatch,
+  });
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

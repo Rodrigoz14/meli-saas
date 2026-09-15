@@ -153,6 +153,8 @@ const rowsEl = document.getElementById("rows");
 let currentRows = [];
 let sortKey = "visits";
 let sortDir = "desc";
+let currentTrending = { isTrending: false, trendingKeyword: null };
+const trendingBannerEl = document.getElementById("trending-banner");
 
 function setBusy(busy, label) {
   submitBtn.disabled = busy;
@@ -168,6 +170,7 @@ function render() {
   if (currentRows.length === 0) {
     kpisEl.style.display = "none";
     tableWrapEl.style.display = "none";
+    trendingBannerEl.style.display = "none";
     emptyStateEl.style.display = "block";
     return;
   }
@@ -175,6 +178,13 @@ function render() {
   emptyStateEl.style.display = "none";
   kpisEl.style.display = "grid";
   tableWrapEl.style.display = "block";
+
+  if (currentTrending.isTrending) {
+    trendingBannerEl.textContent = `🔥 Tendencia real en Mercado Libre — "${currentTrending.trendingKeyword}" está en la lista oficial de esta semana.`;
+    trendingBannerEl.style.display = "block";
+  } else {
+    trendingBannerEl.style.display = "none";
+  }
 
   const totalVisits = currentRows.reduce((sum, r) => sum + r.visits, 0);
   const totalRevenue = currentRows.reduce((sum, r) => sum + r.estimatedRevenue, 0);
@@ -264,6 +274,10 @@ chrome.runtime.onMessage.addListener((message) => {
     }
     showError(null);
     currentRows = message.rows;
+    currentTrending = {
+      isTrending: Boolean(message.isTrending),
+      trendingKeyword: message.trendingKeyword ?? null,
+    };
     render();
   }
 });
@@ -274,6 +288,7 @@ form.addEventListener("submit", (e) => {
   if (!query) return;
   showError(null);
   currentRows = [];
+  currentTrending = { isTrending: false, trendingKeyword: null };
   render();
   setBusy(true, `Analizando "${query}"...`);
   chrome.runtime.sendMessage({ type: "MELIBOOST_START_SEARCH", query, site: siteSelect.value });

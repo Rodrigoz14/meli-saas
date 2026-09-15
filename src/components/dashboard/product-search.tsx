@@ -50,7 +50,10 @@ function money(value: number, currencyId: string) {
 // Escucha el "handshake" de la extensión de Chrome (content-scripts/bridge.js)
 // y reenvía búsquedas/resultados vía window.postMessage. Si la extensión no
 // está instalada, nunca llega MELIBOOST_EXTENSION_READY y se usa el mock.
-function useExtensionBridge(onProgress: (label: string) => void, onResult: (query: string, rows: NicheRow[], ok: boolean) => void) {
+function useExtensionBridge(
+  onProgress: (label: string) => void,
+  onResult: (query: string, rows: NicheRow[], ok: boolean, trending: { isTrending: boolean; trendingKeyword: string | null }) => void,
+) {
   const [available, setAvailable] = useState(false);
 
   useEffect(() => {
@@ -59,7 +62,12 @@ function useExtensionBridge(onProgress: (label: string) => void, onResult: (quer
       if (!data || data.source !== "meliboost-extension") return;
       if (data.type === "MELIBOOST_EXTENSION_READY") setAvailable(true);
       if (data.type === "MELIBOOST_SEARCH_PROGRESS") onProgress(data.label);
-      if (data.type === "MELIBOOST_SEARCH_RESULT") onResult(data.query, data.rows ?? [], Boolean(data.ok));
+      if (data.type === "MELIBOOST_SEARCH_RESULT") {
+        onResult(data.query, data.rows ?? [], Boolean(data.ok), {
+          isTrending: Boolean(data.isTrending),
+          trendingKeyword: data.trendingKeyword ?? null,
+        });
+      }
     }
     window.addEventListener("message", handleMessage);
     // El content script de la extensión avisa "listo" una sola vez al
@@ -295,6 +303,15 @@ function DemandTab({ report }: { report: NicheReport }) {
   const d = report.demand;
   return (
     <div className="space-y-6">
+      {report.isTrending && (
+        <div className="flex items-center gap-2 rounded-lg border border-orange-500/30 bg-orange-500/10 px-4 py-2.5 text-sm text-orange-600 shadow-[0_0_18px_-14px_rgba(249,115,22,0.7)] dark:text-orange-400">
+          <span className="text-base">🔥</span>
+          <span>
+            <span className="font-semibold">Tendencia real en Mercado Libre</span> — &ldquo;{report.trendingKeyword}
+            &rdquo; está en la lista oficial de términos en tendencia de esta semana.
+          </span>
+        </div>
+      )}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Visitas 30 días globales" value={d.totalVisits.toLocaleString("es")} />
         <KpiCard label="Visitas promedio por pub" value={d.avgVisitsPerListing.toLocaleString("es")} />
@@ -456,7 +473,7 @@ export function ProductSearch() {
       setProgressLabel(label);
       setRealDataError(null);
     },
-    (resultQuery, rows, ok) => {
+    (resultQuery, rows, ok, trending) => {
       setProgressLabel(null);
       if (!ok || rows.length === 0) {
         setRealDataError(
@@ -464,7 +481,7 @@ export function ProductSearch() {
         );
         return;
       }
-      setReport(buildNicheReport(resultQuery, rows, { isRealData: true }));
+      setReport(buildNicheReport(resultQuery, rows, { isRealData: true, ...trending }));
     },
   );
 
