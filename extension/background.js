@@ -27,16 +27,21 @@ const SITE_DOMAINS = {
 };
 
 const ASSUMED_CONVERSION_RATE = 0.03;
-const RANK_BASELINE_VISITS = 800;
-// Combinar 4-5 búsquedas completas sin límite dejaba el análisis con
+// Calibrado contra 3 publicaciones reales que aparecieron en ambas
+// herramientas buscando "reloj": Selltrix mostró 34,052 visitas globales
+// repartidas entre ~29 publicaciones (promedio ~1,174) — para reproducir
+// ese promedio con la misma curva 1/√rank, el punto de partida (rank 1)
+// tiene que rondar los 3,000-3,200, no 800.
+const RANK_BASELINE_VISITS = 3200;
+// Combinar muchas búsquedas completas sin límite dejaba el análisis con
 // cientos de publicaciones (confirmado real: ~255 vs las ~29 que analiza
 // Selltrix para el mismo término) — eso diluye el promedio de visitas por
 // publicación y el "% en el Top 3" hasta verse mucho peor de lo que es en
 // realidad, aunque los totales sumados no estuvieran tan lejos. Cortar al
-// combinado más relevante (empieza con los resultados de tu término
-// exacto, después completa con los términos de IA) da un análisis más
-// concentrado y comparable al de herramientas curadas como Selltrix.
-const MAX_COMBINED_RESULTS = 70;
+// combinado más relevante (ordenado por visita estimada, no por qué
+// búsqueda se proceso primero) da un análisis más concentrado y
+// comparable al de herramientas curadas como Selltrix.
+const MAX_COMBINED_RESULTS = 30;
 
 function buildSearchUrl(site, query) {
   const domain = SITE_DOMAINS[site] || SITE_DOMAINS.CO;
@@ -195,7 +200,24 @@ async function scrapeMeliSearchResults() {
     const isFull = /\bfull\b/i.test(cardText);
     const isCatalog = /cat[aá]logo/i.test(cardText);
 
-    return { title, price, originalPrice, image, permalink, isFull, isCatalog };
+    // Dato REAL de Mercado Libre cuando está disponible — no todas las
+    // tarjetas lo muestran (solo publicaciones con suficientes ventas y
+    // reseñas para tener calificación), pero cuando aparece ("★4.9 | +100
+    // vendidos") es la cantidad de ventas histórica real de esa
+    // publicación, no una estimación por posición. Se busca por texto en
+    // vez de por clase CSS para no depender de la estructura exacta del
+    // HTML, que cambia con cada rediseño.
+    // Mercado Libre abrevia los volúmenes altos ("+10 mil vendidos" en vez
+    // de "+10.000 vendidos") — se prueba esa forma primero.
+    const soldMilMatch = cardText.match(/\+?\s*(\d+(?:[.,]\d+)?)\s*mil\s*vendidos?/i);
+    const soldMatch = cardText.match(/\+?\s*(\d[\d.,]*)\s*vendidos?/i);
+    const soldCount = soldMilMatch
+      ? Math.round(parseFloat(soldMilMatch[1].replace(",", ".")) * 1000)
+      : soldMatch
+        ? parseInt(soldMatch[1].replace(/[.,]/g, ""), 10)
+        : null;
+
+    return { title, price, originalPrice, image, permalink, isFull, isCatalog, soldCount };
   }
 
   // Preferimos que la búsqueda tarde (hasta ~1 minuto en total está bien)
@@ -229,11 +251,21 @@ async function scrapeMeliSearchResults() {
       });
   }
 
+  // El rank es la posición real de esta publicación DENTRO de esta página
+  // de búsqueda (no un índice global) — así un resultado que aparece 1° o
+  // 2° al buscar un sinónimo de IA se valora igual que si hubiera
+  // aparecido 1° o 2° en la búsqueda del término original, en vez de
+  // quedar enterrado detrás de las decenas de resultados de las búsquedas
+  // procesadas antes que la suya.
   const results = [];
+  let rank = 0;
   for (const card of cards) {
     try {
       const item = extractFromCard(card);
-      if (item) results.push(item);
+      if (item) {
+        rank += 1;
+        results.push({ ...item, rank });
+      }
     } catch {
       // un item roto no debe tumbar el resto
     }
@@ -512,18 +544,44 @@ async function runNicheSearchInner(query, site) {
     chrome.tabs.update(previousActiveTab.id, { active: true }).catch(() => {});
   }
 
-  const dedupedItems = dedupeByPermalink(allItems).slice(0, MAX_COMBINED_RESULTS);
+  // Cada item ya trae su propio rank (posición real dentro de la página
+  // donde apareció, ver scrapeMeliSearchResults) — se estima primero con
+  // ESE rank, y solo DESPUÉS se ordena todo el combinado por la visita
+  // estimada antes de deduplicar y cortar. Así nos quedamos con los
+  // mejores resultados de las 7 búsquedas juntas, no con "lo que sea que
+  // trajo la primera búsqueda procesada" — antes, un resultado #1 de un
+  // sinónimo de IA quedaba enterrado en la posición ~50+ del combinado
+  // solo por haberse procesado después, aunque fuera un resultado excelente.
+  const withVisits = allItems.map((item) => {
+    const estimatedVisits = Math.max(3, Math.round(RANK_BASELINE_VISITS / Math.sqrt(item.rank || 1)));
+    return { ...item, estimatedVisits };
+  });
+  // Las publicaciones con "+N vendidos" real (ver extractFromCard) van
+  // primero, ordenadas por esa venta real — es un dato de Mercado Libre,
+  // no una estimación por posición, así que pesa más que cualquier rank.
+  // El resto se ordena por la visita estimada como antes.
+  withVisits.sort((a, b) => {
+    const aReal = a.soldCount != null;
+    const bReal = b.soldCount != null;
+    if (aReal !== bReal) return aReal ? -1 : 1;
+    if (aReal) return b.soldCount - a.soldCount;
+    return b.estimatedVisits - a.estimatedVisits;
+  });
+  const dedupedItems = dedupeByPermalink(withVisits).slice(0, MAX_COMBINED_RESULTS);
 
   const rows = dedupedItems.map((item, i) => {
-    const rank = i + 1;
-    const estimatedVisits = Math.max(3, Math.round(RANK_BASELINE_VISITS / Math.sqrt(rank)));
+    const hasRealSales = item.soldCount != null;
+    const estimatedRevenue = hasRealSales
+      ? Math.round(item.price * item.soldCount)
+      : Math.round(item.price * item.estimatedVisits * ASSUMED_CONVERSION_RATE);
     return {
       id: `real-${i}`,
       title: item.title,
       price: item.price,
       originalPrice: item.originalPrice && item.originalPrice > item.price ? item.originalPrice : null,
-      visits: estimatedVisits,
-      estimatedRevenue: Math.round(item.price * estimatedVisits * ASSUMED_CONVERSION_RATE),
+      visits: item.estimatedVisits,
+      realSales: item.soldCount ?? null,
+      estimatedRevenue,
       isFull: item.isFull,
       isCatalog: item.isCatalog,
       origin: "Local",

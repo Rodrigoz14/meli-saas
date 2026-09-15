@@ -28,6 +28,12 @@ export type NicheRow = {
   // Libre por la extensión (no aplica al mock, que no tiene esa columna).
   originalPrice?: number | null;
   visits: number;
+  // Ventas históricas reales de Mercado Libre ("+N vendidos" en la
+  // tarjeta) — no todas las publicaciones lo muestran (solo las que ya
+  // tienen suficientes ventas y reseñas). Cuando está presente,
+  // estimatedRevenue se calcula con este número real en vez de la
+  // estimación por posición.
+  realSales?: number | null;
   estimatedRevenue: number;
   isFull: boolean;
   isCatalog: boolean;
