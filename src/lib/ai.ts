@@ -19,7 +19,7 @@ export async function generateSearchTerms(query: string): Promise<string[]> {
     messages: [
       {
         role: "user",
-        content: `Un vendedor de Mercado Libre (Latinoamérica) quiere investigar el nicho "${trimmed}". Dame 3 términos de búsqueda alternativos que un comprador real escribiría para encontrar el mismo tipo de producto (sinónimos, nombres alternativos, variaciones comunes o marcas genéricas del rubro) — NO productos distintos, NO accesorios. Responde ÚNICAMENTE con un array JSON de 3 strings cortos (2-4 palabras cada uno), sin texto adicional. Ejemplo para "reloj": ["smartwatch", "reloj inteligente", "reloj digital"]`,
+        content: `Un vendedor de Mercado Libre (Latinoamérica) quiere investigar el nicho "${trimmed}". Dame 4 términos de búsqueda alternativos que un comprador real escribiría para encontrar el mismo tipo de producto (sinónimos, nombres alternativos, variaciones comunes o marcas genéricas del rubro) — NO productos distintos, NO accesorios. Responde ÚNICAMENTE con un array JSON de 4 strings cortos (2-4 palabras cada uno), sin texto adicional. Ejemplo para "reloj": ["smartwatch", "reloj inteligente", "reloj digital", "cronógrafo"]`,
       },
     ],
   });
@@ -36,7 +36,7 @@ export async function generateSearchTerms(query: string): Promise<string[]> {
     return parsed
       .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
       .map((t) => t.trim())
-      .slice(0, 3);
+      .slice(0, 4);
   } catch (err) {
     console.error("generateSearchTerms: no se pudo parsear la respuesta del modelo:", text, err);
     return [];

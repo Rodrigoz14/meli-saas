@@ -28,6 +28,15 @@ const SITE_DOMAINS = {
 
 const ASSUMED_CONVERSION_RATE = 0.03;
 const RANK_BASELINE_VISITS = 800;
+// Combinar 4-5 búsquedas completas sin límite dejaba el análisis con
+// cientos de publicaciones (confirmado real: ~255 vs las ~29 que analiza
+// Selltrix para el mismo término) — eso diluye el promedio de visitas por
+// publicación y el "% en el Top 3" hasta verse mucho peor de lo que es en
+// realidad, aunque los totales sumados no estuvieran tan lejos. Cortar al
+// combinado más relevante (empieza con los resultados de tu término
+// exacto, después completa con los términos de IA) da un análisis más
+// concentrado y comparable al de herramientas curadas como Selltrix.
+const MAX_COMBINED_RESULTS = 60;
 
 function buildSearchUrl(site, query) {
   const domain = SITE_DOMAINS[site] || SITE_DOMAINS.CO;
@@ -46,7 +55,7 @@ function buildFallbackVariations(query) {
   if (words.length > 2) variations.push(words.slice(1).join(" ")); // sin la primera palabra
   variations.push(`${trimmed} nuevo`);
   variations.push(`${trimmed} original`);
-  return [...new Set(variations.map((v) => v.trim()).filter(Boolean))].slice(0, 4);
+  return [...new Set(variations.map((v) => v.trim()).filter(Boolean))].slice(0, 5);
 }
 
 function dedupeVariations(list) {
@@ -59,10 +68,10 @@ function dedupeVariations(list) {
     seen.add(key);
     out.push(trimmed);
   }
-  return out.slice(0, 4);
+  return out.slice(0, 5);
 }
 
-// Le pide a nuestro propio backend (que sí tiene ANTHROPIC_API_KEY) 3
+// Le pide a nuestro propio backend (que sí tiene ANTHROPIC_API_KEY) 4
 // sinónimos/términos relacionados reales para el nicho — igual que Selltrix,
 // que mide sus búsquedas porque cada una dispara una llamada real a un LLM,
 // en vez de la heurística de texto que había antes (quitar la primera o
@@ -502,7 +511,7 @@ async function runNicheSearchInner(query, site) {
     chrome.tabs.update(previousActiveTab.id, { active: true }).catch(() => {});
   }
 
-  const dedupedItems = dedupeByPermalink(allItems);
+  const dedupedItems = dedupeByPermalink(allItems).slice(0, MAX_COMBINED_RESULTS);
 
   const rows = dedupedItems.map((item, i) => {
     const rank = i + 1;
