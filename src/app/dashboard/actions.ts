@@ -1,17 +1,22 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generatePublicationCopy, type PublicationCopy } from "@/lib/ai";
 
-// Rentabilidad y Costos y gastos son páginas distintas pero comparten los
-// mismos datos (ver getRentabilidadData) — cualquier cambio hecho desde
-// cualquiera de las dos tiene que invalidar ambas, o la otra se queda con
-// datos viejos hasta un refresh manual.
+// Rentabilidad, Costos y gastos y Analytics comparten los mismos datos base
+// (ver getRentabilidadData/getAnalyticsData, cacheados 60s con el tag
+// "dashboard-data") — cualquier cambio hecho desde cualquiera de las
+// páginas tiene que invalidar ese tag, o el usuario ve su propia edición
+// recién hasta que expire la caché en vez de al instante.
 function revalidateDashboards() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/costos-gastos");
+  // updateTag (no revalidateTag) porque esto corre dentro de Server Actions
+  // y queremos que el usuario vea su propia edición al toque, no
+  // "eventualmente" — es justo el caso de uso "read-your-own-writes".
+  updateTag("dashboard-data");
 }
 
 export async function updateProductCosts(productId: string, cogs: number) {

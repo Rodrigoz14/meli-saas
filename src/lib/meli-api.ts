@@ -381,7 +381,7 @@ type MeliOrder = {
 
 // Ejecuta `fn` sobre `items` con un máximo de `limit` llamadas en paralelo a
 // la vez, para no disparar cientos de requests simultáneos a Mercado Libre.
-async function mapWithConcurrency<T, R>(
+export async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,

@@ -67,37 +67,45 @@ export function RevenueSummary({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="group rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-12px_rgba(99,102,241,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.85)]">
-          <div className="flex items-center gap-2 text-primary">
-            <Banknote className="h-5 w-5" />
-            <span className="text-sm font-medium">Ventas Reales (30d)</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-12px_rgba(99,102,241,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.85)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary transition-transform duration-300 group-hover:scale-110">
+              <Banknote className="h-5 w-5" />
+            </div>
+            <span className="text-sm font-medium text-primary">Ventas Reales (30d)</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold tracking-tight">
+          <p className="mt-4 font-display text-2xl font-bold tracking-tight">
             {formatMoney(totalRevenue, currencyId)}
           </p>
         </div>
-        <div className="group rounded-2xl border border-secondary/20 bg-secondary/5 p-6 shadow-[0_0_20px_-12px_rgba(20,184,166,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(20,184,166,0.85)]">
-          <div className="flex items-center gap-2 text-secondary">
-            <ShoppingCart className="h-5 w-5" />
-            <span className="text-sm font-medium">Unidades Vendidas</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-secondary/20 bg-secondary/5 p-6 shadow-[0_0_20px_-12px_rgba(20,184,166,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(20,184,166,0.85)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary/15 text-secondary transition-transform duration-300 group-hover:scale-110">
+              <ShoppingCart className="h-5 w-5" />
+            </div>
+            <span className="text-sm font-medium text-secondary">Unidades Vendidas</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold tracking-tight">{totalUnits}</p>
+          <p className="mt-4 font-display text-2xl font-bold tracking-tight">{totalUnits}</p>
         </div>
-        <div className="group rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 shadow-[0_0_20px_-12px_rgba(249,115,22,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(249,115,22,0.85)]">
-          <div className="flex items-center gap-2 text-orange-500">
-            <Receipt className="h-5 w-5" />
-            <span className="text-sm font-medium">Comisiones Mercado Libre</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-orange-500/20 bg-orange-500/5 p-6 shadow-[0_0_20px_-12px_rgba(249,115,22,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(249,115,22,0.85)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-500 transition-transform duration-300 group-hover:scale-110">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <span className="text-sm font-medium text-orange-500">Comisiones Mercado Libre</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold tracking-tight text-orange-500">
+          <p className="mt-4 font-display text-2xl font-bold tracking-tight text-orange-500">
             -{formatMoney(totalCommission, currencyId)}
           </p>
         </div>
-        <div className="group rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6 shadow-[0_0_20px_-12px_rgba(6,182,212,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.85)]">
-          <div className="flex items-center gap-2 text-cyan-500">
-            <Truck className="h-5 w-5" />
-            <span className="text-sm font-medium">Costo de Envío</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6 shadow-[0_0_20px_-12px_rgba(6,182,212,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(6,182,212,0.85)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-500/15 text-cyan-500 transition-transform duration-300 group-hover:scale-110">
+              <Truck className="h-5 w-5" />
+            </div>
+            <span className="text-sm font-medium text-cyan-500">Costo de Envío</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold tracking-tight text-cyan-500">
+          <p className="mt-4 font-display text-2xl font-bold tracking-tight text-cyan-500">
             -{formatMoney(totalShipping, currencyId)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">envío gratis asumido por ti</p>
@@ -105,12 +113,14 @@ export function RevenueSummary({
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <div className="group rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6 shadow-[0_0_20px_-12px_rgba(139,92,246,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(139,92,246,0.85)]">
-          <div className="flex items-center gap-2 text-violet-500">
-            <Target className="h-5 w-5" />
-            <span className="text-sm font-medium">Inversión en Publicidad</span>
+        <div className="group relative overflow-hidden rounded-2xl border border-violet-500/20 bg-violet-500/5 p-6 shadow-[0_0_20px_-12px_rgba(139,92,246,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(139,92,246,0.85)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-500 transition-transform duration-300 group-hover:scale-110">
+              <Target className="h-5 w-5" />
+            </div>
+            <span className="text-sm font-medium text-violet-500">Inversión en Publicidad</span>
           </div>
-          <p className="mt-3 font-display text-2xl font-bold tracking-tight text-violet-500">
+          <p className="mt-4 font-display text-2xl font-bold tracking-tight text-violet-500">
             -{formatMoney(totalAds, currencyId)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">últimos 30 días</p>
@@ -128,24 +138,28 @@ export function RevenueSummary({
           </Link>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="group rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-[0_0_20px_-12px_rgba(244,63,94,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(244,63,94,0.85)]">
-            <div className="flex items-center gap-2 text-rose-500">
-              <Package className="h-5 w-5" />
-              <span className="text-sm font-medium">Costo de Producto (COGS)</span>
+          <div className="group relative overflow-hidden rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-[0_0_20px_-12px_rgba(244,63,94,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(244,63,94,0.85)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-500/15 text-rose-500 transition-transform duration-300 group-hover:scale-110">
+                <Package className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium text-rose-500">Costo de Producto (COGS)</span>
             </div>
-            <p className="mt-3 font-display text-2xl font-bold tracking-tight text-rose-500">
+            <p className="mt-4 font-display text-2xl font-bold tracking-tight text-rose-500">
               -{formatMoney(totalCogs, currencyId)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {totalRevenue > 0 ? ((totalCogs / totalRevenue) * 100).toFixed(1) : "0.0"}% de ventas
             </p>
           </div>
-          <div className="group rounded-2xl border border-slate-400/20 bg-slate-400/5 p-6 shadow-[0_0_20px_-12px_rgba(148,163,184,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(148,163,184,0.75)]">
-            <div className="flex items-center gap-2 text-slate-400">
-              <Wallet className="h-5 w-5" />
-              <span className="text-sm font-medium">Gastos Operativos</span>
+          <div className="group relative overflow-hidden rounded-2xl border border-slate-400/20 bg-slate-400/5 p-6 shadow-[0_0_20px_-12px_rgba(148,163,184,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(148,163,184,0.75)]">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-400/15 text-slate-400 transition-transform duration-300 group-hover:scale-110">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <span className="text-sm font-medium text-slate-400">Gastos Operativos</span>
             </div>
-            <p className="mt-3 font-display text-2xl font-bold tracking-tight text-slate-400">
+            <p className="mt-4 font-display text-2xl font-bold tracking-tight text-slate-400">
               -{formatMoney(totalOperatingCosts, currencyId)}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -199,7 +213,7 @@ export function RevenueSummary({
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">Desglose de costos (30d)</h3>
           <Link href="/dashboard/rentabilidad" className="text-xs text-primary hover:underline">

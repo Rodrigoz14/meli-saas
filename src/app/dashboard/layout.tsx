@@ -36,7 +36,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         </div>
       </header>
       <DashboardNav />
-      <main className="flex-1 bg-muted/20">{children}</main>
+      <main className="relative flex-1 bg-muted/20">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(99,102,241,0.08),transparent)]" />
+        {children}
+      </main>
     </div>
   );
 }
