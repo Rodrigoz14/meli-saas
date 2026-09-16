@@ -130,3 +130,46 @@ Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicion
     return null;
   }
 }
+
+// Llamados cortos (tipo "badge") para la infografía de Beneficios — cada
+// uno tiene que caber en una tarjeta chica sobre la foto, así que son
+// frases de 2-4 palabras, no oraciones. Basados solo en lo que el usuario
+// escribió, sin inventar especificaciones.
+export async function generateCallouts(productName: string, keyFeatures: string): Promise<string[]> {
+  const name = productName.trim().slice(0, 150);
+  const features = keyFeatures.trim().slice(0, 800);
+  if (!name && !features) return [];
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 200,
+    messages: [
+      {
+        role: "user",
+        content: `Para una infografía de Mercado Libre del producto "${name || "(sin nombre)"}", con estas características: "${features || "(sin características, usa el nombre como única referencia)"}".
+
+Necesito 4 llamados cortos (2-4 palabras cada uno) para mostrar como badges sobre la foto del producto — el beneficio o característica más fuerte de cada uno, en lenguaje de venta directo pero SIN inventar nada que no esté en los datos. Ejemplos de formato: "Batería 7 días", "Resistente al agua", "Pantalla AMOLED", "Incluye 2 correas".
+
+Responde ÚNICAMENTE con un array JSON de 4 strings cortos, sin texto adicional.`,
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+      .map((t) => t.trim().slice(0, 30))
+      .slice(0, 4);
+  } catch (err) {
+    console.error("generateCallouts: no se pudo parsear la respuesta del modelo:", text, err);
+    return [];
+  }
+}

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PublicationsOptimizer } from "@/components/dashboard/publications-optimizer";
+import { InfographicGenerator } from "@/components/dashboard/infographic-generator";
 import { getRentabilidadData } from "@/lib/dashboard-data";
 
 export const maxDuration = 60;
@@ -39,13 +41,21 @@ export default async function PublicacionesPage() {
     <div className="container mx-auto px-6 py-10">
       <h1 className="font-display text-3xl font-bold tracking-tight">Publicaciones</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
-        Genera un título optimizado y una descripción para Mercado Libre con IA — a partir de una de tus
-        publicaciones reales o desde cero.
+        Genera título, descripción e infografías optimizadas para Mercado Libre con IA.
       </p>
 
-      <div className="mt-8">
-        <PublicationsOptimizer products={products} />
-      </div>
+      <Tabs defaultValue="texto" className="mt-8">
+        <TabsList>
+          <TabsTrigger value="texto">Título y Descripción</TabsTrigger>
+          <TabsTrigger value="infografia">Infografía</TabsTrigger>
+        </TabsList>
+        <TabsContent value="texto" className="mt-6">
+          <PublicationsOptimizer products={products} />
+        </TabsContent>
+        <TabsContent value="infografia" className="mt-6">
+          <InfographicGenerator />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
