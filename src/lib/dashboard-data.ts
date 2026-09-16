@@ -71,6 +71,10 @@ export type RentabilidadData =
       billingSummary: BillingSummary | null;
       totalAds: number;
       adsConnected: boolean;
+      // site_id real de ML (MCO, MLA, MLM...) — lo necesita la calculadora de
+      // precios para pedir la comisión real de una categoría a un precio
+      // hipotético (getSaleFee).
+      siteId: string;
     };
 
 // Compartido entre /dashboard (Rentabilidad) y /dashboard/costos-gastos —
@@ -91,6 +95,7 @@ async function fetchRentabilidadData(userId: string): Promise<RentabilidadData> 
   let billingSummary: BillingSummary | null = null;
   let totalAds = 0;
   let adsConnected = false;
+  let siteId = "";
 
   try {
     const [costEntries, taxEntryRows] = await Promise.all([
@@ -122,6 +127,7 @@ async function fetchRentabilidadData(userId: string): Promise<RentabilidadData> 
     taxWithholdingPercent = taxEntries.reduce((sum, t) => sum + t.percent, 0);
 
     const meliUser = await getMeliUser(accessToken);
+    siteId = meliUser.site_id;
     const adsTo = new Date();
     const adsFrom = new Date(adsTo.getTime() - 30 * 86400000);
     const [billingData, itemIds, adsMetrics] = await Promise.all([
@@ -175,6 +181,8 @@ async function fetchRentabilidadData(userId: string): Promise<RentabilidadData> 
           currencyId: item.currency_id,
           availableQuantity: item.available_quantity,
           saleFee: saleFee ?? 0,
+          categoryId: item.category_id,
+          listingTypeId: item.listing_type_id,
           cogs: product.cogs ? Number(product.cogs) : 0,
           unitsSold30d: stats.quantity,
           revenue30d: stats.revenue,
@@ -201,6 +209,7 @@ async function fetchRentabilidadData(userId: string): Promise<RentabilidadData> 
     billingSummary,
     totalAds,
     adsConnected,
+    siteId,
   };
 }
 

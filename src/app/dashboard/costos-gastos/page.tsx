@@ -31,7 +31,7 @@ export default async function CostosGastosPage() {
     );
   }
 
-  const { rows, errorMessage, operatingCosts, autoExpenses, taxEntries, billingSummary } = data;
+  const { rows, errorMessage, operatingCosts, autoExpenses, taxEntries, billingSummary, siteId } = data;
 
   return (
     <div className="container mx-auto px-6 py-10">
@@ -61,11 +61,14 @@ export default async function CostosGastosPage() {
               thumbnail: row.thumbnail,
               price: row.price,
               cogs: row.cogs,
+              categoryId: row.categoryId,
+              listingTypeId: row.listingTypeId,
             }))}
             operatingCosts={operatingCosts}
             autoExpenses={autoExpenses}
             taxEntries={taxEntries}
             billingSummary={billingSummary}
+            siteId={siteId}
           />
         </div>
       )}

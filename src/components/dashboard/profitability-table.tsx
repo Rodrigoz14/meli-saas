@@ -32,6 +32,10 @@ export type ProfitabilityRow = {
   currencyId: string;
   availableQuantity: number;
   saleFee: number;
+  // Necesarios para pedir la comisión real de ML a un precio hipotético
+  // (calculadora de precios) — no se muestran en la tabla.
+  categoryId: string;
+  listingTypeId: string;
   cogs: number;
   unitsSold30d: number;
   revenue30d: number;

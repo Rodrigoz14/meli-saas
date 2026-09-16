@@ -6,6 +6,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   AlertCircle,
+  Calculator,
   Check,
   CheckCircle2,
   Clock,
@@ -27,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { BillingSummary } from "@/lib/meli-api";
 import { InlineCogsInput } from "@/components/dashboard/inline-cogs-input";
+import { PricingCalculator } from "@/components/dashboard/pricing-calculator";
 import {
   addOperatingCost,
   addTaxEntry,
@@ -44,6 +46,8 @@ export type CostProduct = {
   thumbnail: string;
   price: number;
   cogs: number;
+  categoryId: string;
+  listingTypeId: string;
 };
 
 export type OperatingCost = {
@@ -946,6 +950,7 @@ export function CostsExpensesSection({
   autoExpenses,
   taxEntries,
   billingSummary,
+  siteId,
 }: {
   currencyId: string;
   products: CostProduct[];
@@ -953,6 +958,7 @@ export function CostsExpensesSection({
   autoExpenses: OperatingCost[];
   taxEntries: TaxEntryItem[];
   billingSummary: BillingSummary | null;
+  siteId: string;
 }) {
   return (
     <Tabs defaultValue="gastos">
@@ -962,8 +968,8 @@ export function CostsExpensesSection({
         <TabsTrigger value="facturacion-ml">
           <Landmark className="mr-1.5 h-3.5 w-3.5" /> Facturación ML
         </TabsTrigger>
-        <TabsTrigger value="calculadora" disabled>
-          <Clock className="mr-1.5 h-3.5 w-3.5" /> Calculadora
+        <TabsTrigger value="calculadora">
+          <Calculator className="mr-1.5 h-3.5 w-3.5" /> Calculadora
         </TabsTrigger>
       </TabsList>
       <TabsContent value="gastos" className="mt-6">
@@ -976,9 +982,7 @@ export function CostsExpensesSection({
         <MlChargesTab autoExpenses={autoExpenses} billingSummary={billingSummary} currencyId={currencyId} />
       </TabsContent>
       <TabsContent value="calculadora" className="mt-6">
-        <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          Calculadora de precios — próximamente.
-        </div>
+        <PricingCalculator products={products} currencyId={currencyId} siteId={siteId} taxEntries={taxEntries} />
       </TabsContent>
     </Tabs>
   );
