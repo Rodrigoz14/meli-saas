@@ -270,6 +270,28 @@ export function getMeliUser(accessToken: string) {
   );
 }
 
+export type MeliUserProfile = {
+  id: number;
+  nickname: string;
+  first_name: string;
+  last_name: string;
+  site_id: string;
+  // URL pública real del perfil del vendedor en Mercado Libre — la usa
+  // Configuración para el botón "Ver cuenta en Mercado Libre".
+  permalink: string;
+  seller_reputation: {
+    level_id: string | null;
+    power_seller_status: string | null;
+  };
+};
+
+// Versión completa de /users/me para la página de Configuración — separada
+// de getMeliUser (que solo trae lo mínimo que usan Dashboard/Analytics) para
+// no cambiarle el tipo a todos esos call sites.
+export function getMeliUserProfile(accessToken: string) {
+  return meliFetch<MeliUserProfile>("/users/me", accessToken);
+}
+
 // Trae TODOS los ids de publicaciones activas, paginando (la API limita a
 // 100 por página). Antes se cortaba en las primeras 20, lo que subestimaba
 // las ventas reales de cualquier cuenta con más publicaciones.
