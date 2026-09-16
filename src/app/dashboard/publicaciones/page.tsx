@@ -53,7 +53,7 @@ export default async function PublicacionesPage() {
           <PublicationsOptimizer products={products} />
         </TabsContent>
         <TabsContent value="infografia" className="mt-6">
-          <InfographicGenerator />
+          <InfographicGenerator products={products} />
         </TabsContent>
       </Tabs>
     </div>

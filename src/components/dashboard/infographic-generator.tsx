@@ -6,6 +6,8 @@ import { Download, ImageIcon, Loader2, Sparkles, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+type Product = { productId: string; title: string; thumbnail: string; permalink: string };
+
 const ACCENT_OPTIONS = [
   { label: "Índigo", value: "#5670f0" },
   { label: "Esmeralda", value: "#10b981" },
@@ -22,13 +24,34 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function InfographicGenerator() {
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+export function InfographicGenerator({ products }: { products: Product[] }) {
+  const [selectedProductId, setSelectedProductId] = useState("");
+  // Solo una de las dos está activa a la vez: la foto subida a mano pisa a
+  // la miniatura real de la publicación si el usuario sube su propia foto
+  // después de elegir un producto.
+  const [uploadedDataUrl, setUploadedDataUrl] = useState<string | null>(null);
+  const [productThumbnailUrl, setProductThumbnailUrl] = useState<string | null>(null);
   const [productName, setProductName] = useState("");
   const [keyFeatures, setKeyFeatures] = useState("");
   const [accentColor, setAccentColor] = useState(ACCENT_OPTIONS[0].value);
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const previewSrc = uploadedDataUrl || productThumbnailUrl;
+
+  function handleSelectProduct(id: string) {
+    setSelectedProductId(id);
+    setResultUrl(null);
+    if (!id) {
+      setProductThumbnailUrl(null);
+      return;
+    }
+    const product = products.find((p) => p.productId === id);
+    if (!product) return;
+    setProductName(product.title);
+    setProductThumbnailUrl(product.thumbnail || null);
+    setUploadedDataUrl(null); // la foto real de la publicación pisa cualquier archivo subido antes
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -38,13 +61,14 @@ export function InfographicGenerator() {
       return;
     }
     const dataUrl = await fileToDataUrl(file);
-    setImageDataUrl(dataUrl);
+    setUploadedDataUrl(dataUrl);
+    setProductThumbnailUrl(null); // el archivo subido a mano pisa la miniatura real
     setResultUrl(null);
   }
 
   async function handleGenerate() {
-    if (!imageDataUrl) {
-      toast.error("Subí una foto del producto primero");
+    if (!uploadedDataUrl && !productThumbnailUrl) {
+      toast.error("Subí una foto o elegí una publicación real primero");
       return;
     }
     if (!productName.trim() && !keyFeatures.trim()) {
@@ -57,7 +81,13 @@ export function InfographicGenerator() {
       const res = await fetch("/api/publications/infographic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl, productName, keyFeatures, accentColor }),
+        body: JSON.stringify({
+          imageDataUrl: uploadedDataUrl || undefined,
+          imageUrl: uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
+          productName,
+          keyFeatures,
+          accentColor,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
@@ -78,14 +108,33 @@ export function InfographicGenerator() {
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
         <div>
+          <label className="text-sm font-medium">Publicación real (opcional)</label>
+          <select
+            value={selectedProductId}
+            onChange={(e) => handleSelectProduct(e.target.value)}
+            className="mt-1.5 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="">— Subir foto propia —</option>
+            {products.map((p) => (
+              <option key={p.productId} value={p.productId}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Elegí una de tus publicaciones para usar su foto real, o subí tu propia imagen abajo.
+          </p>
+        </div>
+
+        <div>
           <label className="text-sm font-medium">Foto del producto</label>
           <label
             htmlFor="infographic-file"
             className="mt-1.5 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-6 text-center transition-colors hover:bg-muted/40"
           >
-            {imageDataUrl ? (
+            {previewSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageDataUrl} alt="" className="max-h-40 rounded-lg object-contain" />
+              <img src={previewSrc} alt="" className="max-h-40 rounded-lg object-contain" />
             ) : (
               <>
                 <Upload className="h-6 w-6 text-muted-foreground" />
@@ -94,6 +143,9 @@ export function InfographicGenerator() {
             )}
           </label>
           <input id="infographic-file" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+          {productThumbnailUrl && !uploadedDataUrl && (
+            <p className="mt-1 text-xs text-emerald-500">✓ Usando la foto real de la publicación seleccionada</p>
+          )}
         </div>
 
         <div>

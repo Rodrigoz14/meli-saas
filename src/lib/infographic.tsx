@@ -45,21 +45,39 @@ function Badge({ text, color, style }: { text: string; color: string; style: CSS
 }
 
 export type InfographicInput = {
-  imageDataUrl: string;
+  // Uno de los dos: imageDataUrl (foto subida a mano, ya en base64) o
+  // imageUrl (la miniatura REAL de una publicación propia — se resuelve
+  // acá mismo, del lado del servidor, para no depender de que el
+  // navegador pueda leer una imagen de otro origen).
+  imageDataUrl?: string;
+  imageUrl?: string;
   productName?: string;
   keyFeatures?: string;
   accentColor?: string;
 };
+
+async function resolveImageDataUrl(input: InfographicInput): Promise<string> {
+  if (input.imageDataUrl) return input.imageDataUrl;
+  if (!input.imageUrl) throw new Error("Falta la foto del producto");
+
+  const res = await fetch(input.imageUrl);
+  if (!res.ok) throw new Error("No se pudo traer la foto de la publicación");
+  const buffer = await res.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString("base64");
+  const contentType = res.headers.get("content-type") || "image/jpeg";
+  return `data:${contentType};base64,${base64}`;
+}
 
 // Compone la infografía real (foto + llamados generados con IA) en un PNG
 // usando ImageResponse (Satori) de Next.js — nada de esto pasa por un
 // modelo de generación de imágenes (no tenemos uno configurado); es una
 // plantilla real renderizada con los datos reales que pasa el usuario.
 export async function buildInfographicImageResponse(input: InfographicInput): Promise<Response> {
-  const { imageDataUrl, productName = "", keyFeatures = "" } = input;
+  const { productName = "", keyFeatures = "" } = input;
   const accentColor = input.accentColor || "#5670f0";
 
-  const [callouts, fontRegular, fontBold] = await Promise.all([
+  const [imageDataUrl, callouts, fontRegular, fontBold] = await Promise.all([
+    resolveImageDataUrl(input),
     generateCallouts(productName, keyFeatures),
     loadGoogleFontTtf("Inter", 400),
     loadGoogleFontTtf("Inter", 700),
