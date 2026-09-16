@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileText, LayoutDashboard, Receipt, Search, TrendingUp } from "lucide-react";
+import { BarChart3, Boxes, FileText, LayoutDashboard, Receipt, Search, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -12,6 +12,7 @@ const TABS = [
   { href: "/dashboard/costos-gastos", label: "Costos y gastos", icon: Receipt },
   { href: "/dashboard/publicaciones", label: "Publicaciones", icon: FileText },
   { href: "/dashboard/busqueda-productos", label: "Búsqueda de productos", icon: Search },
+  { href: "/dashboard/inventario", label: "Inventario", icon: Boxes },
 ];
 
 export function DashboardNav() {
