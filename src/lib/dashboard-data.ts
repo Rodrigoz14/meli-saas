@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
@@ -81,7 +80,7 @@ export type RentabilidadData =
 // ambos necesitan lo mismo (publicaciones reales de Mercado Libre + costos
 // definidos por el usuario), así que la llamada en vivo a la API vive en un
 // solo lugar en vez de duplicarse entre las dos páginas.
-async function fetchRentabilidadData(userId: string): Promise<RentabilidadData> {
+export async function getRentabilidadData(userId: string): Promise<RentabilidadData> {
   const accessToken = await ensureFreshMeliToken(userId);
   if (!accessToken) return { connected: false };
 
@@ -212,15 +211,3 @@ async function fetchRentabilidadData(userId: string): Promise<RentabilidadData> 
     siteId,
   };
 }
-
-// Cachea el resultado 60s por usuario: cambiar entre Dashboard/Rentabilidad y
-// Costos y gastos (que comparten esta misma función) no tiene que repetir
-// toda la cadena de llamadas en vivo a Mercado Libre en cada click — con
-// catálogos grandes eso es lo que hacía que navegar se sintiera pesado.
-// `revalidateDashboards()` en actions.ts invalida esto al toque cuando el
-// usuario edita un costo/impuesto propio, así nunca ve desactualizada su
-// propia edición.
-export const getRentabilidadData = unstable_cache(fetchRentabilidadData, ["rentabilidad-data"], {
-  revalidate: 60,
-  tags: ["dashboard-data"],
-});

@@ -1,4 +1,3 @@
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
@@ -98,7 +97,7 @@ function computeImpact(now: PeriodTotals, prev: PeriodTotals): ImpactBreakdown {
 // getRentabilidadData (pide visitas por publicación, que la API de ML solo
 // permite de a una) así que vive en su propio fetch, no se mezcla con las
 // demás páginas para no hacerlas más lentas.
-async function fetchAnalyticsData(userId: string, days = 7): Promise<AnalyticsData> {
+export async function getAnalyticsData(userId: string, days = 7): Promise<AnalyticsData> {
   const accessToken = await ensureFreshMeliToken(userId);
   if (!accessToken) return { connected: false };
 
@@ -188,13 +187,3 @@ async function fetchAnalyticsData(userId: string, days = 7): Promise<AnalyticsDa
     retentionPrev: prevTotals.revenue * (taxWithholdingPercent / 100),
   };
 }
-
-// Cachea el resultado 60s por usuario+período — igual que getRentabilidadData
-// en dashboard-data.ts, para que volver a Analytics no repita en vivo todas
-// las llamadas de visitas/órdenes/ads. `revalidateDashboards()` en
-// actions.ts la invalida al toque cuando cambia algo que Analytics también
-// usa (ej. impuestos/retención).
-export const getAnalyticsData = unstable_cache(fetchAnalyticsData, ["analytics-data"], {
-  revalidate: 60,
-  tags: ["dashboard-data"],
-});
