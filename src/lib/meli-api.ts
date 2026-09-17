@@ -21,11 +21,19 @@ export type MeliItem = {
   shipping?: { free_shipping?: boolean };
 };
 
-async function meliFetch<T>(path: string, accessToken: string): Promise<T> {
+// Igual que meliFetchBilling: el 429 "local_rate_limited" es transitorio y
+// se dispara con facilidad en cuentas de alto volumen (ej. /orders/search
+// paginando cientos de páginas) — reintenta un par de veces con espera antes
+// de darse por vencido, en vez de romper todo el Dashboard por un pico.
+async function meliFetch<T>(path: string, accessToken: string, attempt = 0): Promise<T> {
   const res = await fetch(`${MELI_API}${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     cache: "no-store",
   });
+  if (res.status === 429 && attempt < 3) {
+    await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+    return meliFetch<T>(path, accessToken, attempt + 1);
+  }
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Mercado Libre API ${path} -> ${res.status}: ${body}`);
@@ -489,7 +497,11 @@ export async function getOrderStats(
     remainingOffsets.push(offset);
   }
 
-  const restPages = await Promise.all(remainingOffsets.map((offset) => fetchPage(offset)));
+  // Concurrencia limitada — sin esto, una cuenta con miles de órdenes en 30
+  // días (offsets 0, 50, 100... hasta 1000+) disparaba decenas de requests
+  // simultáneos a /orders/search y Mercado Libre respondía 429
+  // "local_rate_limited", rompiendo el Dashboard entero.
+  const restPages = await mapWithConcurrency(remainingOffsets, 10, (offset) => fetchPage(offset));
   const allOrders = [first, ...restPages].flatMap((page) => page.results);
 
   // Costo real de envío por embarque (no por publicación) — se pide aparte
@@ -704,10 +716,10 @@ export async function getAdsItemMetrics(
     for (let offset = pageSize; offset < first.paging.total; offset += pageSize) {
       remainingOffsets.push(offset);
     }
-    const restPages = await Promise.all(
-      remainingOffsets.map((offset) =>
-        meliFetchAds<{ results: MeliAdItem[] }>(query(offset), accessToken),
-      ),
+    // Mismo límite de concurrencia que /orders/search — evita el 429
+    // "local_rate_limited" en cuentas con muchas campañas/anuncios activos.
+    const restPages = await mapWithConcurrency(remainingOffsets, 10, (offset) =>
+      meliFetchAds<{ results: MeliAdItem[] }>(query(offset), accessToken),
     );
     const allAds = [first, ...restPages].flatMap((page) => page.results);
 
