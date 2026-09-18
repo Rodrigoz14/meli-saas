@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { generatePublicationCopy, type PublicationCopy } from "@/lib/ai";
+import { generateInfographicSetClaims, generatePublicationCopy, type InfographicClaim, type PublicationCopy } from "@/lib/ai";
 import { ensureFreshMeliToken, getSaleFee } from "@/lib/meli-api";
 
 // Rentabilidad y Costos y gastos son páginas distintas pero comparten los
@@ -280,4 +280,17 @@ export async function generateOptimizedCopy(input: {
   if (!session?.user?.id) throw new Error("No autenticado");
 
   return generatePublicationCopy(input);
+}
+
+// Sugerencias de texto para el set de 5 infografías — el usuario las revisa
+// y edita en el cliente antes de generar ninguna imagen (ver
+// generateInfographicSetClaims en ai.ts para las reglas anti-invención).
+export async function suggestInfographicSetClaims(
+  productName: string,
+  keyFeatures: string,
+): Promise<InfographicClaim[]> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  return generateInfographicSetClaims(productName, keyFeatures);
 }

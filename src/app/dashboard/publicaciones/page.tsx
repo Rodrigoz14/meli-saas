@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PublicationsOptimizer } from "@/components/dashboard/publications-optimizer";
-import { InfographicGenerator } from "@/components/dashboard/infographic-generator";
+import { InfographicSetGenerator } from "@/components/dashboard/infographic-set-generator";
 import { getRentabilidadData } from "@/lib/dashboard-data";
 
 export const maxDuration = 60;
@@ -47,13 +47,13 @@ export default async function PublicacionesPage() {
       <Tabs defaultValue="texto" className="mt-8">
         <TabsList>
           <TabsTrigger value="texto">Título y Descripción</TabsTrigger>
-          <TabsTrigger value="infografia">Infografía</TabsTrigger>
+          <TabsTrigger value="infografia">Infografías</TabsTrigger>
         </TabsList>
         <TabsContent value="texto" className="mt-6">
           <PublicationsOptimizer products={products} />
         </TabsContent>
         <TabsContent value="infografia" className="mt-6">
-          <InfographicGenerator products={products} />
+          <InfographicSetGenerator products={products} />
         </TabsContent>
       </Tabs>
     </div>

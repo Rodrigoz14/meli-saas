@@ -173,3 +173,89 @@ Responde ÚNICAMENTE con un array JSON de 4 strings cortos, sin texto adicional.
     return [];
   }
 }
+
+export type InfographicSetCategory = "producto" | "beneficios" | "comparacion" | "en_uso" | "aclaracion";
+
+export type InfographicClaim = {
+  category: InfographicSetCategory;
+  headline: string;
+  subtext: string;
+  bullets: string[];
+};
+
+const INFOGRAPHIC_SET_CATEGORIES: { key: InfographicSetCategory; desc: string }[] = [
+  { key: "producto", desc: "Presentación limpia del producto — headline corto con el nombre/atributo principal, sin bullets de venta." },
+  { key: "beneficios", desc: "El beneficio más fuerte como headline grande (ej. \"NO TIENE AZÚCAR\"), 3-4 bullets cortos de características/beneficios reales." },
+  { key: "comparacion", desc: "Tabla \"headline vs otras marcas genéricas\" — 4-5 bullets de características donde el producto gana, en términos genéricos, SIN nombrar marcas de la competencia." },
+  { key: "en_uso", desc: "Cómo se usa/consume el producto en la práctica — headline con el modo de uso, 2-3 bullets de contexto de uso." },
+  { key: "aclaracion", desc: "Aclara un mito o preocupación común del rubro del producto (headline tipo \"NO DA ACNÉ\" o \"SIN CONTRAINDICACIONES\"), 2-3 bullets que lo respaldan." },
+];
+
+// Sugerencias de texto para el set de 5 infografías (producto, beneficios,
+// comparación, en uso, aclaración) — el usuario SIEMPRE las revisa y edita
+// antes de generar las imágenes reales, así que acá la IA puede proponer,
+// pero nunca inventa specs/afirmaciones de salud que no estén implícitas en
+// lo que el vendedor escribió.
+export async function generateInfographicSetClaims(
+  productName: string,
+  keyFeatures: string,
+): Promise<InfographicClaim[]> {
+  const name = productName.trim().slice(0, 150);
+  const features = keyFeatures.trim().slice(0, 800);
+  if (!name && !features) return [];
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 1200,
+    messages: [
+      {
+        role: "user",
+        content: `Sos un diseñador de infografías de venta para Mercado Libre (Latinoamérica). Para el producto "${name || "(sin nombre)"}", con estas características/datos reales: "${features || "(sin datos adicionales, usa solo el nombre)"}".
+
+Necesito una PROPUESTA de texto para un set de 5 infografías, en este orden y con este propósito cada una:
+${INFOGRAPHIC_SET_CATEGORIES.map((c, i) => `${i + 1}. ${c.key}: ${c.desc}`).join("\n")}
+
+Reglas estrictas:
+- SOLO usá datos/afirmaciones que estén en el nombre o las características que te pasé. Si no hay suficiente información para una categoría, proponé algo genérico y neutro (ej. "Calidad garantizada") en vez de inventar un dato específico (nunca inventes cifras, porcentajes, ingredientes o efectos que no te dieron).
+- En "comparacion" nunca nombres una marca competidora real — usá términos genéricos como "otras marcas" u "otros productos".
+- Los headlines van en MAYÚSCULAS, cortos (máximo 5-6 palabras). Los bullets son frases cortas (máximo 6-8 palabras cada una).
+- "subtext" es una frase de apoyo opcional (puede ir vacía "").
+
+Responde ÚNICAMENTE con un array JSON de 5 objetos con esta forma exacta, en el mismo orden de la lista de arriba:
+[{"category": "producto", "headline": "...", "subtext": "...", "bullets": ["...", "..."]}, ...]`,
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (c): c is InfographicClaim =>
+          c &&
+          typeof c.category === "string" &&
+          typeof c.headline === "string" &&
+          Array.isArray(c.bullets),
+      )
+      .map((c) => ({
+        category: c.category as InfographicSetCategory,
+        headline: c.headline.trim().slice(0, 80),
+        subtext: typeof c.subtext === "string" ? c.subtext.trim().slice(0, 120) : "",
+        bullets: c.bullets
+          .filter((b: unknown): b is string => typeof b === "string" && b.trim().length > 0)
+          .map((b: string) => b.trim().slice(0, 60))
+          .slice(0, 5),
+      }))
+      .slice(0, 5);
+  } catch (err) {
+    console.error("generateInfographicSetClaims: no se pudo parsear la respuesta del modelo:", text, err);
+    return [];
+  }
+}
