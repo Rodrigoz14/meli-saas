@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
   getAdsItemMetrics,
+  getBestImageUrl,
   getItemsDetails,
   getMeliUser,
   getOrderStats,
@@ -140,7 +141,7 @@ export async function getAnalyticsData(userId: string, days = 7): Promise<Analyt
         productId: item.id,
         meliItemId: item.id,
         title: item.title,
-        thumbnail: item.thumbnail,
+        thumbnail: getBestImageUrl(item),
         permalink: item.permalink,
         currencyId: item.currency_id,
         availableQuantity: item.available_quantity,

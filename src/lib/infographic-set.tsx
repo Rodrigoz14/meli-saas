@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { ImageResponse } from "next/og";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
-import { generateBackgroundImage } from "@/lib/cloudflare-ai";
 import { loadGoogleFontTtf } from "@/lib/og-font";
 
 const SIZE = 1080;
+const INK = "#0f172a";
+const MUTED = "#64748b";
 
 export type InfographicSetInput = {
   imageDataUrl?: string;
@@ -25,50 +26,14 @@ export async function resolveImageDataUrl(input: { imageDataUrl?: string; imageU
   return `data:${contentType};base64,${base64}`;
 }
 
-// Prompts de FONDO únicamente — a propósito nunca le piden a la IA que
-// dibuje el producto, texto, personas ni marcas: eso siempre se compone
-// aparte (foto real + texto con next/og) para no arriesgar una etiqueta o
-// dato mal renderizado por el modelo de imagen.
-const BACKGROUND_PROMPTS: Record<InfographicSetCategory, string> = {
-  producto:
-    "professional product photography studio background, soft clean gradient, minimalist, high-end commercial lighting, empty background, no text, no objects, no people",
-  beneficios:
-    "abstract professional wellness background, soft light rays, modern gradient, clean and energetic, empty background, no text, no objects, no people",
-  comparacion:
-    "dramatic professional dark background, versus battle concept, sharp diagonal light beam through center, empty background, no text, no objects, no people",
-  en_uso:
-    "soft blurred lifestyle background, gym or kitchen ambient, warm natural light, empty background, no text, no sharp objects, no people in focus",
-  aclaracion:
-    "trustworthy calm professional background, soft gradient, subtle security and safety mood, empty background, no text, no objects, no people",
-};
-
-// Nunca pasarle el hex crudo (ej. "#5670f0") al prompt: FLUX a veces lo
-// interpreta como texto literal para escribir dentro de la imagen. Un
-// nombre de color en inglés evita ese problema.
-const ACCENT_COLOR_NAMES: Record<string, string> = {
-  "#5670f0": "indigo blue",
-  "#10b981": "emerald green",
-  "#f5a524": "warm amber",
-  "#f43f5e": "rose pink",
-};
-
-function backgroundPrompt(category: InfographicSetCategory, accentColor: string): string {
-  const colorName = ACCENT_COLOR_NAMES[accentColor.toLowerCase()] || "blue";
-  return `${BACKGROUND_PROMPTS[category]}, color palette centered on ${colorName} tones, no text, no watermark, no numbers, no letters`;
-}
-
 async function loadInputs(input: InfographicSetInput) {
   const accentColor = input.accentColor || "#5670f0";
-  const [imageDataUrl, backgroundDataUrl, fontRegular, fontBold] = await Promise.all([
+  const [imageDataUrl, fontRegular, fontBold] = await Promise.all([
     resolveImageDataUrl(input),
-    generateBackgroundImage(backgroundPrompt(input.claim.category, accentColor)).catch((err) => {
-      console.error("generateBackgroundImage failed, usando gradiente de respaldo:", err);
-      return null;
-    }),
     loadGoogleFontTtf("Inter", 400),
     loadGoogleFontTtf("Inter", 700),
   ]);
-  return { accentColor, imageDataUrl, backgroundDataUrl, fontRegular, fontBold };
+  return { accentColor, imageDataUrl, fontRegular, fontBold };
 }
 
 function fonts(fontRegular: ArrayBuffer, fontBold: ArrayBuffer) {
@@ -78,10 +43,6 @@ function fonts(fontRegular: ArrayBuffer, fontBold: ArrayBuffer) {
   ];
 }
 
-// Íconos dibujados en SVG (no caracteres de texto) — el subset de la fuente
-// Inter que baja Google Fonts no trae glifos como ✓/✗, y Satori los
-// renderiza como cuadros vacíos. Un SVG siempre se ve igual sin depender de
-// qué glifos incluya la fuente.
 function CheckIcon({ size = 20, color = "white" }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -98,15 +59,11 @@ function CrossIcon({ size = 20, color = "white" }: { size?: number; color?: stri
   );
 }
 
-function Frame({
-  backgroundDataUrl,
-  accentColor,
-  children,
-}: {
-  backgroundDataUrl: string | null;
-  accentColor: string;
-  children: ReactNode;
-}) {
+// Fondo limpio (gradiente radial claro hacia el color de acento) — nada de
+// escenas fotográficas generadas por IA: las referencias reales que pidió
+// igualar el usuario son todas así, el peso visual está en el layout, no en
+// el fondo.
+function GradientFrame({ accentColor, children }: { accentColor: string; children: ReactNode }) {
   return (
     <div
       style={{
@@ -115,55 +72,106 @@ function Frame({
         display: "flex",
         position: "relative",
         fontFamily: "Inter",
-        background: backgroundDataUrl
-          ? "#0f172a"
-          : `linear-gradient(135deg, ${accentColor}22 0%, #0f172a 100%)`,
+        background: `radial-gradient(ellipse 900px 700px at 50% -8%, ${accentColor}30, white 62%)`,
       }}
     >
-      {backgroundDataUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={backgroundDataUrl}
-          alt=""
-          width={SIZE}
-          height={SIZE}
-          style={{ position: "absolute", inset: 0, width: SIZE, height: SIZE, objectFit: "cover" }}
-        />
-      )}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(8,10,20,0.35)" }} />
       {children}
     </div>
   );
 }
 
-function ProductCard({ src, size = 480 }: { src: string; size?: number }) {
+// Barra superior de color sólido con el titular — el mismo recurso que
+// usan las referencias (banner azul con texto blanco en mayúsculas).
+function Banner({ text, accentColor }: { text: string; accentColor: string }) {
+  if (!text) return null;
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: size,
-        height: size,
-        background: "white",
-        borderRadius: 32,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+        background: accentColor,
+        borderRadius: 20,
+        padding: "22px 40px",
+        boxShadow: `0 16px 32px -12px ${accentColor}99`,
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" width={size - 60} height={size - 60} style={{ objectFit: "contain" }} />
+      <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "white", textAlign: "center" }}>
+        {text}
+      </div>
     </div>
   );
 }
 
-// 1. PRODUCTO — presentación limpia: foto real grande, headline chico.
+// Producto "flotando" sobre el fondo con una sombra elíptica abajo — en vez
+// de la caja blanca pesada de antes, más parecido a foto de producto real.
+function FloatingProduct({ src, size = 420 }: { src: string; size?: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" width={size} height={size} style={{ objectFit: "contain" }} />
+      <div
+        style={{
+          display: "flex",
+          width: size * 0.6,
+          height: 28,
+          marginTop: -14,
+          borderRadius: 999,
+          background: "radial-gradient(ellipse, rgba(15,23,42,0.18) 0%, rgba(15,23,42,0) 70%)",
+        }}
+      />
+    </div>
+  );
+}
+
+function IconRow({
+  icon,
+  text,
+  accentColor,
+}: {
+  icon: ReactNode;
+  text: string;
+  accentColor: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 18,
+        background: "white",
+        borderRadius: 18,
+        padding: "16px 22px",
+        boxShadow: "0 8px 24px -16px rgba(15,23,42,0.35)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          width: 44,
+          height: 44,
+          flexShrink: 0,
+          borderRadius: 999,
+          background: accentColor,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {icon}
+      </div>
+      <div style={{ display: "flex", fontSize: 25, fontWeight: 700, color: INK }}>{text}</div>
+    </div>
+  );
+}
+
+// 1. PRODUCTO — presentación limpia: foto flotando, nombre debajo.
 export async function buildProductInfographic(input: InfographicSetInput): Promise<Response> {
-  const { accentColor, imageDataUrl, backgroundDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
   const { headline, subtext } = input.claim;
 
   return new ImageResponse(
     (
-      <Frame backgroundDataUrl={backgroundDataUrl} accentColor={accentColor}>
+      <GradientFrame accentColor={accentColor}>
         <div
           style={{
             position: "absolute",
@@ -172,10 +180,10 @@ export async function buildProductInfographic(input: InfographicSetInput): Promi
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 36,
+            gap: 40,
           }}
         >
-          <ProductCard src={imageDataUrl} size={600} />
+          <FloatingProduct src={imageDataUrl} size={560} />
           {headline && (
             <div
               style={{
@@ -184,7 +192,6 @@ export async function buildProductInfographic(input: InfographicSetInput): Promi
                 alignItems: "center",
                 width: 880,
                 gap: 8,
-                textAlign: "center",
               }}
             >
               <div
@@ -192,112 +199,174 @@ export async function buildProductInfographic(input: InfographicSetInput): Promi
                   display: "flex",
                   justifyContent: "center",
                   textAlign: "center",
-                  fontSize: 44,
+                  fontSize: 42,
                   fontWeight: 700,
-                  color: "white",
-                  letterSpacing: -1,
+                  color: INK,
+                  letterSpacing: -0.5,
                 }}
               >
                 {headline}
               </div>
               {subtext && (
-                <div style={{ display: "flex", justifyContent: "center", fontSize: 24, color: "rgba(255,255,255,0.85)" }}>
+                <div style={{ display: "flex", justifyContent: "center", fontSize: 24, color: MUTED }}>
                   {subtext}
                 </div>
               )}
             </div>
           )}
         </div>
-      </Frame>
+      </GradientFrame>
     ),
     { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
   );
 }
 
-// 2. BENEFICIOS — headline grande + checklist de bullets, foto al costado.
+// 2. BENEFICIOS — banner superior + producto + fila de íconos con beneficios.
 export async function buildBenefitsInfographic(input: InfographicSetInput): Promise<Response> {
-  const { accentColor, imageDataUrl, backgroundDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
   const { headline, subtext, bullets } = input.claim;
 
   return new ImageResponse(
     (
-      <Frame backgroundDataUrl={backgroundDataUrl} accentColor={accentColor}>
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: 70 }}>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: 560, gap: 28 }}>
-            <div style={{ display: "flex", fontSize: 56, fontWeight: 700, color: "white", lineHeight: 1.05 }}>
-              {headline}
-            </div>
-            {subtext && (
-              <div style={{ display: "flex", fontSize: 24, color: "rgba(255,255,255,0.85)" }}>{subtext}</div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 18, marginTop: 12 }}>
-              {bullets.slice(0, 4).map((b, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      width: 36,
-                      height: 36,
-                      flexShrink: 0,
-                      borderRadius: 999,
-                      background: accentColor,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <CheckIcon size={20} />
-                  </div>
-                  <div style={{ display: "flex", fontSize: 26, fontWeight: 700, color: "white" }}>{b}</div>
-                </div>
-              ))}
-            </div>
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "64px 70px",
+            gap: 24,
+          }}
+        >
+          <div style={{ display: "flex", width: 940 }}>
+            <Banner text={headline} accentColor={accentColor} />
           </div>
-          <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <ProductCard src={imageDataUrl} size={460} />
+          {subtext && (
+            <div style={{ display: "flex", fontSize: 22, color: MUTED, textAlign: "center" }}>{subtext}</div>
+          )}
+
+          <FloatingProduct src={imageDataUrl} size={340} />
+
+          <div style={{ display: "flex", flexDirection: "column", width: 780, gap: 14, marginTop: 8 }}>
+            {bullets.slice(0, 4).map((b, i) => (
+              <IconRow key={i} icon={<CheckIcon size={22} />} text={b} accentColor={accentColor} />
+            ))}
           </div>
         </div>
-      </Frame>
+      </GradientFrame>
     ),
     { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
   );
 }
 
-// 3. COMPARACIÓN — headline + tabla "producto" vs "otras marcas".
+// 3. COMPARACIÓN — nuestro producto vs "otras marcas", tabla de check/cross.
 export async function buildComparisonInfographic(input: InfographicSetInput): Promise<Response> {
-  const { accentColor, imageDataUrl, backgroundDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
   const { headline, bullets } = input.claim;
 
   return new ImageResponse(
     (
-      <Frame backgroundDataUrl={backgroundDataUrl} accentColor={accentColor}>
-        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", padding: 60, gap: 28 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <div style={{ display: "flex", fontSize: 44, fontWeight: 700, color: "white", textAlign: "center" }}>
-              {headline}
-            </div>
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "56px 70px",
+            gap: 26,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              fontSize: 38,
+              fontWeight: 700,
+              color: INK,
+              textAlign: "center",
+            }}
+          >
+            {headline}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 40 }}>
-            <ProductCard src={imageDataUrl} size={260} />
-            <div style={{ display: "flex", fontSize: 48, fontWeight: 700, color: accentColor }}>VS</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, width: 940 }}>
             <div
               style={{
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
-                width: 260,
-                height: 260,
-                borderRadius: 32,
-                background: "rgba(255,255,255,0.08)",
-                border: "2px dashed rgba(255,255,255,0.3)",
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 22,
-                fontWeight: 700,
-                textAlign: "center",
-                padding: 20,
+                width: 420,
+                gap: 10,
               }}
             >
-              Otras marcas
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 420,
+                  height: 240,
+                  background: "white",
+                  borderRadius: 24,
+                  boxShadow: "0 14px 30px -18px rgba(15,23,42,0.4)",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageDataUrl} alt="" width={340} height={200} style={{ objectFit: "contain" }} />
+              </div>
+              <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: accentColor }}>
+                NUESTRO PRODUCTO
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                width: 72,
+                height: 72,
+                borderRadius: 999,
+                background: INK,
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 26,
+                fontWeight: 700,
+                color: "white",
+                marginTop: -30,
+                boxShadow: "0 10px 24px -10px rgba(15,23,42,0.5)",
+              }}
+            >
+              VS
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                width: 420,
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 420,
+                  height: 240,
+                  background: "#e5e7eb",
+                  borderRadius: 24,
+                  border: "2px dashed #cbd5e1",
+                }}
+              >
+                <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#94a3b8" }}>Otras marcas</div>
+              </div>
+              <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: "#94a3b8" }}>
+                OTRAS MARCAS
+              </div>
             </div>
           </div>
 
@@ -305,10 +374,11 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
             style={{
               display: "flex",
               flexDirection: "column",
-              borderRadius: 24,
+              width: 940,
+              borderRadius: 20,
               overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.15)",
-              marginTop: 8,
+              boxShadow: "0 10px 30px -18px rgba(15,23,42,0.35)",
+              marginTop: 4,
             }}
           >
             {bullets.slice(0, 5).map((b, i) => (
@@ -319,56 +389,58 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
                   alignItems: "center",
                   justifyContent: "space-between",
                   padding: "18px 28px",
-                  background: i % 2 === 0 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.02)",
+                  background: i % 2 === 0 ? "white" : "#f8fafc",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 24, fontWeight: 700, color: "white", flex: 1 }}>{b}</div>
-                <div style={{ display: "flex", gap: 40 }}>
+                <div style={{ display: "flex", fontSize: 23, fontWeight: 700, color: INK, flex: 1 }}>{b}</div>
+                <div style={{ display: "flex", width: 90, justifyContent: "center" }}>
                   <div
                     style={{
                       display: "flex",
                       width: 34,
                       height: 34,
                       borderRadius: 999,
-                      background: "rgba(34,197,94,0.15)",
+                      background: "#dcfce7",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <CheckIcon size={18} color="#22c55e" />
+                    <CheckIcon size={18} color="#16a34a" />
                   </div>
+                </div>
+                <div style={{ display: "flex", width: 90, justifyContent: "center" }}>
                   <div
                     style={{
                       display: "flex",
                       width: 34,
                       height: 34,
                       borderRadius: 999,
-                      background: "rgba(239,68,68,0.15)",
+                      background: "#f1f5f9",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <CrossIcon size={18} color="#ef4444" />
+                    <CrossIcon size={18} color="#94a3b8" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </Frame>
+      </GradientFrame>
     ),
     { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
   );
 }
 
-// 4. EN USO — headline con el modo de uso + bullets de contexto.
+// 4. EN USO — banner + producto + pills de contexto de uso.
 export async function buildUsageInfographic(input: InfographicSetInput): Promise<Response> {
-  const { accentColor, imageDataUrl, backgroundDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
   const { headline, subtext, bullets } = input.claim;
 
   return new ImageResponse(
     (
-      <Frame backgroundDataUrl={backgroundDataUrl} accentColor={accentColor}>
+      <GradientFrame accentColor={accentColor}>
         <div
           style={{
             position: "absolute",
@@ -377,43 +449,18 @@ export async function buildUsageInfographic(input: InfographicSetInput): Promise
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 32,
-            padding: 60,
+            padding: "60px 70px",
+            gap: 30,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              width: 880,
-              textAlign: "center",
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-                textAlign: "center",
-                fontSize: 48,
-                fontWeight: 700,
-                color: "white",
-                lineHeight: 1.1,
-              }}
-            >
-              {headline}
-            </div>
-            {subtext && (
-              <div style={{ display: "flex", justifyContent: "center", fontSize: 24, color: "rgba(255,255,255,0.85)" }}>
-                {subtext}
-              </div>
-            )}
+          <div style={{ display: "flex", width: 940 }}>
+            <Banner text={headline} accentColor={accentColor} />
           </div>
+          {subtext && <div style={{ display: "flex", fontSize: 22, color: MUTED, textAlign: "center" }}>{subtext}</div>}
 
-          <ProductCard src={imageDataUrl} size={480} />
+          <FloatingProduct src={imageDataUrl} size={420} />
 
-          <div style={{ display: "flex", gap: 20 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", width: 940, gap: 16 }}>
             {bullets.slice(0, 3).map((b, i) => (
               <div
                 key={i}
@@ -421,75 +468,58 @@ export async function buildUsageInfographic(input: InfographicSetInput): Promise
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  background: "rgba(255,255,255,0.1)",
+                  background: "white",
                   borderRadius: 999,
-                  padding: "12px 22px",
-                  border: `1px solid ${accentColor}`,
+                  padding: "14px 24px",
+                  boxShadow: "0 8px 20px -14px rgba(15,23,42,0.4)",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: "white" }}>{b}</div>
+                <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: INK }}>{b}</div>
               </div>
             ))}
           </div>
         </div>
-      </Frame>
+      </GradientFrame>
     ),
     { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
   );
 }
 
-// 5. ACLARACIÓN — headline tipo "mito resuelto" + bullets de respaldo.
+// 5. ACLARACIÓN — banner + checklist de respaldo + producto.
 export async function buildClarificationInfographic(input: InfographicSetInput): Promise<Response> {
-  const { accentColor, imageDataUrl, backgroundDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
   const { headline, subtext, bullets } = input.claim;
 
   return new ImageResponse(
     (
-      <Frame backgroundDataUrl={backgroundDataUrl} accentColor={accentColor}>
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: 70 }}>
-          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: 560, gap: 24 }}>
-            <div
-              style={{
-                display: "flex",
-                width: 64,
-                height: 64,
-                borderRadius: 999,
-                background: accentColor,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <CheckIcon size={32} />
-            </div>
-            <div style={{ display: "flex", fontSize: 52, fontWeight: 700, color: "white", lineHeight: 1.05 }}>
-              {headline}
-            </div>
-            {subtext && (
-              <div style={{ display: "flex", fontSize: 24, color: "rgba(255,255,255,0.85)" }}>{subtext}</div>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 8 }}>
-              {bullets.slice(0, 3).map((b, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 14,
-                    background: "rgba(255,255,255,0.08)",
-                    borderRadius: 16,
-                    padding: "14px 20px",
-                  }}
-                >
-                  <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "white" }}>{b}</div>
-                </div>
-              ))}
-            </div>
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "64px 70px",
+            gap: 24,
+          }}
+        >
+          <div style={{ display: "flex", width: 940 }}>
+            <Banner text={headline} accentColor={accentColor} />
           </div>
-          <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center" }}>
-            <ProductCard src={imageDataUrl} size={460} />
+          {subtext && (
+            <div style={{ display: "flex", fontSize: 22, color: MUTED, textAlign: "center" }}>{subtext}</div>
+          )}
+
+          <FloatingProduct src={imageDataUrl} size={320} />
+
+          <div style={{ display: "flex", flexDirection: "column", width: 780, gap: 14 }}>
+            {bullets.slice(0, 3).map((b, i) => (
+              <IconRow key={i} icon={<CheckIcon size={22} />} text={b} accentColor={accentColor} />
+            ))}
           </div>
         </div>
-      </Frame>
+      </GradientFrame>
     ),
     { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
   );

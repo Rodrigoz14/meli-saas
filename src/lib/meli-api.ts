@@ -13,6 +13,10 @@ export type MeliItem = {
   original_price: number | null;
   currency_id: string;
   thumbnail: string;
+  // `thumbnail` es la versión chica (sufijo "-I", pensada para grillas de
+  // búsqueda) — la misma respuesta ya trae la foto real en resolución
+  // completa acá, sin ninguna llamada extra a la API.
+  pictures?: { url?: string; secure_url?: string }[];
   category_id: string;
   listing_type_id: string;
   available_quantity: number;
@@ -20,6 +24,15 @@ export type MeliItem = {
   permalink: string;
   shipping?: { free_shipping?: boolean };
 };
+
+// Mercado Libre manda `thumbnail` en baja resolución (sufijo "-I.jpg",
+// pensado para grillas de búsqueda, no para mostrar el producto en grande) —
+// por eso las fotos se veían borrosas en todos lados. `pictures[0]` es la
+// MISMA foto en resolución real (hasta ~1200px), ya incluida en la misma
+// respuesta de /items.
+export function getBestImageUrl(item: MeliItem): string {
+  return item.pictures?.[0]?.secure_url || item.pictures?.[0]?.url || item.thumbnail;
+}
 
 // Igual que meliFetchBilling: el 429 "local_rate_limited" es transitorio y
 // se dispara con facilidad en cuentas de alto volumen (ej. /orders/search

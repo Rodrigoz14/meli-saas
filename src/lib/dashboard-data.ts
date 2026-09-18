@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import {
   ensureFreshMeliToken,
   getAdsItemMetrics,
+  getBestImageUrl,
   getBillingData,
   getEffectivePrices,
   getItemsDetails,
@@ -173,7 +174,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
           productId: product.id,
           meliItemId: product.meliItemId,
           title: item.title,
-          thumbnail: item.thumbnail,
+          thumbnail: getBestImageUrl(item),
           permalink: item.permalink,
           price: effective.price,
           originalPrice: effective.originalPrice,
