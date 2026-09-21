@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "MeliBoost",
-  "version": "0.2.0",
-  "description": "Conecta tu cuenta de Mercado Libre para ver los datos reales de tus productos (ventas, stock, CTR de Ads) y busca nichos, todo desde el panel de tu navegador.",
+  "version": "0.2.1",
+  "description": "Herramienta independiente (no afiliada a Mercado Libre) para vendedores: rentabilidad, inventario y busqueda de productos.",
   "permissions": ["scripting", "tabs", "storage", "sidePanel"],
   "host_permissions": [
     "*://*.mercadolibre.com/*",

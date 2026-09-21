@@ -43,6 +43,10 @@ next-env.d.ts
 # local QA screenshots
 scripts/out-*.png
 
+# extension build output (generado por npm run build:extension)
+/extension-dist/
+/extension-dist.zip
+
 /src/generated/prisma
 
 .vercel
