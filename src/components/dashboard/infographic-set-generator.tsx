@@ -2,19 +2,31 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Download, ImageIcon, Loader2, Sparkles, Upload, Wand2 } from "lucide-react";
+import { Download, ImageIcon, Loader2, Palette, Sparkles, Upload, Wand2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { removeProductBackground, suggestInfographicSetClaims } from "@/app/dashboard/actions";
+import {
+  removeProductBackground,
+  suggestAccentColorFromImage,
+  suggestInfographicSetClaims,
+} from "@/app/dashboard/actions";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 
 type Product = { productId: string; title: string; thumbnail: string; permalink: string };
 
 const ACCENT_OPTIONS = [
   { label: "Índigo", value: "#5670f0" },
+  { label: "Azul", value: "#3b82f6" },
+  { label: "Celeste", value: "#0ea5e9" },
+  { label: "Turquesa", value: "#14b8a6" },
   { label: "Esmeralda", value: "#10b981" },
+  { label: "Verde lima", value: "#84cc16" },
   { label: "Ámbar", value: "#f5a524" },
+  { label: "Naranja", value: "#f97316" },
+  { label: "Rojo", value: "#ef4444" },
   { label: "Rosa", value: "#f43f5e" },
+  { label: "Violeta", value: "#a855f7" },
+  { label: "Gris", value: "#64748b" },
 ];
 
 const CATEGORY_ORDER: InfographicSetCategory[] = ["producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
@@ -49,6 +61,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   const [accentColor, setAccentColor] = useState(ACCENT_OPTIONS[0].value);
   const [claims, setClaims] = useState<InfographicClaim[]>(emptyClaims());
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isSuggestingColor, setIsSuggestingColor] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingStatus, setGeneratingStatus] = useState("");
   const [results, setResults] = useState<Record<InfographicSetCategory, string | null>>(
@@ -105,6 +118,30 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
       toast.error("No se pudo generar la sugerencia, intentá de nuevo");
     } finally {
       setIsSuggesting(false);
+    }
+  }
+
+  async function handleSuggestColor() {
+    if (!uploadedDataUrl && !productThumbnailUrl) {
+      toast.error("Subí una foto o elegí una publicación real primero");
+      return;
+    }
+    setIsSuggestingColor(true);
+    try {
+      const suggested = await suggestAccentColorFromImage({
+        imageDataUrl: uploadedDataUrl || undefined,
+        imageUrl: uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
+      });
+      if (!suggested) {
+        toast.error("No se pudo sugerir un color a partir de la foto");
+        return;
+      }
+      setAccentColor(suggested);
+      toast.success("Color sugerido según tu foto");
+    } catch {
+      toast.error("No se pudo sugerir un color, intentá de nuevo");
+    } finally {
+      setIsSuggestingColor(false);
     }
   }
 
@@ -258,7 +295,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
 
         <div>
           <label className="text-sm font-medium">Color de acento</label>
-          <div className="mt-1.5 flex gap-2">
+          <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {ACCENT_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -266,12 +303,33 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
                 onClick={() => setAccentColor(opt.value)}
                 title={opt.label}
                 style={{ backgroundColor: opt.value }}
-                className={`h-8 w-8 rounded-full border-2 transition-transform ${
+                className={`h-8 w-8 shrink-0 rounded-full border-2 transition-transform ${
                   accentColor === opt.value ? "scale-110 border-foreground" : "border-transparent"
                 }`}
               />
             ))}
+            <div className="relative h-8 w-8 shrink-0">
+              <input
+                type="color"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                title="Elegir color personalizado"
+                className="absolute inset-0 h-full w-full cursor-pointer rounded-full border-2 border-dashed border-muted-foreground/50 bg-transparent p-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch-wrapper]:rounded-full [&::-webkit-color-swatch-wrapper]:p-0"
+              />
+              <Palette className="pointer-events-none absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-background text-muted-foreground" />
+            </div>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSuggestColor}
+            disabled={isSuggestingColor}
+            className="mt-2"
+          >
+            <Wand2 className="mr-2 h-3.5 w-3.5" />
+            {isSuggestingColor ? "Analizando la foto…" : "Sugerir color con IA según la foto"}
+          </Button>
         </div>
 
         <Button onClick={handleSuggest} disabled={isSuggesting} variant="outline" className="w-full">

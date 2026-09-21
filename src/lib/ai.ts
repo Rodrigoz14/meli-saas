@@ -259,3 +259,40 @@ Responde ÚNICAMENTE con un array JSON de 5 objetos con esta forma exacta, en el
     return [];
   }
 }
+
+// Analiza la foto real del producto (visión de Claude, no un promedio de
+// píxeles) y sugiere un color de acento que combine con el envase — más
+// criterio que "el color más repetido", que suele ser el fondo blanco.
+export async function suggestAccentColor(imageDataUrl: string): Promise<string | null> {
+  const match = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+  const [, mediaType, base64] = match;
+  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mediaType)) return null;
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 50,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data: base64 } },
+          {
+            type: "text",
+            text: `Mirá esta foto de un producto. Necesito UN color de acento (código hex) para usar en una infografía de venta de Mercado Libre — tiene que combinar bien con los colores reales del envase/etiqueta (puede ser un color que ya esté en el producto, o uno complementario que resalte sobre un fondo claro), y verse profesional (ni muy pálido ni neón).
+
+Responde ÚNICAMENTE con el código hex en formato "#rrggbb", sin texto adicional.`,
+          },
+        ],
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  const hexMatch = text.match(/#[0-9a-fA-F]{6}/);
+  return hexMatch ? hexMatch[0].toLowerCase() : null;
+}

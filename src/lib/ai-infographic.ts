@@ -6,15 +6,50 @@ import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 // texto/forma distinta). El usuario pidió avanzar así a propósito, a
 // sabiendas de esa limitación, así que estas imágenes son un placeholder
 // visual, no una representación exacta del producto.
-const ACCENT_COLOR_NAMES: Record<string, string> = {
-  "#5670f0": "indigo azulado",
-  "#10b981": "verde esmeralda",
-  "#f5a524": "ámbar dorado",
-  "#f43f5e": "rosa intenso",
-};
+// Convierte CUALQUIER hex (preset, elegido en el círculo cromático, o
+// sugerido por IA a partir de la foto) a un nombre de color en español —
+// el prompt de texto necesita una palabra, no un código hex.
+function hexToColorName(hex: string): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+
+  if (Number.isNaN(max)) return "azul";
+  if (max - min < 0.08) {
+    if (lightness > 0.85) return "blanco";
+    if (lightness < 0.15) return "negro";
+    return "gris";
+  }
+
+  let hue = 0;
+  const delta = max - min;
+  if (max === r) hue = ((g - b) / delta) % 6;
+  else if (max === g) hue = (b - r) / delta + 2;
+  else hue = (r - g) / delta + 4;
+  hue = ((hue * 60) + 360) % 360;
+
+  const saturationWord = lightness > 0.75 ? "pastel" : lightness < 0.3 ? "oscuro" : "intenso";
+
+  if (hue < 15 || hue >= 345) return `rojo ${saturationWord}`;
+  if (hue < 45) return `naranja ${saturationWord}`;
+  if (hue < 70) return `amarillo ${saturationWord}`;
+  if (hue < 90) return `verde lima ${saturationWord}`;
+  if (hue < 150) return `verde ${saturationWord}`;
+  if (hue < 195) return `turquesa ${saturationWord}`;
+  if (hue < 230) return `celeste ${saturationWord}`;
+  if (hue < 255) return `azul ${saturationWord}`;
+  if (hue < 275) return `indigo ${saturationWord}`;
+  if (hue < 300) return `violeta ${saturationWord}`;
+  if (hue < 330) return `rosa ${saturationWord}`;
+  return `rojo ${saturationWord}`;
+}
 
 function colorPalette(accentColor: string) {
-  const name = ACCENT_COLOR_NAMES[accentColor.toLowerCase()] || "azul";
+  const name = hexToColorName(accentColor);
   return {
     COLOR_PRIMARIO: `negro con tono ${name} oscuro`,
     COLOR_SECUNDARIO: "negro",
