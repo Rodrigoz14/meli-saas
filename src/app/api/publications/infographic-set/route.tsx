@@ -1,22 +1,11 @@
 import { auth } from "@/auth";
-import { buildInfographicSetImage } from "@/lib/infographic-set";
+import { buildInfographicSetImage, isAllowedImageHost } from "@/lib/infographic-set";
+import { buildAiPrompt, generateAiInfographic } from "@/lib/ai-infographic";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const VALID_CATEGORIES: InfographicSetCategory[] = ["producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
-
-// Mismo límite que /api/publications/infographic — las miniaturas reales de
-// Mercado Libre siempre viven en mlstatic.com, así que solo eso se permite
-// para evitar que esta ruta sirva de SSRF hacia cualquier URL arbitraria.
-function isAllowedImageHost(url: string): boolean {
-  try {
-    const { hostname, protocol } = new URL(url);
-    return (protocol === "https:" || protocol === "http:") && /(^|\.)mlstatic\.com$/.test(hostname);
-  } catch {
-    return false;
-  }
-}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -28,6 +17,7 @@ export async function POST(req: Request) {
     imageDataUrl?: string;
     imageUrl?: string;
     accentColor?: string;
+    productName?: string;
     claim?: InfographicClaim;
   };
   try {
@@ -44,6 +34,27 @@ export async function POST(req: Request) {
 
   if (!body.claim || !VALID_CATEGORIES.includes(body.claim.category)) {
     return Response.json({ error: "Categoría de infografía inválida" }, { status: 400 });
+  }
+
+  const accentColor = body.accentColor || "#5670f0";
+  const imageSource = hasUploadedImage ? body.imageDataUrl! : body.imageUrl!;
+
+  // Placeholder temporal con IA (Cloudflare, gratis) mientras se evalúa una
+  // IA de edición de paga — el modelo gratuito no garantiza preservar el
+  // producto real, decisión explícita del usuario. Si falla (o el filtro de
+  // seguridad la rechaza las 3 veces), cae al sistema seguro de siempre
+  // (foto real + texto por código) para que la generación nunca se rompa.
+  try {
+    const prompt = buildAiPrompt(body.claim, body.productName || "el producto", accentColor);
+    const bytes = await generateAiInfographic(imageSource, prompt);
+    // TS marca los tipos de ArrayBufferLike/SharedArrayBuffer como
+    // incompatibles con BlobPart en esta versión — a nivel runtime
+    // Uint8Array real (nunca compartido) funciona sin problema.
+    return new Response(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/jpeg" }), {
+      headers: { "Content-Type": "image/jpeg" },
+    });
+  } catch (err) {
+    console.error(`generateAiInfographic(${body.claim.category}) failed, usando fallback seguro:`, err);
   }
 
   try {

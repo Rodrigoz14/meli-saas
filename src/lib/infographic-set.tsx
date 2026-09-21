@@ -14,6 +14,19 @@ export type InfographicSetInput = {
   accentColor?: string;
 };
 
+// Las miniaturas/fotos reales de Mercado Libre siempre viven en
+// mlstatic.com — sin este chequeo, un usuario logueado podría usar el flujo
+// de infografías para que nuestro servidor haga fetch de cualquier URL
+// arbitraria (SSRF).
+export function isAllowedImageHost(url: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(url);
+    return (protocol === "https:" || protocol === "http:") && /(^|\.)mlstatic\.com$/.test(hostname);
+  } catch {
+    return false;
+  }
+}
+
 export async function resolveImageDataUrl(input: { imageDataUrl?: string; imageUrl?: string }): Promise<string> {
   if (input.imageDataUrl) return input.imageDataUrl;
   if (!input.imageUrl) throw new Error("Falta la foto del producto");
@@ -26,20 +39,25 @@ export async function resolveImageDataUrl(input: { imageDataUrl?: string; imageU
   return `data:${contentType};base64,${base64}`;
 }
 
+// Plus Jakarta Sans — la misma tipografía de marca que ya usa el dashboard
+// (ver layout.tsx), en vez de Inter genérica. Da más carácter a los
+// headlines sin arriesgar nada (es texto real, renderizado por código).
+const FONT_FAMILY = "Plus Jakarta Sans";
+
 async function loadInputs(input: InfographicSetInput) {
   const accentColor = input.accentColor || "#5670f0";
   const [imageDataUrl, fontRegular, fontBold] = await Promise.all([
     resolveImageDataUrl(input),
-    loadGoogleFontTtf("Inter", 400),
-    loadGoogleFontTtf("Inter", 700),
+    loadGoogleFontTtf(FONT_FAMILY, 500),
+    loadGoogleFontTtf(FONT_FAMILY, 800),
   ]);
   return { accentColor, imageDataUrl, fontRegular, fontBold };
 }
 
 function fonts(fontRegular: ArrayBuffer, fontBold: ArrayBuffer) {
   return [
-    { name: "Inter", data: fontRegular, weight: 400 as const },
-    { name: "Inter", data: fontBold, weight: 700 as const },
+    { name: FONT_FAMILY, data: fontRegular, weight: 500 as const },
+    { name: FONT_FAMILY, data: fontBold, weight: 800 as const },
   ];
 }
 
@@ -71,7 +89,7 @@ function GradientFrame({ accentColor, children }: { accentColor: string; childre
         height: SIZE,
         display: "flex",
         position: "relative",
-        fontFamily: "Inter",
+        fontFamily: FONT_FAMILY,
         background: `radial-gradient(ellipse 900px 700px at 50% -8%, ${accentColor}30, white 62%)`,
       }}
     >
@@ -88,15 +106,26 @@ function Banner({ text, accentColor }: { text: string; accentColor: string }) {
     <div
       style={{
         display: "flex",
+        width: "100%",
         alignItems: "center",
         justifyContent: "center",
-        background: accentColor,
+        background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`,
         borderRadius: 20,
         padding: "22px 40px",
-        boxShadow: `0 16px 32px -12px ${accentColor}99`,
+        boxShadow: `0 18px 36px -14px ${accentColor}aa`,
       }}
     >
-      <div style={{ display: "flex", fontSize: 34, fontWeight: 700, color: "white", textAlign: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          justifyContent: "center",
+          fontSize: 34,
+          fontWeight: 800,
+          color: "white",
+          textAlign: "center",
+        }}
+      >
         {text}
       </div>
     </div>
@@ -113,11 +142,12 @@ function FloatingProduct({ src, size = 420 }: { src: string; size?: number }) {
       <div
         style={{
           display: "flex",
-          width: size * 0.6,
-          height: 28,
-          marginTop: -14,
+          width: size * 0.68,
+          height: 34,
+          marginTop: -17,
           borderRadius: 999,
-          background: "radial-gradient(ellipse, rgba(15,23,42,0.18) 0%, rgba(15,23,42,0) 70%)",
+          background:
+            "radial-gradient(ellipse, rgba(15,23,42,0.22) 0%, rgba(15,23,42,0.1) 45%, rgba(15,23,42,0) 72%)",
         }}
       />
     </div>
@@ -152,14 +182,15 @@ function IconRow({
           height: 44,
           flexShrink: 0,
           borderRadius: 999,
-          background: accentColor,
+          background: `linear-gradient(135deg, ${accentColor}, ${accentColor}aa)`,
+          boxShadow: `0 6px 14px -4px ${accentColor}88`,
           alignItems: "center",
           justifyContent: "center",
         }}
       >
         {icon}
       </div>
-      <div style={{ display: "flex", fontSize: 25, fontWeight: 700, color: INK }}>{text}</div>
+      <div style={{ display: "flex", fontSize: 25, fontWeight: 800, color: INK }}>{text}</div>
     </div>
   );
 }
@@ -197,10 +228,11 @@ export async function buildProductInfographic(input: InfographicSetInput): Promi
               <div
                 style={{
                   display: "flex",
+                  width: 880,
                   justifyContent: "center",
                   textAlign: "center",
                   fontSize: 42,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   color: INK,
                   letterSpacing: -0.5,
                 }}
@@ -208,7 +240,17 @@ export async function buildProductInfographic(input: InfographicSetInput): Promi
                 {headline}
               </div>
               {subtext && (
-                <div style={{ display: "flex", justifyContent: "center", fontSize: 24, color: MUTED }}>
+                <div
+                  style={{
+                    display: "flex",
+                    width: 880,
+                    justifyContent: "center",
+                    textAlign: "center",
+                    fontSize: 24,
+                    fontWeight: 500,
+                    color: MUTED,
+                  }}
+                >
                   {subtext}
                 </div>
               )}
@@ -244,7 +286,7 @@ export async function buildBenefitsInfographic(input: InfographicSetInput): Prom
             <Banner text={headline} accentColor={accentColor} />
           </div>
           {subtext && (
-            <div style={{ display: "flex", fontSize: 22, color: MUTED, textAlign: "center" }}>{subtext}</div>
+            <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 22, fontWeight: 500, color: MUTED, textAlign: "center" }}>{subtext}</div>
           )}
 
           <FloatingProduct src={imageDataUrl} size={340} />
@@ -283,8 +325,10 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
           <div
             style={{
               display: "flex",
+              width: 940,
+              justifyContent: "center",
               fontSize: 38,
-              fontWeight: 700,
+              fontWeight: 800,
               color: INK,
               textAlign: "center",
             }}
@@ -317,7 +361,7 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={imageDataUrl} alt="" width={340} height={200} style={{ objectFit: "contain" }} />
               </div>
-              <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: accentColor }}>
+              <div style={{ display: "flex", fontSize: 20, fontWeight: 800, color: accentColor }}>
                 NUESTRO PRODUCTO
               </div>
             </div>
@@ -332,7 +376,7 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: 26,
-                fontWeight: 700,
+                fontWeight: 800,
                 color: "white",
                 marginTop: -30,
                 boxShadow: "0 10px 24px -10px rgba(15,23,42,0.5)",
@@ -362,9 +406,9 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
                   border: "2px dashed #cbd5e1",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 22, fontWeight: 700, color: "#94a3b8" }}>Otras marcas</div>
+                <div style={{ display: "flex", fontSize: 22, fontWeight: 800, color: "#94a3b8" }}>Otras marcas</div>
               </div>
-              <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: "#94a3b8" }}>
+              <div style={{ display: "flex", fontSize: 20, fontWeight: 800, color: "#94a3b8" }}>
                 OTRAS MARCAS
               </div>
             </div>
@@ -392,7 +436,7 @@ export async function buildComparisonInfographic(input: InfographicSetInput): Pr
                   background: i % 2 === 0 ? "white" : "#f8fafc",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 23, fontWeight: 700, color: INK, flex: 1 }}>{b}</div>
+                <div style={{ display: "flex", fontSize: 23, fontWeight: 800, color: INK, flex: 1 }}>{b}</div>
                 <div style={{ display: "flex", width: 90, justifyContent: "center" }}>
                   <div
                     style={{
@@ -456,7 +500,7 @@ export async function buildUsageInfographic(input: InfographicSetInput): Promise
           <div style={{ display: "flex", width: 940 }}>
             <Banner text={headline} accentColor={accentColor} />
           </div>
-          {subtext && <div style={{ display: "flex", fontSize: 22, color: MUTED, textAlign: "center" }}>{subtext}</div>}
+          {subtext && <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 22, fontWeight: 500, color: MUTED, textAlign: "center" }}>{subtext}</div>}
 
           <FloatingProduct src={imageDataUrl} size={420} />
 
@@ -474,7 +518,7 @@ export async function buildUsageInfographic(input: InfographicSetInput): Promise
                   boxShadow: "0 8px 20px -14px rgba(15,23,42,0.4)",
                 }}
               >
-                <div style={{ display: "flex", fontSize: 20, fontWeight: 700, color: INK }}>{b}</div>
+                <div style={{ display: "flex", fontSize: 20, fontWeight: 800, color: INK }}>{b}</div>
               </div>
             ))}
           </div>
@@ -508,7 +552,7 @@ export async function buildClarificationInfographic(input: InfographicSetInput):
             <Banner text={headline} accentColor={accentColor} />
           </div>
           {subtext && (
-            <div style={{ display: "flex", fontSize: 22, color: MUTED, textAlign: "center" }}>{subtext}</div>
+            <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 22, fontWeight: 500, color: MUTED, textAlign: "center" }}>{subtext}</div>
           )}
 
           <FloatingProduct src={imageDataUrl} size={320} />

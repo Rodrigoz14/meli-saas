@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Download, ImageIcon, Loader2, Sparkles, Upload, Wand2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { suggestInfographicSetClaims } from "@/app/dashboard/actions";
+import { removeProductBackground, suggestInfographicSetClaims } from "@/app/dashboard/actions";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 
 type Product = { productId: string; title: string; thumbnail: string; permalink: string };
@@ -50,6 +50,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   const [claims, setClaims] = useState<InfographicClaim[]>(emptyClaims());
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingStatus, setGeneratingStatus] = useState("");
   const [results, setResults] = useState<Record<InfographicSetCategory, string | null>>(
     {} as Record<InfographicSetCategory, string | null>,
   );
@@ -133,6 +134,22 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     setIsGenerating(true);
     setResults({} as Record<InfographicSetCategory, string | null>);
 
+    // Recorta el fondo UNA sola vez (real, sin generar nada — ver
+    // removeProductBackground) y reutiliza ese cutout para las 5
+    // infografías. Si falla, seguimos con la foto original: nunca bloquea
+    // la generación del set por esto.
+    setGeneratingStatus("Preparando la foto…");
+    let cutoutDataUrl: string | null = null;
+    try {
+      cutoutDataUrl = await removeProductBackground({
+        imageDataUrl: uploadedDataUrl || undefined,
+        imageUrl: uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
+      });
+    } catch {
+      cutoutDataUrl = null;
+    }
+
+    setGeneratingStatus("Generando las 5 infografías…");
     const outcomes = await Promise.all(
       claims.map(async (claim) => {
         try {
@@ -140,9 +157,10 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              imageDataUrl: uploadedDataUrl || undefined,
-              imageUrl: uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
+              imageDataUrl: cutoutDataUrl || uploadedDataUrl || undefined,
+              imageUrl: cutoutDataUrl ? undefined : uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
               accentColor,
+              productName,
               claim,
             }),
           });
@@ -163,6 +181,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     }
     setResults(next);
     setIsGenerating(false);
+    setGeneratingStatus("");
 
     if (failures === 0) toast.success("Set de 5 infografías generado");
     else if (failures < outcomes.length) toast.error(`${failures} de 5 infografías fallaron — probá regenerar esas`);
@@ -294,7 +313,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
 
         <Button onClick={handleGenerateAll} disabled={isGenerating} className="w-full">
           <Sparkles className="mr-2 h-4 w-4" />
-          {isGenerating ? "Generando las 5 infografías…" : "Generar las 5 infografías"}
+          {isGenerating ? generatingStatus || "Generando…" : "Generar las 5 infografías"}
         </Button>
       </div>
 
