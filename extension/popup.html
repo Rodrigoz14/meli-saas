@@ -311,13 +311,14 @@
       }
 
       table {
-        width: 100%;
+        width: max-content;
+        min-width: 100%;
         border-collapse: collapse;
         font-size: 12px;
       }
       thead th {
         text-align: left;
-        padding: 6px 5px;
+        padding: 7px 10px;
         border-bottom: 1px solid var(--border);
         color: var(--muted-foreground);
         cursor: pointer;
@@ -329,13 +330,23 @@
         color: var(--foreground);
         font-weight: 700;
       }
+      /* Las columnas numéricas van alineadas a la derecha (más fácil de
+         comparar de un vistazo) y con un ancho mínimo fijo para que no se
+         aplasten cuando el panel está angosto — para eso está el scroll
+         horizontal de #table-wrap, no achicar los números. */
+      thead th:not(:first-child):not([data-sort="title"]):not(:nth-child(2)),
+      tbody td:not(.title-cell):not(:first-child) {
+        text-align: right;
+        min-width: 78px;
+      }
       tbody tr:hover {
         background: var(--muted);
       }
       tbody td {
-        padding: 6px 5px;
+        padding: 7px 10px;
         border-bottom: 1px solid var(--border);
         vertical-align: middle;
+        white-space: nowrap;
       }
       .thumb {
         width: 28px;
@@ -347,7 +358,8 @@
         border: 1px solid var(--border);
       }
       .title-cell {
-        max-width: 150px;
+        max-width: 190px;
+        min-width: 130px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -366,10 +378,31 @@
         flex: 1 1 auto;
         min-height: 80px;
         overflow-y: auto;
-        overflow-x: hidden;
+        overflow-x: auto;
         border-radius: 10px;
         border: 1px solid var(--border);
         background: var(--card);
+      }
+      /* Scrollbar delgada y del mismo tema oscuro — sin esto Chrome dibuja
+         una barra gris genérica que desentona y además avisa mejor que la
+         tabla se puede desplazar. */
+      #table-wrap::-webkit-scrollbar,
+      #negocio-table-wrap::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      #table-wrap::-webkit-scrollbar-track,
+      #negocio-table-wrap::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #table-wrap::-webkit-scrollbar-thumb,
+      #negocio-table-wrap::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 999px;
+      }
+      #table-wrap::-webkit-scrollbar-thumb:hover,
+      #negocio-table-wrap::-webkit-scrollbar-thumb:hover {
+        background: var(--muted-foreground);
       }
       #table-wrap table,
       #negocio-table-wrap table {
@@ -380,6 +413,23 @@
         position: sticky;
         top: 0;
         background: var(--card);
+        z-index: 1;
+      }
+      /* La primera columna (miniatura) también queda fija al hacer scroll
+         horizontal, para no perder la referencia visual del producto. */
+      #table-wrap thead th:first-child,
+      #table-wrap tbody td:first-child,
+      #negocio-table-wrap thead th:first-child,
+      #negocio-table-wrap tbody td:first-child {
+        position: sticky;
+        left: 0;
+        background: var(--card);
+        z-index: 2;
+        box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.5);
+      }
+      #table-wrap tbody tr:hover td:first-child,
+      #negocio-table-wrap tbody tr:hover td:first-child {
+        background: var(--muted);
       }
       #empty-state,
       .empty-state {
