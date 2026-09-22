@@ -5,9 +5,9 @@ import { auth } from "@/auth";
 // Mercado Libre puede tomar más de los 10s por defecto de Vercel.
 export const maxDuration = 60;
 
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { RevenueSummary } from "@/components/dashboard/revenue-summary";
+import { PeriodSelect } from "@/components/dashboard/period-select";
 import { getRentabilidadData } from "@/lib/dashboard-data";
 
 const PERIOD_OPTIONS = [7, 15, 30, 60, 90];
@@ -56,23 +56,8 @@ export default async function DashboardPage({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {PERIOD_OPTIONS.map((option) => (
-            <Link
-              key={option}
-              href={`/dashboard?days=${option}`}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
-                days === option
-                  ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-4px_var(--primary)]"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {option} días
-            </Link>
-          ))}
-        </div>
+      <div className="mt-4">
+        <PeriodSelect days={days} />
       </div>
 
       {errorMessage && (
