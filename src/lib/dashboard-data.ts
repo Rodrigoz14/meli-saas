@@ -75,13 +75,19 @@ export type RentabilidadData =
       // precios para pedir la comisión real de una categoría a un precio
       // hipotético (getSaleFee).
       siteId: string;
+      // Ventana de días real usada para ventas/ingresos/comisión/envío/Ads —
+      // los nombres de campo en ProfitabilityRow (unitsSold30d, etc.) quedan
+      // fijos por compatibilidad, pero el valor real depende de este `days`.
+      days: number;
     };
 
 // Compartido entre /dashboard (Rentabilidad) y /dashboard/costos-gastos —
 // ambos necesitan lo mismo (publicaciones reales de Mercado Libre + costos
 // definidos por el usuario), así que la llamada en vivo a la API vive en un
-// solo lugar en vez de duplicarse entre las dos páginas.
-export async function getRentabilidadData(userId: string): Promise<RentabilidadData> {
+// solo lugar en vez de duplicarse entre las dos páginas. `days` es opcional
+// (default 30) para no afectar a las páginas que todavía no exponen un
+// selector de período (Costos y Gastos, Inventario, Publicaciones).
+export async function getRentabilidadData(userId: string, days = 30): Promise<RentabilidadData> {
   const accessToken = await ensureFreshMeliToken(userId);
   if (!accessToken) return { connected: false };
 
@@ -129,9 +135,9 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     const meliUser = await getMeliUser(accessToken);
     siteId = meliUser.site_id;
     const adsTo = new Date();
-    const adsFrom = new Date(adsTo.getTime() - 30 * 86400000);
+    const adsFrom = new Date(adsTo.getTime() - days * 86400000);
     const [billingData, itemIds, adsMetrics] = await Promise.all([
-      getBillingData(accessToken, 30),
+      getBillingData(accessToken, days),
       getUserItemIds(accessToken, String(meliUser.id)),
       getAdsItemMetrics(accessToken, meliUser.site_id, adsFrom, adsTo),
     ]);
@@ -142,7 +148,7 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     const items = await getItemsDetails(accessToken, itemIds);
     const [effectivePrices, orderStatsResult] = await Promise.all([
       getEffectivePrices(accessToken, items.map((item) => ({ id: item.id, price: item.price }))),
-      getOrderStats(accessToken, meliUser.id, 30),
+      getOrderStats(accessToken, meliUser.id, days),
     ]);
     orderStats = orderStatsResult;
 
@@ -210,5 +216,6 @@ export async function getRentabilidadData(userId: string): Promise<RentabilidadD
     totalAds,
     adsConnected,
     siteId,
+    days,
   };
 }

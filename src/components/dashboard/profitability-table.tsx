@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowDown, ArrowUp, ArrowUpDown, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   Table,
   TableBody,
@@ -14,6 +15,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { computePeriodProfit, diagnose } from "@/lib/profitability";
 import type { AdsItemMetric } from "@/lib/meli-api";
@@ -236,10 +243,12 @@ export function ProfitabilityTable({
   rows,
   taxWithholdingPercent,
   adsConnected,
+  days,
 }: {
   rows: ProfitabilityRow[];
   taxWithholdingPercent: number;
   adsConnected: boolean;
+  days: number;
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("units");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -352,6 +361,86 @@ export function ProfitabilityTable({
     });
   }, [withMetrics, sortKey, sortDir, filterTab, search]);
 
+  // Exporta exactamente lo que se ve en pantalla (filtro de tab + búsqueda +
+  // orden actuales), igual que la fila "Totales" — no todo el catálogo sin
+  // filtrar, para que lo que se descarga coincida con lo que el usuario está
+  // mirando.
+  function buildExportRows(): (string | number)[][] {
+    const header = [
+      "Publicación",
+      "ID",
+      `Uds (${days}d)`,
+      `Ingresos (${days}d)`,
+      "Precio",
+      "Costo producto",
+      "Comisión ML",
+      "Envío",
+      "Retención",
+      `Margen $ (${days}d)`,
+      "Margen %",
+    ];
+    if (adsConnected) header.push("Clics Ads", "CTR Ads %", "Costo Ads");
+    header.push("Diagnóstico");
+
+    return [
+      header,
+      ...sortedRows.map(({ row, netProfit, margin }) => {
+        const { retention } = computePeriodProfit({
+          price: row.price,
+          saleFee: row.saleFee,
+          cogs: row.cogs,
+          unitsSold: row.unitsSold30d,
+          revenue: row.revenue30d,
+          commission: row.commission30d,
+          shipping: row.shipping30d,
+          taxWithholdingPercent,
+        });
+        const line: (string | number)[] = [
+          row.title,
+          row.meliItemId ?? "",
+          row.unitsSold30d,
+          row.revenue30d,
+          row.price,
+          row.cogs,
+          row.commission30d || row.saleFee,
+          row.shipping30d,
+          retention,
+          netProfit,
+          Number(margin.toFixed(1)),
+        ];
+        if (adsConnected) {
+          line.push(row.ads?.clicks ?? 0, Number((row.ads?.ctr ?? 0).toFixed(2)), row.ads?.cost ?? 0);
+        }
+        line.push(diagnose(margin, row.cogs > 0));
+        return line;
+      }),
+    ];
+  }
+
+  function exportFilename(ext: string) {
+    return `rentabilidad-${days}d-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  }
+
+  function handleExportCsv() {
+    const rows = buildExportRows();
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = exportFilename("csv");
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportXlsx() {
+    const rows = buildExportRows();
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Rentabilidad");
+    XLSX.writeFile(workbook, exportFilename("xlsx"));
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -380,14 +469,25 @@ export function ProfitabilityTable({
             );
           })}
         </div>
-        <div className="relative w-full max-w-xs">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o ID..."
-            className="pl-8"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative w-full max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre o ID..."
+              className="pl-8"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted">
+              <Download className="h-3.5 w-3.5" /> Exportar
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCsv}>Descargar CSV</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportXlsx}>Descargar XLSX</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -397,7 +497,7 @@ export function ProfitabilityTable({
           <TableRow>
             <TableHead>Publicación</TableHead>
             <SortableHead
-              label="Uds (30d)"
+              label={`Uds (${days}d)`}
               sortKey="units"
               activeKey={sortKey}
               direction={sortDir}
@@ -405,7 +505,7 @@ export function ProfitabilityTable({
               className="text-center"
             />
             <SortableHead
-              label="Ingresos (30d)"
+              label={`Ingresos (${days}d)`}
               sortKey="revenue"
               activeKey={sortKey}
               direction={sortDir}
@@ -435,15 +535,15 @@ export function ProfitabilityTable({
             />
             <TableHead>Retenc.</TableHead>
             <SortableHead
-              label="Margen $ (30d)"
+              label={`Margen $ (${days}d)`}
               sortKey="netProfit"
               activeKey={sortKey}
               direction={sortDir}
               onSort={handleSort}
             />
             {adsConnected && (
-              <TableHead className="text-right" title="Clics ÷ Impresiones de tus anuncios de Product Ads (últimos 30 días)">
-                CTR Ads (30d)
+              <TableHead className="text-right" title={`Clics ÷ Impresiones de tus anuncios de Product Ads (últimos ${days} días)`}>
+                CTR Ads ({days}d)
               </TableHead>
             )}
             <SortableHead
@@ -498,7 +598,7 @@ export function ProfitabilityTable({
       <p className="text-xs text-muted-foreground">
         Margen = Ingresos − Costo producto − Comisión − Envío − Retenciones.
         {adsConnected &&
-          " CTR Ads = Clics ÷ Impresiones de tus anuncios de Product Ads en los últimos 30 días — qué tan atractivo es tu anuncio para quien lo ve, no tu tasa de venta."}
+          ` CTR Ads = Clics ÷ Impresiones de tus anuncios de Product Ads en los últimos ${days} días — qué tan atractivo es tu anuncio para quien lo ve, no tu tasa de venta.`}
       </p>
     </div>
   );

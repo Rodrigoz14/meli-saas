@@ -5,17 +5,27 @@ import { auth } from "@/auth";
 // Libre y puede tardar más de los 10s por defecto de Vercel.
 export const maxDuration = 60;
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ProfitabilityTable } from "@/components/dashboard/profitability-table";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { computePeriodProfit } from "@/lib/profitability";
 import { getRentabilidadData } from "@/lib/dashboard-data";
 
-export default async function RentabilidadPage() {
+const PERIOD_OPTIONS = [7, 15, 30, 60, 90];
+
+export default async function RentabilidadPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string }>;
+}) {
   const session = await auth();
   const userId = session!.user.id;
 
-  const data = await getRentabilidadData(userId);
+  const { days: daysParam } = await searchParams;
+  const days = PERIOD_OPTIONS.includes(Number(daysParam)) ? Number(daysParam) : 30;
+
+  const data = await getRentabilidadData(userId, days);
 
   if (!data.connected) {
     return (
@@ -39,9 +49,25 @@ export default async function RentabilidadPage() {
     <div className="container mx-auto px-6 py-10">
       <h1 className="font-display text-3xl font-bold tracking-tight">Rentabilidad</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
-        Margen de contribución por publicación · Meta: <span className="text-emerald-500">&gt;30%</span> ·
-        últimos 30 días
+        Margen de contribución por publicación · Meta: <span className="text-emerald-500">&gt;30%</span>
       </p>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {PERIOD_OPTIONS.map((option) => (
+          <Link
+            key={option}
+            href={`/dashboard/rentabilidad?days=${option}`}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
+              days === option
+                ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-4px_var(--primary)]"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {option} días
+          </Link>
+        ))}
+      </div>
 
       {errorMessage && (
         <p className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
@@ -89,7 +115,7 @@ export default async function RentabilidadPage() {
           })()}
 
           <div className="mt-8">
-            <ProfitabilityTable rows={rows} taxWithholdingPercent={taxWithholdingPercent} adsConnected={adsConnected} />
+            <ProfitabilityTable rows={rows} taxWithholdingPercent={taxWithholdingPercent} adsConnected={adsConnected} days={days} />
           </div>
         </>
       )}
