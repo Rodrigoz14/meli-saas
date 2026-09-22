@@ -8,6 +8,7 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
+import { ExportSummaryButton, type SummaryExportRow } from "@/components/dashboard/export-summary-button";
 
 function formatMoney(value: number, currencyId: string) {
   try {
@@ -31,6 +32,7 @@ export function RevenueSummary({
   totalOperatingCosts,
   totalAds,
   taxWithholdingPercent,
+  days,
 }: {
   currencyId: string;
   totalRevenue: number;
@@ -41,6 +43,7 @@ export function RevenueSummary({
   totalOperatingCosts: number;
   totalAds: number;
   taxWithholdingPercent: number;
+  days: number;
 }) {
   const retenciones = totalRevenue * (taxWithholdingPercent / 100);
   const totalCosts =
@@ -64,15 +67,32 @@ export function RevenueSummary({
     { label: "Gastos Operativos", value: totalOperatingCosts, color: "text-slate-400" },
   ];
 
+  const exportRows: SummaryExportRow[] = [
+    { label: "Ventas Reales", value: totalRevenue, pctOfRevenue: null },
+    { label: "Unidades Vendidas", value: totalUnits, pctOfRevenue: null },
+    ...breakdown.map((item) => ({
+      label: item.label,
+      value: item.value,
+      pctOfRevenue: totalRevenue > 0 ? (item.value / totalRevenue) * 100 : 0,
+    })),
+    { label: "Total Costos", value: totalCosts, pctOfRevenue: totalRevenue > 0 ? (totalCosts / totalRevenue) * 100 : 0 },
+    { label: "Utilidad Neta", value: utilidadNeta, pctOfRevenue: margenNeto },
+    ...(breakEvenUnits !== null ? [{ label: "Break-even (unidades)", value: breakEvenUnits, pctOfRevenue: null }] : []),
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-end">
+        <ExportSummaryButton days={days} rows={exportRows} />
+      </div>
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-12px_rgba(99,102,241,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.85)]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary transition-transform duration-300 group-hover:scale-110">
               <Banknote className="h-5 w-5" />
             </div>
-            <span className="text-sm font-medium text-primary">Ventas Reales (30d)</span>
+            <span className="text-sm font-medium text-primary">Ventas Reales ({days}d)</span>
           </div>
           <p className="mt-4 font-display text-2xl font-bold tracking-tight">
             {formatMoney(totalRevenue, currencyId)}
@@ -123,7 +143,7 @@ export function RevenueSummary({
           <p className="mt-4 font-display text-2xl font-bold tracking-tight text-violet-500">
             -{formatMoney(totalAds, currencyId)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">últimos 30 días</p>
+          <p className="mt-1 text-xs text-muted-foreground">últimos {days} días</p>
         </div>
       </div>
 
@@ -215,7 +235,7 @@ export function RevenueSummary({
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Desglose de costos (30d)</h3>
+          <h3 className="font-semibold">Desglose de costos ({days}d)</h3>
           <Link href="/dashboard/rentabilidad" className="text-xs text-primary hover:underline">
             Ver por publicación →
           </Link>
