@@ -8,7 +8,7 @@ import {
   Truck,
   Wallet,
 } from "lucide-react";
-import { ExportSummaryButton, type SummaryExportRow } from "@/components/dashboard/export-summary-button";
+import { computeRevenueSummary } from "@/lib/revenue-summary";
 
 function formatMoney(value: number, currencyId: string) {
   try {
@@ -45,47 +45,19 @@ export function RevenueSummary({
   taxWithholdingPercent: number;
   days: number;
 }) {
-  const retenciones = totalRevenue * (taxWithholdingPercent / 100);
-  const totalCosts =
-    totalCommission + totalShipping + totalCogs + totalOperatingCosts + totalAds + retenciones;
-  const utilidadNeta = totalRevenue - totalCosts;
-  const margenNeto = totalRevenue > 0 ? (utilidadNeta / totalRevenue) * 100 : 0;
-
-  const contributionMarginPerUnit =
-    totalUnits > 0 ? (totalRevenue - totalCommission - totalShipping - totalCogs) / totalUnits : 0;
-  const breakEvenUnits =
-    contributionMarginPerUnit > 0
-      ? Math.ceil((totalOperatingCosts + totalAds + retenciones) / contributionMarginPerUnit)
-      : null;
-
-  const breakdown = [
-    { label: "Comisiones Mercado Libre", value: totalCommission, color: "text-orange-500" },
-    { label: "Costo de envío", value: totalShipping, color: "text-cyan-500" },
-    { label: "Inversión en Publicidad", value: totalAds, color: "text-violet-500" },
-    { label: "Retenciones", value: retenciones, color: "text-amber-500" },
-    { label: "Costo de Producto (COGS)", value: totalCogs, color: "text-rose-500" },
-    { label: "Gastos Operativos", value: totalOperatingCosts, color: "text-slate-400" },
-  ];
-
-  const exportRows: SummaryExportRow[] = [
-    { label: "Ventas Reales", value: totalRevenue, pctOfRevenue: null },
-    { label: "Unidades Vendidas", value: totalUnits, pctOfRevenue: null },
-    ...breakdown.map((item) => ({
-      label: item.label,
-      value: item.value,
-      pctOfRevenue: totalRevenue > 0 ? (item.value / totalRevenue) * 100 : 0,
-    })),
-    { label: "Total Costos", value: totalCosts, pctOfRevenue: totalRevenue > 0 ? (totalCosts / totalRevenue) * 100 : 0 },
-    { label: "Utilidad Neta", value: utilidadNeta, pctOfRevenue: margenNeto },
-    ...(breakEvenUnits !== null ? [{ label: "Break-even (unidades)", value: breakEvenUnits, pctOfRevenue: null }] : []),
-  ];
+  const { totalCosts, utilidadNeta, margenNeto, breakEvenUnits, breakdown } = computeRevenueSummary({
+    totalRevenue,
+    totalUnits,
+    totalCommission,
+    totalShipping,
+    totalCogs,
+    totalOperatingCosts,
+    totalAds,
+    taxWithholdingPercent,
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end">
-        <ExportSummaryButton days={days} rows={exportRows} />
-      </div>
-
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-12px_rgba(99,102,241,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.85)]">
           <div className="flex items-center gap-3">

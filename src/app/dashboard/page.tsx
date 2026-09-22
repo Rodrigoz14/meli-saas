@@ -8,6 +8,8 @@ export const maxDuration = 60;
 import { Button } from "@/components/ui/button";
 import { RevenueSummary } from "@/components/dashboard/revenue-summary";
 import { PeriodSelect } from "@/components/dashboard/period-select";
+import { ExportSummaryButton } from "@/components/dashboard/export-summary-button";
+import { computeRevenueSummary } from "@/lib/revenue-summary";
 import { getRentabilidadData } from "@/lib/dashboard-data";
 
 const PERIOD_OPTIONS = [7, 15, 30, 60, 90];
@@ -43,72 +45,78 @@ export default async function DashboardPage({
 
   const { rows, errorMessage, taxWithholdingPercent, orderStats, operatingCosts, autoExpenses, totalAds } = data;
 
+  // Ventas/unidades/comisión/envío: de TODAS las órdenes reales del periodo,
+  // incluyendo publicaciones pausadas/cerradas que ya no están en `rows`
+  // (que solo trae publicaciones activas).
+  const allOrderStats = Object.values(orderStats);
+  const totalRevenue = allOrderStats.reduce((sum, s) => sum + s.revenue, 0);
+  const totalUnits = allOrderStats.reduce((sum, s) => sum + s.quantity, 0);
+  const totalCommission = allOrderStats.reduce((sum, s) => sum + s.commission, 0);
+  const totalShipping = allOrderStats.reduce((sum, s) => sum + s.shipping, 0);
+  // COGS solo se conoce para publicaciones activas con costo asignado.
+  const totalCogs = rows.reduce((sum, r) => sum + r.cogs * r.unitsSold30d, 0);
+  // Total costos operativos = lo que el usuario registra a mano + los cargos
+  // reales que Mercado Libre ya facturó (Asesoría, Full, eShop) — aunque
+  // estos últimos se muestren en su propia pestaña en Costos y Gastos, siguen
+  // siendo plata real que hay que restar.
+  const totalOperatingCosts =
+    operatingCosts.reduce((sum, c) => sum + c.amount, 0) + autoExpenses.reduce((sum, c) => sum + c.amount, 0);
+
+  const summary =
+    rows.length > 0
+      ? computeRevenueSummary({
+          totalRevenue,
+          totalUnits,
+          totalCommission,
+          totalShipping,
+          totalCogs,
+          totalOperatingCosts,
+          totalAds,
+          taxWithholdingPercent,
+        })
+      : null;
+
   return (
     <div className="container mx-auto px-6 py-10">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Ingresos, comisión y costo de envío vienen directo de Mercado Libre
-            (datos reales de cada venta, no estimaciones). Solo ingresa el costo
-            de tu producto.
-          </p>
-        </div>
-      </div>
+      <h1 className="font-display text-3xl font-bold tracking-tight">Dashboard</h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        Ingresos, comisión y costo de envío vienen directo de Mercado Libre
+        (datos reales de cada venta, no estimaciones). Solo ingresa el costo
+        de tu producto.
+      </p>
 
-      <div className="mt-4">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <PeriodSelect days={days} />
+        {summary && <ExportSummaryButton days={days} rows={summary.exportRows} />}
       </div>
 
       {errorMessage && (
-        <p className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+        <p className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
           {errorMessage}
         </p>
       )}
 
       {!errorMessage && rows.length === 0 && (
-        <p className="mt-8 text-muted-foreground">
+        <p className="mt-6 text-muted-foreground">
           No encontramos publicaciones activas en tu cuenta de Mercado Libre.
         </p>
       )}
 
       {!errorMessage && rows.length > 0 && (
-        (() => {
-          // Ventas/unidades/comisión/envío: de TODAS las órdenes reales
-          // del periodo, incluyendo publicaciones pausadas/cerradas que ya
-          // no están en `rows` (que solo trae publicaciones activas).
-          const allOrderStats = Object.values(orderStats);
-          const totalRevenue = allOrderStats.reduce((sum, s) => sum + s.revenue, 0);
-          const totalUnits = allOrderStats.reduce((sum, s) => sum + s.quantity, 0);
-          const totalCommission = allOrderStats.reduce((sum, s) => sum + s.commission, 0);
-          const totalShipping = allOrderStats.reduce((sum, s) => sum + s.shipping, 0);
-          // COGS solo se conoce para publicaciones activas con costo asignado.
-          const totalCogs = rows.reduce((sum, r) => sum + r.cogs * r.unitsSold30d, 0);
-          // Total costos operativos = lo que el usuario registra a mano +
-          // los cargos reales que Mercado Libre ya facturó (Asesoría, Full,
-          // eShop) — aunque estos últimos se muestren en su propia pestaña
-          // en Costos y Gastos, siguen siendo plata real que hay que restar.
-          const totalOperatingCosts =
-            operatingCosts.reduce((sum, c) => sum + c.amount, 0) +
-            autoExpenses.reduce((sum, c) => sum + c.amount, 0);
-
-          return (
-            <div className="mt-8">
-              <RevenueSummary
-                days={days}
-                currencyId={rows[0].currencyId}
-                totalRevenue={totalRevenue}
-                totalUnits={totalUnits}
-                totalCommission={totalCommission}
-                totalShipping={totalShipping}
-                totalCogs={totalCogs}
-                totalOperatingCosts={totalOperatingCosts}
-                totalAds={totalAds}
-                taxWithholdingPercent={taxWithholdingPercent}
-              />
-            </div>
-          );
-        })()
+        <div className="mt-4">
+          <RevenueSummary
+            days={days}
+            currencyId={rows[0].currencyId}
+            totalRevenue={totalRevenue}
+            totalUnits={totalUnits}
+            totalCommission={totalCommission}
+            totalShipping={totalShipping}
+            totalCogs={totalCogs}
+            totalOperatingCosts={totalOperatingCosts}
+            totalAds={totalAds}
+            taxWithholdingPercent={taxWithholdingPercent}
+          />
+        </div>
       )}
     </div>
   );
