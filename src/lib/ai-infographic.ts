@@ -48,11 +48,16 @@ function hexToColorName(hex: string): string {
   return `rojo ${saturationWord}`;
 }
 
+// Fondo blanco + el color de acento (elegido por el usuario o sugerido por
+// IA a partir de la foto) — nunca negro. Mercado Libre rechaza infografías
+// con fondo negro, pedido explícito del usuario tras recibir ese rechazo
+// real, así que el degradado de fondo va directo de blanco al color real
+// de marca, sin diluirlo a beige ni a pastel.
 function colorPalette(accentColor: string) {
   const name = hexToColorName(accentColor);
   return {
-    COLOR_PRIMARIO: `negro con tono ${name} oscuro`,
-    COLOR_SECUNDARIO: "negro",
+    COLOR_PRIMARIO: "blanco",
+    COLOR_SECUNDARIO: name,
     COLOR_ACENTO: name,
   };
 }
@@ -88,7 +93,7 @@ COMPOSICIÓN:
 - Fondo degradado en el color de marca {COLOR_PRIMARIO} a {COLOR_SECUNDARIO}, con luz tipo spotlight detrás del producto para darle protagonismo.
 
 TIPOGRAFÍA Y TEXTO:
-- Headline principal a la izquierda, 2 líneas, tipografía sans-serif condensada, bold, todo mayúsculas: línea 1 en blanco "{FRASE_GANCHO_LINEA_1}", línea 2 en {COLOR_ACENTO} más grande "{FRASE_GANCHO_LINEA_2}".
+- Headline principal a la izquierda, 2 líneas, tipografía sans-serif condensada, bold, todo mayúsculas: línea 1 en gris carbón cálido "{FRASE_GANCHO_LINEA_1}", línea 2 en {COLOR_ACENTO} más grande "{FRASE_GANCHO_LINEA_2}".
 - Debajo, 3-4 bullets con ícono circular (contorno {COLOR_ACENTO}) + texto corto: "{BENEFICIO_1}", "{BENEFICIO_2}", "{BENEFICIO_3}", "{BENEFICIO_4}".
 
 ESTILO: iluminación de estudio profesional tipo producto premium, alto contraste, look gym/fitness tech, todo el texto perfectamente legible en miniatura. Sin marcas de agua, sin logos ajenos, sin errores ortográficos.
@@ -100,12 +105,12 @@ const TEMPLATE_BENEFICIOS = `Usa la imagen adjunta del producto EXACTAMENTE como
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre enfocada 100% en comunicar beneficios de {NOMBRE_PRODUCTO}.
 
 COMPOSICIÓN:
-- Título gigante arriba, tipografía condensada bold mayúsculas, 2 líneas: "{TITULO_LINEA_1}" en blanco + "{TITULO_LINEA_2}" en {COLOR_ACENTO}.
+- Título gigante arriba, tipografía condensada bold mayúsculas, 2 líneas: "{TITULO_LINEA_1}" en gris carbón cálido + "{TITULO_LINEA_2}" en {COLOR_ACENTO}.
 - Fila de 3 íconos grandes en círculos con borde {COLOR_ACENTO} representando beneficios.
 - El producto flota en la parte central-inferior, halo de luz {COLOR_ACENTO} detrás, tamaño mediano (40-50% del alto).
 - Fondo de dos tonos ({COLOR_PRIMARIO} a {COLOR_SECUNDARIO}), separación diagonal o curva suave.
 
-BLOQUE INFERIOR: recuadro de 3 columnas, cada una con encabezado corto en {COLOR_ACENTO} ("{BENEFICIO_1}", "{BENEFICIO_2}", "{BENEFICIO_3}") y una frase explicativa corta debajo en blanco: "{EXPLICACION_1}", "{EXPLICACION_2}", "{EXPLICACION_3}".
+BLOQUE INFERIOR: recuadro de 3 columnas, cada una con encabezado corto en {COLOR_ACENTO} ("{BENEFICIO_1}", "{BENEFICIO_2}", "{BENEFICIO_3}") y una frase explicativa corta debajo en gris carbón cálido: "{EXPLICACION_1}", "{EXPLICACION_2}", "{EXPLICACION_3}".
 
 ESTILO: alto contraste, texto perfectamente legible en miniatura, look profesional de e-commerce de suplementos.
 
@@ -115,7 +120,7 @@ const TEMPLATE_COMPARACION = `Usa la imagen adjunta del producto EXACTAMENTE com
 
 Genera una infografía cuadrada de 1200x1200 px de comparación directa para Mercado Libre entre {NOMBRE_PRODUCTO} y un producto genérico/sin marca.
 
-COMPOSICIÓN SUPERIOR: fondo dividido en dos mitades. Izquierda bien iluminada con el producto real (imagen subida) sobre un pedestal con luz. Derecha más oscura con un envase genérico GENERADO, liso, sin marca, gris/negro mate, con texto "OTRAS MARCAS". "VS" grande en el centro con línea diagonal de luz {COLOR_ACENTO}. Badge {COLOR_ACENTO} con check sobre el producto real; badge gris con X sobre el genérico.
+COMPOSICIÓN SUPERIOR: fondo dividido en dos mitades, ambas en blanco (sin negro). Izquierda bien iluminada con el producto real (imagen subida) sobre un pedestal con luz. Derecha con un envase genérico GENERADO, liso, sin marca, gris apagado mate, con texto "OTRAS MARCAS". "VS" grande en el centro con línea diagonal de luz {COLOR_ACENTO}. Badge {COLOR_ACENTO} con check sobre el producto real; badge gris con X sobre el genérico.
 
 TABLA COMPARATIVA (mitad inferior): 3 columnas — atributo | check verde (marca) | X roja (genérico). 4-5 filas: "{ATRIBUTO_1}", "{ATRIBUTO_2}", "{ATRIBUTO_3}", "{ATRIBUTO_4}", "{ATRIBUTO_5}".
 
@@ -128,7 +133,7 @@ const TEMPLATE_EN_USO = `Usa la imagen adjunta del producto EXACTAMENTE como est
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre que muestre {NOMBRE_PRODUCTO} en uso / modo de preparación.
 
 COMPOSICIÓN:
-- Título superior bold en 2 líneas: línea 1 en blanco "{TITULO_USO_LINEA_1}", línea 2 en {COLOR_ACENTO} más grande "{TITULO_USO_LINEA_2}".
+- Título superior bold en 2 líneas: línea 1 en gris carbón cálido "{TITULO_USO_LINEA_1}", línea 2 en {COLOR_ACENTO} más grande "{TITULO_USO_LINEA_2}".
 - Fondo dividido en dos escenas lado a lado (split-screen) representando dos formas/momentos de uso, separadas por una diagonal.
 - El producto (imagen subida) va al centro-derecha, tamaño protagonista (45-55% del alto), con sombra realista.
 - Debajo de cada escena, tarjeta con ícono + texto: "{USO_1_TITULO}" / "{USO_1_DETALLE}" y "{USO_2_TITULO}" / "{USO_2_DETALLE}".
@@ -144,8 +149,8 @@ const TEMPLATE_ACLARACION = `Usa la imagen adjunta del producto EXACTAMENTE como
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre tipo "aclaración" de {NOMBRE_PRODUCTO}, con foco en un solo mensaje contundente.
 
 COMPOSICIÓN:
-- Título en 2 líneas gigante, condensado bold mayúsculas: línea 1 en blanco "{ACLARACION_LINEA_1}", línea 2 en {COLOR_ACENTO} mucho más grande "{ACLARACION_LINEA_2}".
-- Bloque con ícono grande + dato destacado en {COLOR_ACENTO}, descripción corta debajo en blanco: "{DATO_DESTACADO}" / "{DATO_DESCRIPCION}".
+- Título en 2 líneas gigante, condensado bold mayúsculas: línea 1 en gris carbón cálido "{ACLARACION_LINEA_1}", línea 2 en {COLOR_ACENTO} mucho más grande "{ACLARACION_LINEA_2}".
+- Bloque con ícono grande + dato destacado en {COLOR_ACENTO}, descripción corta debajo en gris carbón cálido: "{DATO_DESTACADO}" / "{DATO_DESCRIPCION}".
 - 2-3 bullets con ícono circular de contorno {COLOR_ACENTO}: "{DETALLE_1}", "{DETALLE_2}", "{DETALLE_3}".
 - El producto (imagen subida) al lado derecho, tamaño medio-grande (45-55% del alto), sombra suave, halo {COLOR_ACENTO} detrás.
 
