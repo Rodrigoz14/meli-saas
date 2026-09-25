@@ -51,13 +51,13 @@ export async function POST(req: Request) {
   if (!limitReached) {
     try {
       const prompt = buildAiPrompt(body.claim, body.productName || "el producto", accentColor);
-      const { bytes, sourceUrl } = await generateHiggsfieldInfographic(imageSource, prompt);
+      const { bytes, sourceUrl, contentType } = await generateHiggsfieldInfographic(imageSource, prompt);
       await recordInfographicGeneration(session.user.id, sourceUrl);
       // TS marca los tipos de ArrayBufferLike/SharedArrayBuffer como
       // incompatibles con BlobPart en esta versión — a nivel runtime
       // Uint8Array real (nunca compartido) funciona sin problema.
-      return new Response(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/jpeg" }), {
-        headers: { "Content-Type": "image/jpeg", "X-Infographic-Source": "ai" },
+      return new Response(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: contentType }), {
+        headers: { "Content-Type": contentType, "X-Infographic-Source": "ai" },
       });
     } catch (err) {
       console.error(`generateHiggsfieldInfographic(${body.claim.category}) failed, usando fallback seguro:`, err);

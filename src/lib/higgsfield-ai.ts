@@ -33,7 +33,7 @@ async function ensurePublicImageUrl(imageSource: string): Promise<string> {
 // real), así que hay que chequear el status a mano.
 type V2ResponseWithError = V2Response & { error?: string };
 
-export type HiggsfieldInfographicResult = { bytes: Uint8Array; sourceUrl: string };
+export type HiggsfieldInfographicResult = { bytes: Uint8Array; sourceUrl: string; contentType: string };
 
 export async function generateHiggsfieldInfographic(
   imageSource: string,
@@ -61,5 +61,10 @@ export async function generateHiggsfieldInfographic(
   const sourceUrl = result.images[0].url;
   const res = await fetch(sourceUrl);
   if (!res.ok) throw new Error(`No se pudo descargar la imagen generada por Higgsfield (${res.status})`);
-  return { bytes: new Uint8Array(await res.arrayBuffer()), sourceUrl };
+  // Higgsfield devuelve PNG (no JPEG como el placeholder anterior de
+  // Cloudflare) — hay que usar el content-type real que manda, si no el
+  // navegador recibe bytes PNG etiquetados como JPEG y no puede
+  // decodificarlos (la imagen generada nunca se muestra).
+  const contentType = res.headers.get("content-type") || "image/png";
+  return { bytes: new Uint8Array(await res.arrayBuffer()), sourceUrl, contentType };
 }
