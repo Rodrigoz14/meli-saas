@@ -5,7 +5,12 @@ import { generateHiggsfieldInfographic } from "@/lib/higgsfield-ai";
 import { hasReachedDailyInfographicLimit, recordInfographicGeneration } from "@/lib/infographic-limit";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 
-export const maxDuration = 60;
+// Higgsfield (marketing-studio/image, calidad alta 2k) tarda entre 60 y
+// 120s en generar, muy por encima de los 60s que teníamos — Vercel corta la
+// función a los 60s y el fetch del cliente queda sin respuesta (por eso
+// algunas infografías generaban bien y otras se veían vacías, según cuánto
+// tardara esa generación puntual).
+export const maxDuration = 180;
 
 const VALID_CATEGORIES: InfographicSetCategory[] = ["producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
 

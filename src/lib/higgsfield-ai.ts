@@ -47,7 +47,14 @@ export async function generateHiggsfieldInfographic(
       prompt,
       image_urls: [imageUrl],
       enhance_prompt: false,
-      resolution: "2k",
+      // "quality" (no la resolución) es lo que más encarece — a 4k el salto
+      // de "low" a "high" es de ~30x. Pedido explícito del usuario: mínima
+      // calidad que se vea bien, para que cada generación salga barata.
+      quality: "low",
+      // 1k en vez de 2k: se ve bien para el uso real (ficha de producto en
+      // Mercado Libre, nunca se muestra a resolución completa) y es más
+      // barato y bastante más rápido de generar que 2k.
+      resolution: "1k",
       aspect_ratio: "1:1",
       moderation: "auto",
     },
