@@ -25,7 +25,21 @@ const ACCENT_OPTIONS = [
   { label: "Gris", value: "#64748b" },
 ];
 
-const CATEGORY_ORDER: InfographicSetCategory[] = ["producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
+const CATEGORY_ORDER: InfographicSetCategory[] = [
+  "producto",
+  "beneficios",
+  "comparacion",
+  "en_uso",
+  "aclaracion",
+  "rendimiento",
+  "instrucciones",
+  "confianza",
+  "producto_limpio",
+  "composicion",
+  "publico_objetivo",
+  "versatilidad",
+  "etiqueta",
+];
 
 const CATEGORY_LABELS: Record<InfographicSetCategory, string> = {
   producto: "1. Producto",
@@ -33,6 +47,14 @@ const CATEGORY_LABELS: Record<InfographicSetCategory, string> = {
   comparacion: "3. Comparación",
   en_uso: "4. Producto en uso",
   aclaracion: "5. Aclaración",
+  rendimiento: "6. Rendimiento",
+  instrucciones: "7. Modo de uso",
+  confianza: "8. Confianza",
+  producto_limpio: "9. Producto (foto limpia)",
+  composicion: "10. Composición",
+  publico_objetivo: "11. Público objetivo",
+  versatilidad: "12. Versatilidad",
+  etiqueta: "13. Etiqueta",
 };
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -104,8 +126,8 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
         return;
       }
       // Se completa por categoría (no por posición) para que, si el modelo
-      // devuelve menos de 5, cada tarjeta se quede con su propio texto vacío
-      // en vez de desalinearse con la categoría de al lado.
+      // devuelve menos de las esperadas, cada tarjeta se quede con su propio
+      // texto vacío en vez de desalinearse con la categoría de al lado.
       setClaims((prev) =>
         prev.map((c) => suggested.find((s) => s.category === c.category) ?? c),
       );
@@ -170,7 +192,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     // Higgsfield (marketing-studio/image) inserta el producto sobre un
     // fondo nuevo él mismo a partir de la foto real (ver prompts en
     // ai-infographic.ts) — ya no hace falta recortar el fondo antes.
-    setGeneratingStatus("Generando las 5 infografías…");
+    setGeneratingStatus(`Generando las ${claims.length} infografías…`);
     const outcomes = await Promise.all(
       claims.map(async (claim) => {
         try {
@@ -204,8 +226,8 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     setIsGenerating(false);
     setGeneratingStatus("");
 
-    if (failures === 0) toast.success("Set de 5 infografías generado");
-    else if (failures < outcomes.length) toast.error(`${failures} de 5 infografías fallaron — probá regenerar esas`);
+    if (failures === 0) toast.success(`Set de ${outcomes.length} infografías generado`);
+    else if (failures < outcomes.length) toast.error(`${failures} de ${outcomes.length} infografías fallaron — probá regenerar esas`);
     else toast.error("No se pudo generar el set de infografías");
   }
 
@@ -355,7 +377,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
 
         <Button onClick={handleGenerateAll} disabled={isGenerating} className="w-full">
           <Sparkles className="mr-2 h-4 w-4" />
-          {isGenerating ? generatingStatus || "Generando…" : "Generar las 5 infografías"}
+          {isGenerating ? generatingStatus || "Generando…" : `Generar las ${claims.length} infografías`}
         </Button>
       </div>
 

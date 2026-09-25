@@ -174,7 +174,20 @@ Responde ÚNICAMENTE con un array JSON de 4 strings cortos, sin texto adicional.
   }
 }
 
-export type InfographicSetCategory = "producto" | "beneficios" | "comparacion" | "en_uso" | "aclaracion";
+export type InfographicSetCategory =
+  | "producto"
+  | "beneficios"
+  | "comparacion"
+  | "en_uso"
+  | "aclaracion"
+  | "rendimiento"
+  | "instrucciones"
+  | "confianza"
+  | "producto_limpio"
+  | "composicion"
+  | "publico_objetivo"
+  | "versatilidad"
+  | "etiqueta";
 
 export type InfographicClaim = {
   category: InfographicSetCategory;
@@ -189,13 +202,23 @@ const INFOGRAPHIC_SET_CATEGORIES: { key: InfographicSetCategory; desc: string }[
   { key: "comparacion", desc: "Tabla \"headline vs otras marcas genéricas\" — 4-5 bullets de características donde el producto gana, en términos genéricos, SIN nombrar marcas de la competencia." },
   { key: "en_uso", desc: "Cómo se usa/consume el producto en la práctica — headline con el modo de uso, 2-3 bullets de contexto de uso." },
   { key: "aclaracion", desc: "Aclara un mito o preocupación común del rubro del producto (headline tipo \"NO DA ACNÉ\" o \"SIN CONTRAINDICACIONES\"), 2-3 bullets que lo respaldan." },
+  { key: "rendimiento", desc: "Destaca cuánto rinde/dura el producto (headline con el número real de porciones/usos/días si el vendedor lo dio, ej. \"RINDE 10 PORCIONES\"), 2-3 bullets sobre esa duración." },
+  { key: "instrucciones", desc: "Modo de uso/dosis real (headline tipo \"TOMA 1 CÁPSULA AL DÍA\" con la dosis que dio el vendedor), 2-3 bullets con detalles de uso (cuándo, cómo, con qué)." },
+  { key: "confianza", desc: "Confianza/origen genérico (headline tipo \"CALIDAD GARANTIZADA\" o el país de origen si se dio), 2-3 bullets de respaldo SIN inventar certificaciones, premios ni normas que no te dieron." },
+  { key: "producto_limpio", desc: "Foto de producto sola, minimalista, casi sin texto — solo el nombre o un atributo de una palabra, sin bullets." },
+  { key: "composicion", desc: "Desglose de 3-4 ingredientes/componentes reales del producto (headline \"QUÉ CONTIENE\"), cada bullet es un ingrediente + su función, SOLO si el vendedor los mencionó." },
+  { key: "publico_objetivo", desc: "Para quién es ideal el producto (headline tipo \"IDEAL PARA...\" con el público real que dio el vendedor), 2-3 bullets de por qué les sirve. No se muestran personas ni rostros en esta pieza, así que el texto no debe asumir que hay una foto de gente." },
+  { key: "versatilidad", desc: "Flexibilidad de uso/preparación (headline tipo \"USALO COMO QUIERAS\"), 2-3 bullets con las distintas formas reales de usarlo que dio el vendedor." },
+  { key: "etiqueta", desc: "Presentación clara de la información real del empaque/etiqueta (headline \"INFORMACIÓN DEL PRODUCTO\"), bullets con datos reales del empaque (contenido neto, presentación, etc.), nunca inventados." },
 ];
 
-// Sugerencias de texto para el set de 5 infografías (producto, beneficios,
-// comparación, en uso, aclaración) — el usuario SIEMPRE las revisa y edita
-// antes de generar las imágenes reales, así que acá la IA puede proponer,
-// pero nunca inventa specs/afirmaciones de salud que no estén implícitas en
-// lo que el vendedor escribió.
+// Sugerencias de texto para el set de 13 infografías (producto, beneficios,
+// comparación, en uso, aclaración, rendimiento, instrucciones, confianza,
+// producto limpio, composición, público objetivo, versatilidad, etiqueta) —
+// el usuario SIEMPRE las revisa y edita antes de generar las imágenes
+// reales, así que acá la IA puede proponer, pero nunca inventa specs/
+// afirmaciones de salud que no estén implícitas en lo que el vendedor
+// escribió.
 export async function generateInfographicSetClaims(
   productName: string,
   keyFeatures: string,
@@ -206,22 +229,23 @@ export async function generateInfographicSetClaims(
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1200,
+    max_tokens: 3000,
     messages: [
       {
         role: "user",
         content: `Sos un diseñador de infografías de venta para Mercado Libre (Latinoamérica). Para el producto "${name || "(sin nombre)"}", con estas características/datos reales: "${features || "(sin datos adicionales, usa solo el nombre)"}".
 
-Necesito una PROPUESTA de texto para un set de 5 infografías, en este orden y con este propósito cada una:
+Necesito una PROPUESTA de texto para un set de ${INFOGRAPHIC_SET_CATEGORIES.length} infografías, en este orden y con este propósito cada una:
 ${INFOGRAPHIC_SET_CATEGORIES.map((c, i) => `${i + 1}. ${c.key}: ${c.desc}`).join("\n")}
 
 Reglas estrictas:
-- SOLO usá datos/afirmaciones que estén en el nombre o las características que te pasé. Si no hay suficiente información para una categoría, proponé algo genérico y neutro (ej. "Calidad garantizada") en vez de inventar un dato específico (nunca inventes cifras, porcentajes, ingredientes o efectos que no te dieron).
+- SOLO usá datos/afirmaciones que estén en el nombre o las características que te pasé. Si no hay suficiente información para una categoría, proponé algo genérico y neutro (ej. "Calidad garantizada") en vez de inventar un dato específico (nunca inventes cifras, porcentajes, ingredientes, certificaciones o efectos que no te dieron).
 - En "comparacion" nunca nombres una marca competidora real — usá términos genéricos como "otras marcas" u "otros productos".
+- En "rendimiento", "instrucciones" y "composicion": si no tenés el dato real (porciones, dosis, ingredientes), proponé un headline genérico sin número ni ingrediente específico inventado.
 - Los headlines van en MAYÚSCULAS, cortos (máximo 5-6 palabras). Los bullets son frases cortas (máximo 6-8 palabras cada una).
 - "subtext" es una frase de apoyo opcional (puede ir vacía "").
 
-Responde ÚNICAMENTE con un array JSON de 5 objetos con esta forma exacta, en el mismo orden de la lista de arriba:
+Responde ÚNICAMENTE con un array JSON de ${INFOGRAPHIC_SET_CATEGORIES.length} objetos con esta forma exacta, en el mismo orden de la lista de arriba:
 [{"category": "producto", "headline": "...", "subtext": "...", "bullets": ["...", "..."]}, ...]`,
       },
     ],
@@ -253,7 +277,7 @@ Responde ÚNICAMENTE con un array JSON de 5 objetos con esta forma exacta, en el
           .map((b: string) => b.trim().slice(0, 60))
           .slice(0, 5),
       }))
-      .slice(0, 5);
+      .slice(0, INFOGRAPHIC_SET_CATEGORIES.length);
   } catch (err) {
     console.error("generateInfographicSetClaims: no se pudo parsear la respuesta del modelo:", text, err);
     return [];

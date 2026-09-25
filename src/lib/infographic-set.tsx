@@ -207,6 +207,8 @@ export async function buildProductInfographic(input: InfographicSetInput): Promi
           style={{
             position: "absolute",
             inset: 0,
+            width: SIZE,
+            height: SIZE,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -489,6 +491,8 @@ export async function buildUsageInfographic(input: InfographicSetInput): Promise
           style={{
             position: "absolute",
             inset: 0,
+            width: SIZE,
+            height: SIZE,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -569,12 +573,252 @@ export async function buildClarificationInfographic(input: InfographicSetInput):
   );
 }
 
+// 6-9. Genérico: banner + producto + bullets con ícono — reutilizado por
+// varias categorías cuyo layout de respaldo es igual al de "en uso"/
+// "aclaración" (headline + producto + 2-3 razones), solo cambia el texto.
+async function buildBulletsInfographic(input: InfographicSetInput): Promise<Response> {
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { headline, subtext, bullets } = input.claim;
+
+  return new ImageResponse(
+    (
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "64px 70px",
+            gap: 24,
+          }}
+        >
+          <div style={{ display: "flex", width: 940 }}>
+            <Banner text={headline} accentColor={accentColor} />
+          </div>
+          {subtext && (
+            <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 22, fontWeight: 500, color: MUTED, textAlign: "center" }}>{subtext}</div>
+          )}
+
+          <FloatingProduct src={imageDataUrl} size={340} />
+
+          <div style={{ display: "flex", flexDirection: "column", width: 780, gap: 14 }}>
+            {bullets.slice(0, 3).map((b, i) => (
+              <IconRow key={i} icon={<CheckIcon size={22} />} text={b} accentColor={accentColor} />
+            ))}
+          </div>
+        </div>
+      </GradientFrame>
+    ),
+    { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
+  );
+}
+
+// 6. RENDIMIENTO — el número/dato de rendimiento como protagonista absoluto.
+async function buildYieldInfographic(input: InfographicSetInput): Promise<Response> {
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { headline, subtext, bullets } = input.claim;
+
+  return new ImageResponse(
+    (
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: SIZE,
+            height: SIZE,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "56px 70px",
+            gap: 30,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              width: 320,
+              height: 320,
+              borderRadius: 999,
+              background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`,
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: `0 24px 48px -20px ${accentColor}aa`,
+            }}
+          >
+            <div style={{ display: "flex", fontSize: 46, fontWeight: 800, color: "white", textAlign: "center", padding: "0 20px" }}>
+              {headline}
+            </div>
+          </div>
+          {subtext && (
+            <div style={{ display: "flex", width: 900, justifyContent: "center", fontSize: 26, fontWeight: 800, color: INK, textAlign: "center" }}>
+              {subtext}
+            </div>
+          )}
+          <FloatingProduct src={imageDataUrl} size={300} />
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", width: 940, gap: 16 }}>
+            {bullets.slice(0, 3).map((b, i) => (
+              <div
+                key={i}
+                style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 999, padding: "14px 24px", boxShadow: "0 8px 20px -14px rgba(15,23,42,0.4)" }}
+              >
+                <div style={{ display: "flex", fontSize: 20, fontWeight: 800, color: INK }}>{b}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </GradientFrame>
+    ),
+    { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
+  );
+}
+
+// 9. PRODUCTO LIMPIO — foto grande, casi sin texto.
+async function buildCleanProductInfographic(input: InfographicSetInput): Promise<Response> {
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { headline } = input.claim;
+
+  return new ImageResponse(
+    (
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: SIZE,
+            height: SIZE,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 30,
+          }}
+        >
+          <FloatingProduct src={imageDataUrl} size={680} />
+          {headline && (
+            <div style={{ display: "flex", width: 700, justifyContent: "center", textAlign: "center", fontSize: 30, fontWeight: 800, color: INK, letterSpacing: -0.5 }}>
+              {headline}
+            </div>
+          )}
+        </div>
+      </GradientFrame>
+    ),
+    { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
+  );
+}
+
+// 10. COMPOSICIÓN — grilla numerada de ingredientes/componentes + producto.
+async function buildCompositionInfographic(input: InfographicSetInput): Promise<Response> {
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { headline, subtext, bullets } = input.claim;
+
+  return new ImageResponse(
+    (
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "60px 70px",
+            gap: 26,
+          }}
+        >
+          <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 38, fontWeight: 800, color: INK, textAlign: "center" }}>
+            {headline}
+          </div>
+          {subtext && (
+            <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 22, fontWeight: 500, color: MUTED, textAlign: "center" }}>{subtext}</div>
+          )}
+          <div style={{ display: "flex", justifyContent: "center", gap: 28, width: 940, marginTop: 8 }}>
+            {bullets.slice(0, 4).map((b, i) => (
+              <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 200, gap: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    width: 96,
+                    height: 96,
+                    borderRadius: 999,
+                    background: `linear-gradient(135deg, ${accentColor}, ${accentColor}aa)`,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: `0 10px 24px -10px ${accentColor}88`,
+                  }}
+                >
+                  <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: "white" }}>{i + 1}</div>
+                </div>
+                <div style={{ display: "flex", textAlign: "center", fontSize: 18, fontWeight: 800, color: INK }}>{b}</div>
+              </div>
+            ))}
+          </div>
+          <FloatingProduct src={imageDataUrl} size={300} />
+        </div>
+      </GradientFrame>
+    ),
+    { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
+  );
+}
+
+// 13. ETIQUETA — producto grande (para que la etiqueta real se lea bien) +
+// datos reales del empaque alrededor, sin tapar el envase.
+async function buildLabelInfographic(input: InfographicSetInput): Promise<Response> {
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { headline, bullets } = input.claim;
+
+  return new ImageResponse(
+    (
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "56px 70px",
+            gap: 24,
+          }}
+        >
+          <div style={{ display: "flex", width: 940, justifyContent: "center", fontSize: 34, fontWeight: 800, color: INK, textAlign: "center" }}>
+            {headline}
+          </div>
+          <FloatingProduct src={imageDataUrl} size={520} />
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", width: 940, gap: 16 }}>
+            {bullets.slice(0, 3).map((b, i) => (
+              <div
+                key={i}
+                style={{ display: "flex", alignItems: "center", gap: 10, background: "white", borderRadius: 16, padding: "14px 22px", boxShadow: "0 8px 20px -14px rgba(15,23,42,0.4)" }}
+              >
+                <div style={{ display: "flex", fontSize: 19, fontWeight: 800, color: INK }}>{b}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </GradientFrame>
+    ),
+    { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
+  );
+}
+
 const BUILDERS: Record<InfographicSetCategory, (input: InfographicSetInput) => Promise<Response>> = {
   producto: buildProductInfographic,
   beneficios: buildBenefitsInfographic,
   comparacion: buildComparisonInfographic,
   en_uso: buildUsageInfographic,
   aclaracion: buildClarificationInfographic,
+  rendimiento: buildYieldInfographic,
+  instrucciones: buildBulletsInfographic,
+  confianza: buildBulletsInfographic,
+  producto_limpio: buildCleanProductInfographic,
+  composicion: buildCompositionInfographic,
+  publico_objetivo: buildBulletsInfographic,
+  versatilidad: buildBulletsInfographic,
+  etiqueta: buildLabelInfographic,
 };
 
 export async function buildInfographicSetImage(input: InfographicSetInput): Promise<Response> {
