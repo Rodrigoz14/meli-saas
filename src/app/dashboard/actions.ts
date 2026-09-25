@@ -6,7 +6,6 @@ import { prisma } from "@/lib/prisma";
 import { generateInfographicSetClaims, generatePublicationCopy, suggestAccentColor, type InfographicClaim, type PublicationCopy } from "@/lib/ai";
 import { ensureFreshMeliToken, getSaleFee } from "@/lib/meli-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
-import { removeBackground } from "@/lib/huggingface-ai";
 
 // Rentabilidad y Costos y gastos son páginas distintas pero comparten los
 // mismos datos (ver getRentabilidadData) — cualquier cambio hecho desde
@@ -295,28 +294,6 @@ export async function suggestInfographicSetClaims(
   if (!session?.user?.id) throw new Error("No autenticado");
 
   return generateInfographicSetClaims(productName, keyFeatures);
-}
-
-// Recorta el fondo de la foto UNA sola vez (no una por cada una de las 5
-// infografías) — el resultado (PNG con transparencia real) se reutiliza
-// para las 5. Si falla, el cliente sigue con la foto original: nunca
-// bloquea la generación del set por esto.
-export async function removeProductBackground(input: {
-  imageDataUrl?: string;
-  imageUrl?: string;
-}): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("No autenticado");
-
-  const hasUploadedImage = Boolean(input.imageDataUrl?.startsWith("data:image/"));
-  const hasRealImage = Boolean(input.imageUrl && isAllowedImageHost(input.imageUrl));
-  if (!hasUploadedImage && !hasRealImage) throw new Error("Falta la foto del producto");
-
-  const rawDataUrl = await resolveImageDataUrl({
-    imageDataUrl: hasUploadedImage ? input.imageDataUrl : undefined,
-    imageUrl: hasRealImage ? input.imageUrl : undefined,
-  });
-  return removeBackground(rawDataUrl);
 }
 
 // Le pide a Claude (con visión, no un promedio de píxeles) que sugiera un

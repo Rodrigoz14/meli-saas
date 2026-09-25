@@ -5,11 +5,7 @@ import { toast } from "sonner";
 import { Download, ImageIcon, Loader2, Palette, Sparkles, Upload, Wand2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  removeProductBackground,
-  suggestAccentColorFromImage,
-  suggestInfographicSetClaims,
-} from "@/app/dashboard/actions";
+import { suggestAccentColorFromImage, suggestInfographicSetClaims } from "@/app/dashboard/actions";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 
 type Product = { productId: string; title: string; thumbnail: string; permalink: string };
@@ -171,21 +167,9 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     setIsGenerating(true);
     setResults({} as Record<InfographicSetCategory, string | null>);
 
-    // Recorta el fondo UNA sola vez (real, sin generar nada — ver
-    // removeProductBackground) y reutiliza ese cutout para las 5
-    // infografías. Si falla, seguimos con la foto original: nunca bloquea
-    // la generación del set por esto.
-    setGeneratingStatus("Preparando la foto…");
-    let cutoutDataUrl: string | null = null;
-    try {
-      cutoutDataUrl = await removeProductBackground({
-        imageDataUrl: uploadedDataUrl || undefined,
-        imageUrl: uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
-      });
-    } catch {
-      cutoutDataUrl = null;
-    }
-
+    // Higgsfield (marketing-studio/image) inserta el producto sobre un
+    // fondo nuevo él mismo a partir de la foto real (ver prompts en
+    // ai-infographic.ts) — ya no hace falta recortar el fondo antes.
     setGeneratingStatus("Generando las 5 infografías…");
     const outcomes = await Promise.all(
       claims.map(async (claim) => {
@@ -194,8 +178,8 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              imageDataUrl: cutoutDataUrl || uploadedDataUrl || undefined,
-              imageUrl: cutoutDataUrl ? undefined : uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
+              imageDataUrl: uploadedDataUrl || undefined,
+              imageUrl: uploadedDataUrl ? undefined : productThumbnailUrl || undefined,
               accentColor,
               productName,
               claim,

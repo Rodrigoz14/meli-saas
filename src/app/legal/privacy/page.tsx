@@ -93,8 +93,8 @@ export default function PrivacyPolicyPage() {
                   analizar fotos de producto (por ejemplo, para sugerir un color de diseño).
                 </li>
                 <li>
-                  <strong>Cloudflare Workers AI y Hugging Face:</strong> para generar y procesar imágenes
-                  cuando usás el generador de infografías.
+                  <strong>Higgsfield:</strong> para generar las imágenes cuando usás el generador de
+                  infografías.
                 </li>
                 <li>
                   <strong>Neon (base de datos) y Vercel (hosting):</strong> infraestructura donde corre y se
