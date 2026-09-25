@@ -3,10 +3,8 @@ import { prisma } from "@/lib/prisma";
 // Tope diario de infografías generadas con IA de paga (Higgsfield) por
 // usuario — protege el presupuesto de un loop/abuso, no el uso normal. Al
 // llegar al tope, el generador cae al sistema de respaldo (Satori, sin
-// costo) en vez de bloquear al usuario. El set completo pasó de 5 a 13
-// piezas, así que el tope sube proporcionalmente (antes permitía ~4 sets/día,
-// esto sigue permitiendo esa misma cantidad de sets completos).
-export const DAILY_INFOGRAPHIC_LIMIT = 52;
+// costo) en vez de bloquear al usuario.
+export const DAILY_INFOGRAPHIC_LIMIT = 20;
 
 function startOfTodayUtc(): Date {
   const now = new Date();
