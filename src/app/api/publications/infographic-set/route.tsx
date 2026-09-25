@@ -1,6 +1,8 @@
 import { auth } from "@/auth";
 import { buildInfographicSetImage, isAllowedImageHost } from "@/lib/infographic-set";
-import { buildAiPrompt, generateAiInfographic } from "@/lib/ai-infographic";
+import { buildAiPrompt } from "@/lib/ai-infographic";
+import { generateHiggsfieldInfographic } from "@/lib/higgsfield-ai";
+import { hasReachedDailyInfographicLimit, recordInfographicGeneration } from "@/lib/infographic-limit";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 
 export const maxDuration = 60;
@@ -39,22 +41,27 @@ export async function POST(req: Request) {
   const accentColor = body.accentColor || "#5670f0";
   const imageSource = hasUploadedImage ? body.imageDataUrl! : body.imageUrl!;
 
-  // Placeholder temporal con IA (Cloudflare, gratis) mientras se evalúa una
-  // IA de edición de paga — el modelo gratuito no garantiza preservar el
-  // producto real, decisión explícita del usuario. Si falla (o el filtro de
-  // seguridad la rechaza las 3 veces), cae al sistema seguro de siempre
-  // (foto real + texto por código) para que la generación nunca se rompa.
-  try {
-    const prompt = buildAiPrompt(body.claim, body.productName || "el producto", accentColor);
-    const bytes = await generateAiInfographic(imageSource, prompt);
-    // TS marca los tipos de ArrayBufferLike/SharedArrayBuffer como
-    // incompatibles con BlobPart en esta versión — a nivel runtime
-    // Uint8Array real (nunca compartido) funciona sin problema.
-    return new Response(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/jpeg" }), {
-      headers: { "Content-Type": "image/jpeg" },
-    });
-  } catch (err) {
-    console.error(`generateAiInfographic(${body.claim.category}) failed, usando fallback seguro:`, err);
+  // IA de paga (Higgsfield) que sí preserva el producto real, a diferencia
+  // del placeholder anterior con Cloudflare. El tope diario por usuario
+  // protege el presupuesto: al llegar al límite se salta directo al
+  // fallback seguro (gratis) en vez de seguir gastando. Si Higgsfield falla
+  // por cualquier otro motivo, también cae al mismo fallback para que la
+  // generación nunca se rompa del todo.
+  const limitReached = await hasReachedDailyInfographicLimit(session.user.id);
+  if (!limitReached) {
+    try {
+      const prompt = buildAiPrompt(body.claim, body.productName || "el producto", accentColor);
+      const { bytes, sourceUrl } = await generateHiggsfieldInfographic(imageSource, prompt);
+      await recordInfographicGeneration(session.user.id, sourceUrl);
+      // TS marca los tipos de ArrayBufferLike/SharedArrayBuffer como
+      // incompatibles con BlobPart en esta versión — a nivel runtime
+      // Uint8Array real (nunca compartido) funciona sin problema.
+      return new Response(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "image/jpeg" }), {
+        headers: { "Content-Type": "image/jpeg", "X-Infographic-Source": "ai" },
+      });
+    } catch (err) {
+      console.error(`generateHiggsfieldInfographic(${body.claim.category}) failed, usando fallback seguro:`, err);
+    }
   }
 
   try {

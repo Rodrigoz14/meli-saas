@@ -168,46 +168,14 @@ export function buildAiPrompt(claim: InfographicClaim, productName: string, acce
   return fillTemplate(TEMPLATES[claim.category], vars);
 }
 
-async function dataUrlToBuffer(dataUrl: string): Promise<{ buffer: Buffer; mimeType: string }> {
+// Usado tanto para pasarle bytes reales a un proveedor de IA (Higgsfield)
+// como, antes, para Cloudflare — se mantiene exportado porque cualquier
+// proveedor que trabaje con la imagen en crudo (en vez de una URL pública)
+// necesita decodificar el data URL o bajar la URL real primero.
+export async function dataUrlToBuffer(dataUrl: string): Promise<{ buffer: Buffer; mimeType: string }> {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (match) return { buffer: Buffer.from(match[2], "base64"), mimeType: match[1] };
   const res = await fetch(dataUrl);
   const buffer = Buffer.from(await res.arrayBuffer());
   return { buffer, mimeType: res.headers.get("content-type") || "image/jpeg" };
-}
-
-// El filtro de seguridad de Cloudflare rechaza al azar ~1 de cada 3
-// pedidos idénticos (confirmado probando el mismo prompt/imagen varias
-// veces) — reintenta un par de veces antes de rendirse.
-export async function generateAiInfographic(imageDataUrl: string, prompt: string): Promise<Uint8Array> {
-  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-  const token = process.env.CLOUDFLARE_API_TOKEN;
-  if (!accountId || !token) {
-    throw new Error("Cloudflare Workers AI no está configurado");
-  }
-
-  const { buffer, mimeType } = await dataUrlToBuffer(imageDataUrl);
-  const imageBytes = new Uint8Array(buffer);
-
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const form = new FormData();
-    form.append("prompt", prompt);
-    form.append("image", new Blob([imageBytes], { type: mimeType }), "product.jpg");
-
-    const res = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/black-forest-labs/flux-2-klein-9b`,
-      { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form },
-    );
-
-    if (res.ok) {
-      const data = await res.json();
-      const image = data?.result?.image;
-      if (image) return new Uint8Array(Buffer.from(image, "base64"));
-      lastError = new Error("Cloudflare no devolvió una imagen");
-      continue;
-    }
-    lastError = new Error(`Cloudflare Workers AI ${res.status}: ${await res.text()}`);
-  }
-  throw lastError ?? new Error("No se pudo generar la infografía con IA");
 }
