@@ -11,11 +11,13 @@ copiá/pegá estas respuestas directamente en el formulario al subir
   proyecto) y tener la URL pública a mano: `https://meli-saas.vercel.app/legal/privacy`
 - [ ] Correr `npm run build:extension` y usar `extension-dist.zip` (esa
   versión ya no tiene `localhost:3000` en los permisos)
-- [x] Captura de pantalla y tile promocional ya generados en
-  `extension/store-assets/` (`screenshot-1-mi-negocio.png` 1280×800,
-  `promo-tile-440x280.png` 440×280) — datos reales de una cuenta real, con
-  las cifras de ventas/ingresos/stock difuminadas a pedido explícito antes
-  de publicar.
+- [x] Capturas de pantalla, tile promocional y marquesina ya generados en
+  `extension/store-assets/` (`screenshot-1-mi-negocio-demo.png` y
+  `screenshot-2-busqueda-demo.png` 1280×800, `promo-tile-440x280.png`
+  440×280, `marquee-promo-1400x560.png` 1400×560) — todas con datos de
+  ejemplo (productos y cifras ficticias), sin datos reales de ninguna
+  cuenta. Regenerables con `node scripts/gen-demo-screenshots.mjs` y
+  `node scripts/gen-marquee-promo.mjs`.
 
 ## Store listing
 
