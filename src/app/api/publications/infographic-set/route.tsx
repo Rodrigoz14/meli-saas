@@ -12,7 +12,7 @@ import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 // tardara esa generación puntual).
 export const maxDuration = 180;
 
-const VALID_CATEGORIES: InfographicSetCategory[] = ["producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
+const VALID_CATEGORIES: InfographicSetCategory[] = ["portada", "producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
 
 export async function POST(req: Request) {
   const session = await auth();

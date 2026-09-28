@@ -80,7 +80,7 @@ const DESIGN_SYSTEM = `SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
 - Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render del envase: podés (y debés) darle más profundidad fotográfica al envase — renderizalo como un mockup 3D fotorrealista, con el volumen, los reflejos y las sombras propias de su material (plástico, aluminio, cartón, vidrio), como si fuera una foto de estudio profesional, en vez de un recorte plano pegado sobre el fondo. Esto es solo sobre CÓMO se ilumina y renderiza el envase — la forma, el texto, el logo y el diseño real de la etiqueta tienen que seguir siendo exactamente los mismos.
+- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.`;
 
@@ -106,7 +106,20 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (_, key: string) => vars[key] ?? "");
 }
 
-const TEMPLATE_PRODUCTO = `Usa la imagen adjunta del producto EXACTAMENTE como está: no cambies su forma, etiqueta, texto, colores, proporciones, ángulo, reflejos ni sombras propias del envase. No la reinterpretes ni la regeneres. Trátala como un recorte fijo que debes insertar sobre un fondo nuevo.
+const TEMPLATE_PORTADA = `Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), insertado sobre un fondo nuevo.
+
+Genera una infografía cuadrada de 1200x1200 px para Mercado Libre tipo "portada"/foto de catálogo — minimalista, casi sin texto, el protagonista absoluto es el producto centrado.
+
+COMPOSICIÓN:
+- El producto ({NOMBRE_PRODUCTO}) centrado, ocupando 65-75% de la altura del lienzo, apoyado sobre un pedestal o superficie con reflejo sutil degradado hacia abajo y sombra de contacto realista.
+- Fondo limpio en {COLOR_PRIMARIO} con un degradado radial suave hacia {COLOR_ACENTO} y una sola forma geométrica grande y muy desenfocada detrás del producto — sin más elementos, siguiendo el sistema de diseño pero de forma mucho más sobria que el resto del set.
+- Si hay headline (opcional), va chico y discreto en una esquina inferior, en {COLOR_TEXTO}: "{FRASE_GANCHO_LINEA_1}".
+
+ESTILO: sigue el SISTEMA DE DISEÑO. Máxima limpieza visual, como una foto de catálogo premium.
+
+NO HACER: no agregar bullets, tarjetas ni íconos — esta pieza no lleva bloques de venta, solo el producto y el fondo. No usar fondo negro ni oscuro.`;
+
+const TEMPLATE_PRODUCTO = `Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), insertado sobre un fondo nuevo.
 
 Genera una infografía cuadrada de 1200x1200 px, formato ficha de producto para Mercado Libre — debe verse como la campaña publicitaria de una marca premium, no como una plantilla genérica.
 
@@ -123,7 +136,7 @@ ESTILO: sigue el SISTEMA DE DISEÑO al pie de la letra. Look premium tipo suplem
 
 NO HACER: no tapar información nutricional ni el nombre de marca del envase con texto ni íconos. No usar fondo negro ni oscuro bajo ninguna circunstancia.`;
 
-const TEMPLATE_BENEFICIOS = `Usa la imagen adjunta del producto EXACTAMENTE como está, sin modificarla ni recrearla. Solo se compone sobre un fondo nuevo.
+const TEMPLATE_BENEFICIOS = `Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño). Solo se compone sobre un fondo nuevo.
 
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre enfocada 100% en comunicar beneficios de {NOMBRE_PRODUCTO}.
 
@@ -139,7 +152,7 @@ ESTILO: sigue el SISTEMA DE DISEÑO. Alto contraste, texto perfectamente legible
 
 NO HACER: no ocultar el nombre del producto en la etiqueta, no usar más de 3 beneficios principales, no usar fondo negro ni oscuro.`;
 
-const TEMPLATE_COMPARACION = `Usa la imagen adjunta del producto EXACTAMENTE como está, sin modificarla. Solo se compone sobre el fondo nuevo, en el lado izquierdo.
+const TEMPLATE_COMPARACION = `Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), en el lado izquierdo.
 
 Genera una infografía cuadrada de 1200x1200 px de comparación directa para Mercado Libre entre {NOMBRE_PRODUCTO} y un producto genérico/sin marca.
 
@@ -151,7 +164,7 @@ ESTILO: sigue el SISTEMA DE DISEÑO. Tipografía condensada extra bold, contrast
 
 NO HACER: no mostrar logos ni marcas reales de competencia, no inventar certificaciones, no usar fondo negro ni oscuro.`;
 
-const TEMPLATE_EN_USO = `Usa la imagen adjunta del producto EXACTAMENTE como está, sin modificar su forma ni etiqueta. Se integra con sombra e iluminación de la escena.
+const TEMPLATE_EN_USO = `Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), integrado con sombra e iluminación de la escena.
 
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre que muestre {NOMBRE_PRODUCTO} en uso / modo de preparación.
 
@@ -167,7 +180,7 @@ ESTILO: sigue el SISTEMA DE DISEÑO. Fotografía realista y profesional, ilumina
 
 NO HACER: no generar rostros de personas reconocibles ni logos ajenos. No usar fondo negro ni oscuro.`;
 
-const TEMPLATE_ACLARACION = `Usa la imagen adjunta del producto EXACTAMENTE como está, sin modificarla, solo se compone sobre el fondo generado.
+const TEMPLATE_ACLARACION = `Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño). Solo se compone sobre el fondo generado.
 
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre tipo "aclaración" de {NOMBRE_PRODUCTO}, con foco en un solo mensaje contundente.
 
@@ -185,6 +198,7 @@ ESTILO: sigue el SISTEMA DE DISEÑO. Máximo contraste tipográfico, tono direct
 NO HACER: no incluir afirmaciones médicas/regulatorias que no estén en la etiqueta real, no exagerar cifras, no usar fondo negro ni oscuro.`;
 
 const TEMPLATES: Record<InfographicSetCategory, string> = {
+  portada: TEMPLATE_PORTADA,
   producto: TEMPLATE_PRODUCTO,
   beneficios: TEMPLATE_BENEFICIOS,
   comparacion: TEMPLATE_COMPARACION,

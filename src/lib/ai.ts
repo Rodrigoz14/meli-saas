@@ -174,7 +174,7 @@ Responde ÚNICAMENTE con un array JSON de 4 strings cortos, sin texto adicional.
   }
 }
 
-export type InfographicSetCategory = "producto" | "beneficios" | "comparacion" | "en_uso" | "aclaracion";
+export type InfographicSetCategory = "portada" | "producto" | "beneficios" | "comparacion" | "en_uso" | "aclaracion";
 
 export type InfographicClaim = {
   category: InfographicSetCategory;
@@ -184,6 +184,7 @@ export type InfographicClaim = {
 };
 
 const INFOGRAPHIC_SET_CATEGORIES: { key: InfographicSetCategory; desc: string }[] = [
+  { key: "portada", desc: "Portada minimalista tipo foto de catálogo — solo el producto centrado sobre un fondo limpio, SIN bullets de venta. El headline es opcional y muy corto (una palabra o el nombre de marca), puede ir vacío \"\"." },
   { key: "producto", desc: "Presentación limpia del producto — headline corto con el nombre/atributo principal, sin bullets de venta." },
   { key: "beneficios", desc: "El beneficio más fuerte como headline grande (ej. \"NO TIENE AZÚCAR\"), 3-4 bullets cortos de características/beneficios reales." },
   { key: "comparacion", desc: "Tabla \"headline vs otras marcas genéricas\" — 4-5 bullets de características donde el producto gana, en términos genéricos, SIN nombrar marcas de la competencia." },

@@ -25,14 +25,15 @@ const ACCENT_OPTIONS = [
   { label: "Gris", value: "#64748b" },
 ];
 
-const CATEGORY_ORDER: InfographicSetCategory[] = ["producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
+const CATEGORY_ORDER: InfographicSetCategory[] = ["portada", "producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
 
 const CATEGORY_LABELS: Record<InfographicSetCategory, string> = {
-  producto: "1. Producto",
-  beneficios: "2. Beneficios",
-  comparacion: "3. Comparación",
-  en_uso: "4. Producto en uso",
-  aclaracion: "5. Aclaración",
+  portada: "1. Portada",
+  producto: "2. Producto",
+  beneficios: "3. Beneficios",
+  comparacion: "4. Comparación",
+  en_uso: "5. Producto en uso",
+  aclaracion: "6. Aclaración",
 };
 
 function fileToDataUrl(file: File): Promise<string> {

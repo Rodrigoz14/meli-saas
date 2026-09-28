@@ -195,6 +195,51 @@ function IconRow({
   );
 }
 
+// 0. PORTADA — foto de catálogo minimalista, sin bloques de venta.
+export async function buildCoverInfographic(input: InfographicSetInput): Promise<Response> {
+  const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
+  const { headline } = input.claim;
+
+  return new ImageResponse(
+    (
+      <GradientFrame accentColor={accentColor}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: SIZE,
+            height: SIZE,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 30,
+          }}
+        >
+          <FloatingProduct src={imageDataUrl} size={680} />
+          {headline && (
+            <div
+              style={{
+                display: "flex",
+                width: 700,
+                justifyContent: "center",
+                textAlign: "center",
+                fontSize: 30,
+                fontWeight: 800,
+                color: INK,
+                letterSpacing: -0.5,
+              }}
+            >
+              {headline}
+            </div>
+          )}
+        </div>
+      </GradientFrame>
+    ),
+    { width: SIZE, height: SIZE, fonts: fonts(fontRegular, fontBold) },
+  );
+}
+
 // 1. PRODUCTO — presentación limpia: foto flotando, nombre debajo.
 export async function buildProductInfographic(input: InfographicSetInput): Promise<Response> {
   const { accentColor, imageDataUrl, fontRegular, fontBold } = await loadInputs(input);
@@ -574,6 +619,7 @@ export async function buildClarificationInfographic(input: InfographicSetInput):
 }
 
 const BUILDERS: Record<InfographicSetCategory, (input: InfographicSetInput) => Promise<Response>> = {
+  portada: buildCoverInfographic,
   producto: buildProductInfographic,
   beneficios: buildBenefitsInfographic,
   comparacion: buildComparisonInfographic,
