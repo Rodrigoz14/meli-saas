@@ -8,7 +8,7 @@ import {
   filterRelevantKeywords,
   generateDetailedDescription,
   generateInfographicSetClaims,
-  generateSearchTerms,
+  generateSeoKeywordCandidates,
   generateSeoTitles,
   suggestAccentColor,
   type DetailedDescriptionInput,
@@ -308,6 +308,7 @@ export type SeoOptimizerResult = {
 export async function runSeoOptimizer(input: {
   productName: string;
   brand?: string;
+  keyFeatures?: string;
   categoryIdHint?: string;
   siteId: string;
   imageDataUrl?: string;
@@ -371,7 +372,9 @@ export async function runSeoOptimizer(input: {
           })),
         )
       : Promise.resolve([]),
-    productName ? generateSearchTerms(productName).catch(() => []) : Promise.resolve([]),
+    productName
+      ? generateSeoKeywordCandidates(productName, input.keyFeatures, imageDescription ?? undefined).catch(() => [])
+      : Promise.resolve([]),
   ]);
 
   // Si el mismo término aparece en varios niveles, se queda con el más
@@ -388,6 +391,7 @@ export async function runSeoOptimizer(input: {
   }
   const allTrendTerms = Array.from(categoryTrendingMap.values());
   const leafTrendTerms = (tierResults.find((r) => r.tier === "baja")?.keywords ?? []).map((k) => k.keyword);
+  const parentTrendTerms = (tierResults.find((r) => r.tier === "media")?.keywords ?? []).map((k) => k.keyword);
 
   // Igual que con las keywords del producto: se filtran por relevancia
   // real al producto (las tendencias del nivel "general" del árbol suelen
@@ -403,20 +407,27 @@ export async function runSeoOptimizer(input: {
     .map((term) => categoryTrendingMap.get(term.toLowerCase()))
     .filter((t): t is { term: string; tier: CategoryTier } => Boolean(t));
 
-  const candidates = Array.from(new Set([...leafTrendTerms, ...aiSynonyms].map((t) => t.trim()).filter(Boolean)));
+  // El pool de candidatos ahora suma también las tendencias reales del
+  // nivel padre (antes solo se usaba la categoría específica) — más
+  // volumen real de dónde filtrar, en vez de depender casi solo de los
+  // sinónimos por IA para tener suficientes keywords.
+  const candidates = Array.from(
+    new Set([...leafTrendTerms, ...parentTrendTerms, ...aiSynonyms].map((t) => t.trim()).filter(Boolean)),
+  );
 
   // Si el filtro por IA falla, mejor mostrar los candidatos sin filtrar
   // (con su score real) que no mostrar ninguna keyword.
   const filtered =
     productName && candidates.length > 0 ? await filterRelevantKeywords(productName, candidates).catch(() => candidates) : [];
 
-  const trendSet = new Set(leafTrendTerms.map((t) => t.toLowerCase()));
+  const leafSet = new Set(leafTrendTerms.map((t) => t.toLowerCase()));
+  const parentSet = new Set(parentTrendTerms.map((t) => t.toLowerCase()));
   const keywords = filtered.map((term) => {
     const lower = term.toLowerCase();
     let score: CategoryTier = "baja";
-    if (trendSet.has(lower)) {
+    if (leafSet.has(lower)) {
       score = "alta";
-    } else if ([...trendSet].some((t) => t.includes(lower) || lower.includes(t))) {
+    } else if (parentSet.has(lower) || [...leafSet].some((t) => t.includes(lower) || lower.includes(t))) {
       score = "media";
     }
     return { term, score };
@@ -428,6 +439,8 @@ export async function runSeoOptimizer(input: {
         keywords: keywords.map((k) => k.term),
         categoryName: categoryName ?? undefined,
         brand: input.brand,
+        keyFeatures: input.keyFeatures,
+        imageDescription: imageDescription ?? undefined,
       }).catch(() => null)
     : null;
 

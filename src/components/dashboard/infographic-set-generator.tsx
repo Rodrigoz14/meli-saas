@@ -68,7 +68,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     if (!ctx) return;
     setContext(ctx);
     setProductName(ctx.productName);
-    setKeyFeatures(ctx.keywords.map((k) => k.term).join(", "));
+    setKeyFeatures(ctx.rawKeyFeatures || ctx.keywords.map((k) => k.term).join(", "));
     if (ctx.productId) {
       const product = products.find((p) => p.productId === ctx.productId);
       if (product) {

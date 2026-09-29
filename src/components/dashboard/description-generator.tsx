@@ -41,7 +41,7 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
     setSelectedId(ctx.productId);
     setCurrentTitle(ctx.bestTitle ?? ctx.productName);
     setCategory(ctx.categoryName ?? "");
-    setKeyFeatures(ctx.keywords.map((k) => k.term).join(", "));
+    setKeyFeatures(ctx.rawKeyFeatures || ctx.keywords.map((k) => k.term).join(", "));
   }, []);
 
   const selectedProduct = products.find((p) => p.productId === selectedId);

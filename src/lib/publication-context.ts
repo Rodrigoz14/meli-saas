@@ -14,6 +14,10 @@ export type PublicationContext = {
   categoryId?: string;
   categoryName?: string;
   keywords: { term: string; score: SeoKeywordScore }[];
+  // Texto libre de características que el vendedor escribió en el
+  // Optimizador SEO — más rico que la lista plana de keywords, así que
+  // Descripción lo prefiere sobre esa lista cuando existe.
+  rawKeyFeatures?: string;
   bestTitle?: string;
   description?: string;
   savedAt: number;

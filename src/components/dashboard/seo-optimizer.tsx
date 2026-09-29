@@ -77,6 +77,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
   const [selectedId, setSelectedId] = useState("");
   const [productName, setProductName] = useState("");
   const [brand, setBrand] = useState("");
+  const [keyFeatures, setKeyFeatures] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [productThumbnailUrl, setProductThumbnailUrl] = useState<string | null>(null);
   const [result, setResult] = useState<SeoOptimizerResult | null>(null);
@@ -109,6 +110,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
         const data = await runSeoOptimizer({
           productName,
           brand: brand || undefined,
+          keyFeatures: keyFeatures || undefined,
           categoryIdHint: selectedProduct?.categoryId || undefined,
           siteId,
           imageDataUrl: imageDataUrl || undefined,
@@ -120,6 +122,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
           categoryId: data.categoryId ?? undefined,
           categoryName: data.categoryName ?? undefined,
           keywords: data.keywords,
+          rawKeyFeatures: keyFeatures || undefined,
           bestTitle: data.titles[0],
         });
         toast.success("Palabras clave y títulos generados");
@@ -179,6 +182,20 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
         <div>
           <label className="text-sm font-medium">Marca (opcional)</label>
           <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Ej: Xiaomi" className="mt-1.5" />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Características clave (opcional)</label>
+          <textarea
+            value={keyFeatures}
+            onChange={(e) => setKeyFeatures(e.target.value)}
+            placeholder="Ej: bluetooth 5.3, cancelación de ruido, batería 20h, resistente al agua..."
+            rows={3}
+            className="mt-1.5 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Cuantas más características reales pongas, más detallados salen los títulos y las keywords — nunca se inventan atributos que no pongas acá.
+          </p>
         </div>
 
         <ImageUploadField

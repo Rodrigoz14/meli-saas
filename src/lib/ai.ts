@@ -53,6 +53,65 @@ Dame 6 términos así para "${trimmed}". Responde ÚNICAMENTE con un array JSON 
   }
 }
 
+// Variante de generateSearchTerms específica del Optimizador SEO — pide
+// más términos (15 en vez de 6) y, a diferencia de esa, SÍ combina el tipo
+// de producto con atributos reales (características que escribió el
+// vendedor o que describió la foto), porque esos combos son búsquedas
+// reales de comprador ("audifonos bluetooth cancelacion ruido") y es
+// exactamente la fuente de "más características" que pidió el usuario —
+// nunca inventa un atributo que no esté en keyFeatures/imageDescription.
+// No se reutiliza generateSearchTerms para esto porque esa función también
+// la usa la extensión para armar variaciones de búsqueda de nicho, con un
+// límite de 6 ya calibrado para no disparar demasiadas páginas a scrapear.
+export async function generateSeoKeywordCandidates(
+  productName: string,
+  keyFeatures?: string,
+  imageDescription?: string,
+): Promise<string[]> {
+  const name = productName.trim().slice(0, 150);
+  const features = keyFeatures?.trim().slice(0, 500) ?? "";
+  const imageDesc = imageDescription?.trim().slice(0, 300) ?? "";
+  if (!name) return [];
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 600,
+    messages: [
+      {
+        role: "user",
+        content: `Un vendedor de Mercado Libre (Latinoamérica) quiere investigar todas las formas reales en que un comprador busca este producto: "${name}".
+${features ? `\nCaracterísticas reales que dio el vendedor: "${features}"` : ""}
+${imageDesc ? `\nLo que se ve realmente en la foto: "${imageDesc}"` : ""}
+
+Necesito una lista AMPLIA y variada de términos de búsqueda reales, combinando:
+1. Sinónimos genuinos o nombres alternativos/regionales del mismo tipo de producto (NO la misma palabra con un adjetivo genérico pegado).
+2. Si te di características o descripción de foto reales: combos de "tipo de producto + ese atributo real" (ej. si el producto es "audífonos" y una característica real es "cancelación de ruido", el combo válido es "audifonos cancelacion ruido" — NUNCA inventes un atributo que no te haya dado).
+3. Variaciones de marca/modelo si el nombre las incluye.
+
+Dame hasta 15 términos así, sin duplicar significado. Responde ÚNICAMENTE con un array JSON de strings cortos (1-5 palabras cada uno), sin texto adicional.`,
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+      .map((t) => t.trim())
+      .slice(0, 15);
+  } catch (err) {
+    console.error("generateSeoKeywordCandidates: no se pudo parsear la respuesta del modelo:", text, err);
+    return [];
+  }
+}
+
 export type DetailedDescriptionInput = {
   productName: string;
   keyFeatures: string;
@@ -88,11 +147,11 @@ export async function generateDetailedDescription(input: DetailedDescriptionInpu
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1000,
+    max_tokens: 1700,
     messages: [
       {
         role: "user",
-        content: `Sos un experto en redacción de publicaciones de Mercado Libre (Latinoamérica). Necesito una descripción larga y bien estructurada, basada SOLO en los datos reales que te paso — no inventes especificaciones, certificaciones, cifras ni efectos que no estén acá.
+        content: `Sos un experto en redacción de publicaciones de Mercado Libre (Latinoamérica). Necesito una descripción LARGA, extensa y muy detallada, basada SOLO en los datos reales que te paso — no inventes especificaciones, certificaciones, cifras ni efectos que no estén acá, pero SÍ desarrollá cada parte con el máximo detalle posible a partir de esos datos reales (no te quedes en frases genéricas cortas si hay algo real de qué hablar).
 
 Datos del producto:
 - Producto: "${productName || "(sin nombre)"}"
@@ -101,14 +160,14 @@ Datos del producto:
 - Características/detalles reales que me pasa el vendedor: "${keyFeatures || "(no especificadas, usa solo el nombre del producto)"}"
 ${input.imageDescription?.trim() ? `- Lo que se ve realmente en la foto del producto: "${input.imageDescription.trim()}"` : ""}
 
-Necesito estas partes:
-- "intro": 1-2 frases tipo "qué es el producto" — directo, sin adjetivos vacíos.
-- "about": un array de 2 párrafos cortos — el primero sobre para qué sirve/en qué situaciones se usa, el segundo sobre la experiencia/valor de usarlo. Basado solo en los datos reales.
-- "advantages": 4 ventajas concretas de comprar este producto (frases cortas, sin inventar datos que no te dieron — pueden ser ventajas genéricas del tipo de producto si no hay más info, ej. "Libertad de movimiento sin cables").
-- "features": 4-6 características concretas del producto, SOLO de los datos que te pasé (si hay pocos datos, devolvé menos features en vez de inventar).
+Necesito estas partes, cada una más desarrollada y específica de lo habitual (no genérica ni de relleno):
+- "intro": 2-3 frases tipo "qué es el producto" — directo, concreto, mencionando el tipo de producto y su función principal real.
+- "about": un array de 3 párrafos (3-5 frases cada uno, no cortitos): el primero sobre para qué sirve y en qué situaciones/contextos concretos se usa; el segundo sobre la experiencia real de uso (comodidad, facilidad, resultado que obtiene quien lo usa, siempre anclado en las características reales que te pasé); el tercero profundizando en las características reales más relevantes y por qué importan para quien lo compra. Todo basado solo en los datos reales — si hay pocos datos, elaborá sobre lo que SÍ hay (el tipo de producto, su categoría, su uso típico) en vez de inventar specs.
+- "advantages": 6 ventajas concretas de comprar este producto (frases completas, no solo 2-3 palabras — explicá brevemente el porqué de cada una). Pueden ser ventajas genéricas del tipo de producto si no hay más info (ej. "Libertad de movimiento sin cables, ideal para actividades diarias"), pero nunca inventando datos técnicos específicos.
+- "features": 6 a 9 características concretas del producto, SOLO de los datos reales que te pasé (nombre, características, foto) — si hay pocos datos reales, priorizá exprimir al máximo lo que SÍ tenés (tipo de producto, categoría, cualquier atributo mencionado) antes de devolver una lista corta.
 
 Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicional:
-{"intro": "...", "about": ["...", "..."], "advantages": ["...", "...", "...", "..."], "features": ["...", "..."]}`,
+{"intro": "...", "about": ["...", "...", "..."], "advantages": ["...", "...", "...", "...", "...", "..."], "features": ["...", "..."]}`,
       },
     ],
   });
@@ -231,33 +290,41 @@ export async function generateSeoTitles(input: {
   keywords: string[];
   categoryName?: string;
   brand?: string;
+  keyFeatures?: string;
+  imageDescription?: string;
 }): Promise<SeoTitlesResult | null> {
   const name = input.productName.trim().slice(0, 150);
-  const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 20);
+  const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 25);
+  const keyFeatures = input.keyFeatures?.trim().slice(0, 500) ?? "";
+  const imageDescription = input.imageDescription?.trim().slice(0, 300) ?? "";
   if (!name) return null;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 500,
+    max_tokens: 600,
     messages: [
       {
         role: "user",
         content: `Sos un experto en optimización de publicaciones de Mercado Libre (Latinoamérica). Producto: "${name}". Marca: ${input.brand?.trim() || "(no especificada)"}. Categoría real de Mercado Libre: ${input.categoryName?.trim() || "(no detectada)"}.
+${keyFeatures ? `Características reales que dio el vendedor: "${keyFeatures}"` : ""}
+${imageDescription ? `Lo que se ve realmente en la foto: "${imageDescription}"` : ""}
 
 Palabras clave reales de búsqueda para este producto (vienen de tendencias reales de Mercado Libre, ya filtradas para que apliquen a este producto):
 ${keywords.length > 0 ? keywords.map((k) => `- ${k}`).join("\n") : "(sin keywords reales, usa solo el nombre del producto)"}
 
-Necesito 3 títulos de publicación optimizados, cada uno usando una combinación distinta de esas palabras clave reales (no las ignores, son búsquedas reales de compradores), y 1 título largo para catálogo.
+Necesito 3 títulos de publicación optimizados y 1 título largo para catálogo — sé lo más detallado y denso posible en información real, aprovechando TODO el espacio de caracteres disponible (no dejes el título corto si hay más keywords/atributos reales para meter).
 
 Reglas de los 3 títulos de publicación:
-- Máximo 60 caracteres cada uno.
+- Usá el máximo de caracteres posible, cerca del límite de 60 (no te quedes corto si hay keywords/atributos reales para agregar).
+- Cada título combina una selección DISTINTA de 2-3 keywords reales de la lista (no las ignores, son búsquedas reales de compradores) + cualquier atributo real (marca/color/modelo/característica) que te haya dado el vendedor o la foto.
 - Orden: Marca (si aplica) + Producto + Atributo clave + Cantidad si aplica. Las palabras que más se buscan van primero.
 - SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio.
-- Los 3 títulos tienen que ser variantes genuinamente distintas (no la misma frase con una palabra cambiada).
+- Los 3 títulos tienen que ser variantes genuinamente distintas (no la misma frase con una palabra cambiada) — cada uno resaltando un ángulo distinto (ej. uno enfocado en la marca/modelo, otro en un atributo real, otro en el uso).
+- NUNCA inventes un atributo (color, capacidad, material) que no esté en las keywords, características o descripción de foto que te pasé.
 
 Reglas del título de catálogo:
-- Hasta 120 caracteres, más descriptivo, combinando más de las palabras clave reales para maximizar qué búsquedas lo encuentran.
-- Mismas reglas de qué NO incluir que los títulos normales.
+- Hasta 120 caracteres, usá la mayor cantidad posible combinando TODAS las keywords/atributos reales relevantes que entren, para maximizar qué búsquedas lo encuentran.
+- Mismas reglas de qué NO incluir e no inventar que los títulos normales.
 
 Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicional:
 {"titles": ["...", "...", "..."], "catalogTitle": "..."}`,
