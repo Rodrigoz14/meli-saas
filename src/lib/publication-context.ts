@@ -79,3 +79,35 @@ export function clearPublicationContext(productId: string): void {
 export function minutesAgo(savedAt: number): number {
   return Math.max(0, Math.round((Date.now() - savedAt) / 60000));
 }
+
+// La foto (subida o de una publicación real) se guarda aparte del resto
+// del contexto, en un solo puntero global — no por producto — porque el
+// caso que importa es justo el que NO tiene producto real seleccionado
+// ("empezar desde cero" + subir una foto propia): ahí es donde el usuario
+// tendría que volver a subir el mismo archivo en cada pestaña si no se
+// comparte. Puede ser un data URL (foto subida) o una URL real de ML.
+const IMAGE_KEY = "meliboost:pubctx:_image";
+
+export function saveLastImage(imageDataUrl: string): void {
+  try {
+    sessionStorage.setItem(IMAGE_KEY, imageDataUrl);
+  } catch {
+    // ver nota en savePublicationContext
+  }
+}
+
+export function getLastImage(): string | null {
+  try {
+    return sessionStorage.getItem(IMAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function clearLastImage(): void {
+  try {
+    sessionStorage.removeItem(IMAGE_KEY);
+  } catch {
+    // ver nota en savePublicationContext
+  }
+}

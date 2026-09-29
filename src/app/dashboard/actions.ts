@@ -18,6 +18,28 @@ import { ensureFreshMeliToken, getSaleFee, getTrendingSearches } from "@/lib/mel
 import { discoverCategory, getCategoryDetails, type MeliCategoryNode } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
 
+// El Optimizador SEO y Descripción reciben la foto ya sea recién subida
+// (data URL) o reusada de otra pestaña (puede ser la URL real de una
+// publicación de Mercado Libre, guardada en el contexto compartido) — este
+// helper normaliza cualquiera de las 2 antes de pedirle a Claude que la
+// describa, nunca lanza (si falla, el llamador sigue sin el dato de foto).
+async function describeSharedImage(image: string | undefined): Promise<string | null> {
+  if (!image) return null;
+  const hasUploadedImage = image.startsWith("data:image/");
+  const hasRealImage = isAllowedImageHost(image);
+  if (!hasUploadedImage && !hasRealImage) return null;
+
+  try {
+    const resolved = await resolveImageDataUrl({
+      imageDataUrl: hasUploadedImage ? image : undefined,
+      imageUrl: hasRealImage ? image : undefined,
+    });
+    return await describeProductImage(resolved);
+  } catch {
+    return null;
+  }
+}
+
 // Rentabilidad y Costos y gastos son páginas distintas pero comparten los
 // mismos datos (ver getRentabilidadData) — cualquier cambio hecho desde
 // cualquiera de las dos tiene que invalidar ambas, o la otra se queda con
@@ -319,9 +341,7 @@ export async function runSeoOptimizer(input: {
   const siteId = input.siteId || "MCO";
   const token = await ensureFreshMeliToken(session.user.id);
 
-  const imageDescription = input.imageDataUrl
-    ? await describeProductImage(input.imageDataUrl).catch(() => null)
-    : null;
+  const imageDescription = await describeSharedImage(input.imageDataUrl);
   // Si no hay nombre pero sí foto, la descripción real de la foto pasa a
   // ser la "consulta" para detectar categoría y buscar keywords.
   const productName = input.productName.trim() || imageDescription?.trim() || "";
@@ -465,7 +485,7 @@ export async function generateDescription(
   if (!session?.user?.id) throw new Error("No autenticado");
 
   const { imageDataUrl, ...rest } = input;
-  const imageDescription = imageDataUrl ? await describeProductImage(imageDataUrl).catch(() => null) : null;
+  const imageDescription = await describeSharedImage(imageDataUrl);
 
   return generateDetailedDescription({ ...rest, imageDescription: imageDescription ?? undefined });
 }

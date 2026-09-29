@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Loader2, Package, Search, TrendingUp } from "lucide-react";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { ImageUploadField } from "@/components/dashboard/image-upload-field";
 import { runSeoOptimizer, type CategoryTier, type SeoOptimizerResult } from "@/app/dashboard/actions";
-import { savePublicationContext } from "@/lib/publication-context";
+import { getLastImage, saveLastImage, clearLastImage, savePublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
 const TIER_STYLES: Record<CategoryTier, string> = {
@@ -86,6 +86,17 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
   const selectedProduct = products.find((p) => p.productId === selectedId);
   const previewSrc = imageDataUrl || productThumbnailUrl;
 
+  // Si ya subiste o elegiste una foto en otra pestaña (Descripción o
+  // Imágenes), acá aparece precargada sola — no hace falta volver a
+  // subirla para reusar la info entre pestañas.
+  useEffect(() => {
+    const shared = getLastImage();
+    if (!shared || previewSrc) return;
+    if (shared.startsWith("data:")) setImageDataUrl(shared);
+    else setProductThumbnailUrl(shared);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function handleSelectProduct(id: string) {
     setSelectedId(id);
     const product = products.find((p) => p.productId === id);
@@ -93,15 +104,21 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
     setProductThumbnailUrl(product?.thumbnail || null);
     setImageDataUrl(null);
     setResult(null);
+    if (product?.thumbnail) saveLastImage(product.thumbnail);
   }
 
   function handleImageChange(dataUrl: string | null) {
     setImageDataUrl(dataUrl);
-    if (dataUrl) setProductThumbnailUrl(null);
+    if (dataUrl) {
+      setProductThumbnailUrl(null);
+      saveLastImage(dataUrl);
+    } else {
+      clearLastImage();
+    }
   }
 
   function handleGenerate() {
-    if (!productName.trim() && !imageDataUrl) {
+    if (!productName.trim() && !previewSrc) {
       toast.error("Ingresá el nombre del producto o subí una foto");
       return;
     }
@@ -113,7 +130,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
           keyFeatures: keyFeatures || undefined,
           categoryIdHint: selectedProduct?.categoryId || undefined,
           siteId,
-          imageDataUrl: imageDataUrl || undefined,
+          imageDataUrl: previewSrc || undefined,
         });
         setResult(data);
         savePublicationContext({

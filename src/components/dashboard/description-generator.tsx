@@ -10,7 +10,13 @@ import { CopyButton } from "@/components/dashboard/copy-button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
 import { ImageUploadField } from "@/components/dashboard/image-upload-field";
 import { generateDescription } from "@/app/dashboard/actions";
-import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
+import {
+  clearLastImage,
+  getLastImage,
+  getLastPublicationContext,
+  saveLastImage,
+  type PublicationContext,
+} from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
 // Antes esta herramienta generaba título + descripción juntos, inventando
@@ -36,12 +42,20 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
 
   useEffect(() => {
     const ctx = getLastPublicationContext();
-    if (!ctx) return;
-    setContext(ctx);
-    setSelectedId(ctx.productId);
-    setCurrentTitle(ctx.bestTitle ?? ctx.productName);
-    setCategory(ctx.categoryName ?? "");
-    setKeyFeatures(ctx.rawKeyFeatures || ctx.keywords.map((k) => k.term).join(", "));
+    if (ctx) {
+      setContext(ctx);
+      setSelectedId(ctx.productId);
+      setCurrentTitle(ctx.bestTitle ?? ctx.productName);
+      setCategory(ctx.categoryName ?? "");
+      setKeyFeatures(ctx.rawKeyFeatures || ctx.keywords.map((k) => k.term).join(", "));
+    }
+    // Si ya subiste o elegiste una foto en otra pestaña (SEO o Imágenes),
+    // acá aparece precargada sola — no hace falta volver a subirla.
+    const shared = getLastImage();
+    if (shared) {
+      if (shared.startsWith("data:")) setImageDataUrl(shared);
+      else setProductThumbnailUrl(shared);
+    }
   }, []);
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
@@ -55,11 +69,17 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
     setProductThumbnailUrl(product?.thumbnail || null);
     setImageDataUrl(null);
     setDescription(null);
+    if (product?.thumbnail) saveLastImage(product.thumbnail);
   }
 
   function handleImageChange(dataUrl: string | null) {
     setImageDataUrl(dataUrl);
-    if (dataUrl) setProductThumbnailUrl(null);
+    if (dataUrl) {
+      setProductThumbnailUrl(null);
+      saveLastImage(dataUrl);
+    } else {
+      clearLastImage();
+    }
   }
 
   function handleDismissContext() {
@@ -70,7 +90,7 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
   }
 
   function handleGenerate() {
-    if (!currentTitle.trim() && !keyFeatures.trim() && !imageDataUrl) {
+    if (!currentTitle.trim() && !keyFeatures.trim() && !previewSrc) {
       toast.error("Ingresá al menos el título, las características o una foto del producto");
       return;
     }
@@ -84,7 +104,7 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
           includes,
           warranty,
           returnPolicy,
-          imageDataUrl: imageDataUrl || undefined,
+          imageDataUrl: previewSrc || undefined,
         });
         if (!result) {
           toast.error("No se pudo generar la descripción, intentá de nuevo");

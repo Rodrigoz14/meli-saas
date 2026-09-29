@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
 import { suggestAccentColorFromImage, suggestInfographicSetClaims } from "@/app/dashboard/actions";
-import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
+import { getLastImage, getLastPublicationContext, saveLastImage, type PublicationContext } from "@/lib/publication-context";
 import { fileToDataUrl } from "@/lib/file-to-data-url";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 import type { PublicationProduct } from "@/lib/publications-shared";
@@ -69,11 +69,24 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     setContext(ctx);
     setProductName(ctx.productName);
     setKeyFeatures(ctx.rawKeyFeatures || ctx.keywords.map((k) => k.term).join(", "));
+    let gotImageFromProduct = false;
     if (ctx.productId) {
       const product = products.find((p) => p.productId === ctx.productId);
       if (product) {
         setSelectedProductId(product.productId);
         setProductThumbnailUrl(product.thumbnail || null);
+        gotImageFromProduct = Boolean(product.thumbnail);
+      }
+    }
+
+    // Si ya subiste o elegiste una foto en otra pestaña (SEO o Descripción)
+    // y el producto de arriba no trajo una foto propia, se precarga acá
+    // sola — no hace falta volver a subirla.
+    if (!gotImageFromProduct) {
+      const shared = getLastImage();
+      if (shared) {
+        if (shared.startsWith("data:")) setUploadedDataUrl(shared);
+        else setProductThumbnailUrl(shared);
       }
     }
   }, []);
@@ -96,6 +109,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     setProductName(product.title);
     setProductThumbnailUrl(product.thumbnail || null);
     setUploadedDataUrl(null);
+    if (product.thumbnail) saveLastImage(product.thumbnail);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -108,6 +122,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     const dataUrl = await fileToDataUrl(file);
     setUploadedDataUrl(dataUrl);
     setProductThumbnailUrl(null);
+    saveLastImage(dataUrl);
   }
 
   async function handleSuggest() {
