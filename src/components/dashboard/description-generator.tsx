@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
+import { ImageUploadField } from "@/components/dashboard/image-upload-field";
 import { generateDescription } from "@/app/dashboard/actions";
 import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
@@ -26,6 +27,8 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
   const [includes, setIncludes] = useState("");
   const [warranty, setWarranty] = useState("");
   const [returnPolicy, setReturnPolicy] = useState("");
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [productThumbnailUrl, setProductThumbnailUrl] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [context, setContext] = useState<PublicationContext | null>(null);
@@ -43,11 +46,20 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
 
+  const previewSrc = imageDataUrl || productThumbnailUrl;
+
   function handleSelectProduct(id: string) {
     setSelectedId(id);
     const product = products.find((p) => p.productId === id);
     setCurrentTitle(product?.title ?? "");
+    setProductThumbnailUrl(product?.thumbnail || null);
+    setImageDataUrl(null);
     setDescription(null);
+  }
+
+  function handleImageChange(dataUrl: string | null) {
+    setImageDataUrl(dataUrl);
+    if (dataUrl) setProductThumbnailUrl(null);
   }
 
   function handleDismissContext() {
@@ -58,8 +70,8 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
   }
 
   function handleGenerate() {
-    if (!currentTitle.trim() && !keyFeatures.trim()) {
-      toast.error("Ingresá al menos el título o las características del producto");
+    if (!currentTitle.trim() && !keyFeatures.trim() && !imageDataUrl) {
+      toast.error("Ingresá al menos el título, las características o una foto del producto");
       return;
     }
     startTransition(async () => {
@@ -72,6 +84,7 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
           includes,
           warranty,
           returnPolicy,
+          imageDataUrl: imageDataUrl || undefined,
         });
         if (!result) {
           toast.error("No se pudo generar la descripción, intentá de nuevo");
@@ -140,6 +153,13 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
             className="mt-1.5"
           />
         </div>
+
+        <ImageUploadField
+          label="Imagen del producto (opcional — enriquece la descripción)"
+          hint="La IA describe lo que ve en la foto y lo suma como dato real a la descripción."
+          previewSrc={previewSrc}
+          onChange={handleImageChange}
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <div>

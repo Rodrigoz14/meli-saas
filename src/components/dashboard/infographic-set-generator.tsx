@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
 import { suggestAccentColorFromImage, suggestInfographicSetClaims } from "@/app/dashboard/actions";
 import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
+import { fileToDataUrl } from "@/lib/file-to-data-url";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
@@ -38,15 +39,6 @@ const CATEGORY_LABELS: Record<InfographicSetCategory, string> = {
   en_uso: "5. Producto en uso",
   aclaracion: "6. Aclaración",
 };
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
 
 function emptyClaims(): InfographicClaim[] {
   return CATEGORY_ORDER.map((category) => ({ category, headline: "", subtext: "", bullets: [] }));

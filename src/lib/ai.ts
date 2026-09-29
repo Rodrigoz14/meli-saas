@@ -67,6 +67,10 @@ export type DetailedDescriptionInput = {
   includes?: string;
   warranty?: string;
   returnPolicy?: string;
+  // Descripción real de lo que se ve en la foto (de describeProductImage) —
+  // se la pasamos ya calculada en vez de que esta función reciba la imagen,
+  // para que siga siendo una función de texto puro.
+  imageDescription?: string;
 };
 
 // Selltrix genera una descripción larga con secciones bien separadas
@@ -80,7 +84,7 @@ export type DetailedDescriptionInput = {
 export async function generateDetailedDescription(input: DetailedDescriptionInput): Promise<string | null> {
   const productName = input.productName.trim().slice(0, 200);
   const keyFeatures = input.keyFeatures.trim().slice(0, 800);
-  if (!productName && !keyFeatures) return null;
+  if (!productName && !keyFeatures && !input.imageDescription?.trim()) return null;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -95,6 +99,7 @@ Datos del producto:
 - Marca: ${input.brand?.trim() || "(no especificada)"}
 - Categoría: ${input.category?.trim() || "(no especificada)"}
 - Características/detalles reales que me pasa el vendedor: "${keyFeatures || "(no especificadas, usa solo el nombre del producto)"}"
+${input.imageDescription?.trim() ? `- Lo que se ve realmente en la foto del producto: "${input.imageDescription.trim()}"` : ""}
 
 Necesito estas partes:
 - "intro": 1-2 frases tipo "qué es el producto" — directo, sin adjetivos vacíos.
@@ -412,14 +417,23 @@ Responde ÚNICAMENTE con un array JSON de ${INFOGRAPHIC_SET_CATEGORIES.length} o
   }
 }
 
-// Analiza la foto real del producto (visión de Claude, no un promedio de
-// píxeles) y sugiere un color de acento que combine con el envase — más
-// criterio que "el color más repetido", que suele ser el fondo blanco.
-export async function suggestAccentColor(imageDataUrl: string): Promise<string | null> {
+type SupportedImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+
+function parseImageDataUrl(imageDataUrl: string): { mediaType: SupportedImageMediaType; base64: string } | null {
   const match = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) return null;
   const [, mediaType, base64] = match;
   if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mediaType)) return null;
+  return { mediaType: mediaType as SupportedImageMediaType, base64 };
+}
+
+// Analiza la foto real del producto (visión de Claude, no un promedio de
+// píxeles) y sugiere un color de acento que combine con el envase — más
+// criterio que "el color más repetido", que suele ser el fondo blanco.
+export async function suggestAccentColor(imageDataUrl: string): Promise<string | null> {
+  const parsed = parseImageDataUrl(imageDataUrl);
+  if (!parsed) return null;
+  const { mediaType, base64 } = parsed;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -428,7 +442,7 @@ export async function suggestAccentColor(imageDataUrl: string): Promise<string |
       {
         role: "user",
         content: [
-          { type: "image", source: { type: "base64", media_type: mediaType as "image/jpeg" | "image/png" | "image/webp" | "image/gif", data: base64 } },
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
           {
             type: "text",
             text: `Mirá esta foto de un producto. Necesito UN color de acento (código hex) para usar en una infografía de venta de Mercado Libre — tiene que combinar bien con los colores reales del envase/etiqueta (puede ser un color que ya esté en el producto, o uno complementario que resalte sobre un fondo claro), y verse profesional (ni muy pálido ni neón).
@@ -447,4 +461,43 @@ Responde ÚNICAMENTE con el código hex en formato "#rrggbb", sin texto adiciona
 
   const hexMatch = text.match(/#[0-9a-fA-F]{6}/);
   return hexMatch ? hexMatch[0].toLowerCase() : null;
+}
+
+// Descripción factual de lo que se VE en la foto real (marca/logo visible,
+// tipo de producto, color, accesorios/empaque a la vista) — la reutilizan
+// el Optimizador SEO (como contexto extra para keywords/categoría) y el
+// Generador de Descripciones (como dato real adicional, nunca inventado,
+// para "acerca de"/"características"). A propósito le pedimos SOLO lo
+// observable, no que infiera specs que no se puedan ver en la imagen.
+export async function describeProductImage(imageDataUrl: string): Promise<string | null> {
+  const parsed = parseImageDataUrl(imageDataUrl);
+  if (!parsed) return null;
+  const { mediaType, base64 } = parsed;
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 150,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+          {
+            type: "text",
+            text: `Describí en 1-2 frases SOLO lo que se ve realmente en esta foto de un producto: qué tipo de producto es, marca/logo si es legible, color, y accesorios o empaque visibles. No inventes especificaciones técnicas que no se puedan ver a simple vista (nada de cifras, materiales, ni certificaciones que no estén escritas en la foto).
+
+Responde solo con esa descripción, sin texto adicional.`,
+          },
+        ],
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("")
+    .trim();
+
+  return text || null;
 }

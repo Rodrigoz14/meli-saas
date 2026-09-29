@@ -48,15 +48,26 @@ export async function discoverCategory(siteId: string, query: string): Promise<M
   }
 }
 
+export type MeliCategoryNode = { id: string; name: string };
+
 // GET /categories/{id} — nombre real de una categoría que YA conocemos por
-// otra vía (ej. el categoryId real de una publicación propia), para no
-// mostrar solo el código ("MCO3697") sino también el nombre ("Audífonos").
-export async function getCategoryName(categoryId: string): Promise<string | null> {
+// otra vía (ej. el categoryId real de una publicación propia), más el
+// camino real desde la raíz (path_from_root: ej. "Electrónica, Audio y
+// Video" -> "Audio" -> "Audífonos") — Mercado Libre sí expone esto público.
+// El path es lo que permite pedir tendencias en 3 niveles de amplitud
+// (categoría específica / padre / general) para "Más buscados en categoría".
+export async function getCategoryDetails(categoryId: string): Promise<{ name: string; path: MeliCategoryNode[] } | null> {
   try {
     const res = await fetch(`${MELI_API}/categories/${categoryId}`, { cache: "no-store" });
     if (!res.ok) return null;
     const data = await res.json();
-    return typeof data?.name === "string" ? data.name : null;
+    if (typeof data?.name !== "string") return null;
+    const path: MeliCategoryNode[] = Array.isArray(data.path_from_root)
+      ? data.path_from_root
+          .filter((n: unknown): n is { id: unknown; name: unknown } => typeof n === "object" && n !== null)
+          .map((n: { id: unknown; name: unknown }) => ({ id: String(n.id), name: String(n.name) }))
+      : [];
+    return { name: data.name, path };
   } catch {
     return null;
   }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
+  describeProductImage,
   filterRelevantKeywords,
   generateDetailedDescription,
   generateInfographicSetClaims,
@@ -14,7 +15,7 @@ import {
   type InfographicClaim,
 } from "@/lib/ai";
 import { ensureFreshMeliToken, getSaleFee, getTrendingSearches } from "@/lib/meli-api";
-import { discoverCategory, getCategoryName } from "@/lib/meli-public-api";
+import { discoverCategory, getCategoryDetails, type MeliCategoryNode } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
 
 // Rentabilidad y Costos y gastos son páginas distintas pero comparten los
@@ -281,11 +282,15 @@ export async function calculatePricing(input: PricingCalcInput): Promise<Pricing
   return buildResult(finalPrice, input.cogs, input.shippingCost, input.adsPercent, input.taxPercent, amount, isReal || lastReal);
 }
 
+export type CategoryTier = "alta" | "media" | "baja";
+
 export type SeoOptimizerResult = {
   categoryId: string | null;
   categoryName: string | null;
+  categoryPath: MeliCategoryNode[];
   categorySource: "producto-real" | "detectada" | "no-detectada";
-  keywords: { term: string; score: "alta" | "media" | "baja" }[];
+  categoryTrending: { term: string; tier: CategoryTier }[];
+  keywords: { term: string; score: CategoryTier }[];
   titles: string[];
   catalogTitle: string;
   trendsCount: number;
@@ -293,31 +298,43 @@ export type SeoOptimizerResult = {
 };
 
 // Orquesta el Optimizador SEO: detecta la categoría real de Mercado Libre
-// (si no vino ya de una publicación propia), pide las búsquedas más
-// reales dentro de esa categoría, las combina con sinónimos por IA, filtra
-// lo que no aplica a este producto puntual, y por último genera títulos
-// usando esas keywords reales en vez de inventar un título sin ningún
-// dato de búsqueda real detrás.
+// (si no vino ya de una publicación propia) con su camino completo hasta la
+// raíz, pide las búsquedas más reales en 3 niveles de esa categoría
+// (específica/padre/general — "Más buscados en categoría"), las combina con
+// sinónimos por IA, filtra lo que no aplica a este producto puntual, y por
+// último genera títulos usando esas keywords reales en vez de inventar un
+// título sin ningún dato de búsqueda real detrás. La foto (opcional) es
+// solo una fuente más de contexto real, igual que el nombre o la URL.
 export async function runSeoOptimizer(input: {
   productName: string;
   brand?: string;
   categoryIdHint?: string;
   siteId: string;
+  imageDataUrl?: string;
 }): Promise<SeoOptimizerResult> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
 
-  const productName = input.productName.trim();
   const siteId = input.siteId || "MCO";
   const token = await ensureFreshMeliToken(session.user.id);
 
+  const imageDescription = input.imageDataUrl
+    ? await describeProductImage(input.imageDataUrl).catch(() => null)
+    : null;
+  // Si no hay nombre pero sí foto, la descripción real de la foto pasa a
+  // ser la "consulta" para detectar categoría y buscar keywords.
+  const productName = input.productName.trim() || imageDescription?.trim() || "";
+
   let categoryId: string | null = null;
   let categoryName: string | null = null;
+  let categoryPath: MeliCategoryNode[] = [];
   let categorySource: SeoOptimizerResult["categorySource"] = "no-detectada";
 
   if (input.categoryIdHint) {
     categoryId = input.categoryIdHint;
-    categoryName = await getCategoryName(categoryId).catch(() => null);
+    const details = await getCategoryDetails(categoryId).catch(() => null);
+    categoryName = details?.name ?? null;
+    categoryPath = details?.path ?? [];
     categorySource = "producto-real";
   } else if (productName) {
     const match = await discoverCategory(siteId, productName);
@@ -325,33 +342,78 @@ export async function runSeoOptimizer(input: {
       categoryId = match.categoryId;
       categoryName = match.categoryName;
       categorySource = "detectada";
+      const details = await getCategoryDetails(categoryId).catch(() => null);
+      categoryPath = details?.path ?? [];
     }
   }
 
+  // 3 niveles reales de amplitud: la categoría específica (la hoja), su
+  // padre inmediato, y la más general del árbol — mismas 3 etiquetas que
+  // usa Selltrix ("cat. específica"/"cat. padre"/"cat. general"). Si el
+  // árbol tiene menos de 3 niveles, simplemente hay menos tiers reales.
+  const tiers: { id: string; tier: CategoryTier }[] = [];
+  if (categoryId) tiers.push({ id: categoryId, tier: "baja" });
+  if (categoryPath.length >= 2) tiers.push({ id: categoryPath[categoryPath.length - 2].id, tier: "media" });
+  if (categoryPath.length >= 3) tiers.push({ id: categoryPath[0].id, tier: "alta" });
+  const uniqueTiers = tiers.filter((t, i) => tiers.findIndex((o) => o.id === t.id) === i);
+
   // Cada llamada a Claude se protege por separado — un 503 transitorio de
-  // Anthropic en UNA de las 3 llamadas (visto en producción: "credential
+  // Anthropic en UNA de las llamadas (visto en producción: "credential
   // validation failed" intermitente) no puede tirar abajo todo el
   // Optimizador SEO. Con datos reales de ML (categoría/tendencias) siempre
   // se responde algo útil aunque la parte de IA falle esa vez.
-  const [trendKeywords, aiSynonyms] = await Promise.all([
-    token && categoryId
-      ? getTrendingSearches(token, siteId, categoryId).catch(() => [])
+  const [tierResults, aiSynonyms] = await Promise.all([
+    token
+      ? Promise.all(
+          uniqueTiers.map(async (t) => ({
+            tier: t.tier,
+            keywords: await getTrendingSearches(token, siteId, t.id).catch(() => []),
+          })),
+        )
       : Promise.resolve([]),
     productName ? generateSearchTerms(productName).catch(() => []) : Promise.resolve([]),
   ]);
 
-  const trendTerms = trendKeywords.map((k) => k.keyword);
-  const candidates = Array.from(new Set([...trendTerms, ...aiSynonyms].map((t) => t.trim()).filter(Boolean)));
+  // Si el mismo término aparece en varios niveles, se queda con el más
+  // específico (baja > media > alta) para no duplicar chips.
+  const categoryTrendingMap = new Map<string, { term: string; tier: CategoryTier }>();
+  const tierPriority: CategoryTier[] = ["baja", "media", "alta"];
+  for (const tier of tierPriority) {
+    const result = tierResults.find((r) => r.tier === tier);
+    if (!result) continue;
+    for (const k of result.keywords) {
+      const key = k.keyword.toLowerCase();
+      if (!categoryTrendingMap.has(key)) categoryTrendingMap.set(key, { term: k.keyword, tier });
+    }
+  }
+  const allTrendTerms = Array.from(categoryTrendingMap.values());
+  const leafTrendTerms = (tierResults.find((r) => r.tier === "baja")?.keywords ?? []).map((k) => k.keyword);
+
+  // Igual que con las keywords del producto: se filtran por relevancia
+  // real al producto (las tendencias del nivel "general" del árbol suelen
+  // traer mucho ruido no relacionado).
+  const relevantTrendingTerms =
+    productName && allTrendTerms.length > 0
+      ? await filterRelevantKeywords(
+          productName,
+          allTrendTerms.map((t) => t.term),
+        ).catch(() => allTrendTerms.map((t) => t.term))
+      : [];
+  const categoryTrending = relevantTrendingTerms
+    .map((term) => categoryTrendingMap.get(term.toLowerCase()))
+    .filter((t): t is { term: string; tier: CategoryTier } => Boolean(t));
+
+  const candidates = Array.from(new Set([...leafTrendTerms, ...aiSynonyms].map((t) => t.trim()).filter(Boolean)));
 
   // Si el filtro por IA falla, mejor mostrar los candidatos sin filtrar
   // (con su score real) que no mostrar ninguna keyword.
   const filtered =
     productName && candidates.length > 0 ? await filterRelevantKeywords(productName, candidates).catch(() => candidates) : [];
 
-  const trendSet = new Set(trendTerms.map((t) => t.toLowerCase()));
+  const trendSet = new Set(leafTrendTerms.map((t) => t.toLowerCase()));
   const keywords = filtered.map((term) => {
     const lower = term.toLowerCase();
-    let score: "alta" | "media" | "baja" = "baja";
+    let score: CategoryTier = "baja";
     if (trendSet.has(lower)) {
       score = "alta";
     } else if ([...trendSet].some((t) => t.includes(lower) || lower.includes(t))) {
@@ -372,20 +434,27 @@ export async function runSeoOptimizer(input: {
   return {
     categoryId,
     categoryName,
+    categoryPath,
     categorySource,
+    categoryTrending,
     keywords,
     titles: seoTitles?.titles ?? [],
     catalogTitle: seoTitles?.catalogTitle ?? "",
-    trendsCount: trendTerms.length,
+    trendsCount: allTrendTerms.length,
     aiSynonymsCount: aiSynonyms.length,
   };
 }
 
-export async function generateDescription(input: DetailedDescriptionInput): Promise<string | null> {
+export async function generateDescription(
+  input: Omit<DetailedDescriptionInput, "imageDescription"> & { imageDataUrl?: string },
+): Promise<string | null> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
 
-  return generateDetailedDescription(input);
+  const { imageDataUrl, ...rest } = input;
+  const imageDescription = imageDataUrl ? await describeProductImage(imageDataUrl).catch(() => null) : null;
+
+  return generateDetailedDescription({ ...rest, imageDescription: imageDescription ?? undefined });
 }
 
 // Sugerencias de texto para el set de 5 infografías — el usuario las revisa
