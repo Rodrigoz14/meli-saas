@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
-import { generateOptimizedCopy } from "@/app/dashboard/actions";
+import { generateDescription } from "@/app/dashboard/actions";
 import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
@@ -23,6 +23,9 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
   const [brand, setBrand] = useState("");
   const [category, setCategory] = useState("");
   const [keyFeatures, setKeyFeatures] = useState("");
+  const [includes, setIncludes] = useState("");
+  const [warranty, setWarranty] = useState("");
+  const [returnPolicy, setReturnPolicy] = useState("");
   const [description, setDescription] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [context, setContext] = useState<PublicationContext | null>(null);
@@ -61,12 +64,20 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
     }
     startTransition(async () => {
       try {
-        const copy = await generateOptimizedCopy({ currentTitle, keyFeatures, brand, category });
-        if (!copy) {
+        const result = await generateDescription({
+          productName: currentTitle,
+          keyFeatures,
+          brand,
+          category,
+          includes,
+          warranty,
+          returnPolicy,
+        });
+        if (!result) {
           toast.error("No se pudo generar la descripción, intentá de nuevo");
           return;
         }
-        setDescription(copy.description);
+        setDescription(result);
         toast.success("Descripción generada");
       } catch {
         toast.error("No se pudo generar la descripción, intentá de nuevo");
@@ -159,6 +170,42 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
             Cuanto más detalle pongas, mejor la descripción — la IA no inventa características que no le pasaste.
           </p>
         </div>
+
+        <div>
+          <label className="text-sm font-medium">Se entrega con (opcional)</label>
+          <textarea
+            value={includes}
+            onChange={(e) => setIncludes(e.target.value)}
+            placeholder={"Ej: 1 par de audífonos\nEstuche de carga\nCable USB\nManual de usuario"}
+            rows={3}
+            className="mt-1.5 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Un ítem por línea (o separados por coma). Si lo dejás vacío, esa sección no aparece.</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium">Garantía (opcional)</label>
+            <Input
+              value={warranty}
+              onChange={(e) => setWarranty(e.target.value)}
+              placeholder="Ej: 1 mes por defectos de fabricación"
+              className="mt-1.5"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Política de devolución (opcional)</label>
+            <Input
+              value={returnPolicy}
+              onChange={(e) => setReturnPolicy(e.target.value)}
+              placeholder="Ej: 30 días para cambios"
+              className="mt-1.5"
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Estos 3 campos van tal cual los escribas — nunca los inventa la IA. Si los dejás vacíos, esas secciones simplemente no aparecen en la descripción.
+        </p>
 
         <Button onClick={handleGenerate} disabled={isPending} className="w-full">
           <Sparkles className="mr-2 h-4 w-4" />

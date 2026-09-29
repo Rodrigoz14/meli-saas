@@ -5,13 +5,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import {
   filterRelevantKeywords,
+  generateDetailedDescription,
   generateInfographicSetClaims,
-  generatePublicationCopy,
   generateSearchTerms,
   generateSeoTitles,
   suggestAccentColor,
+  type DetailedDescriptionInput,
   type InfographicClaim,
-  type PublicationCopy,
 } from "@/lib/ai";
 import { ensureFreshMeliToken, getSaleFee, getTrendingSearches } from "@/lib/meli-api";
 import { discoverCategory, getCategoryName } from "@/lib/meli-public-api";
@@ -296,8 +296,8 @@ export type SeoOptimizerResult = {
 // (si no vino ya de una publicación propia), pide las búsquedas más
 // reales dentro de esa categoría, las combina con sinónimos por IA, filtra
 // lo que no aplica a este producto puntual, y por último genera títulos
-// usando esas keywords reales — a diferencia de generatePublicationCopy,
-// que inventa un título sin ningún dato de búsqueda real detrás.
+// usando esas keywords reales en vez de inventar un título sin ningún
+// dato de búsqueda real detrás.
 export async function runSeoOptimizer(input: {
   productName: string;
   brand?: string;
@@ -328,17 +328,25 @@ export async function runSeoOptimizer(input: {
     }
   }
 
+  // Cada llamada a Claude se protege por separado — un 503 transitorio de
+  // Anthropic en UNA de las 3 llamadas (visto en producción: "credential
+  // validation failed" intermitente) no puede tirar abajo todo el
+  // Optimizador SEO. Con datos reales de ML (categoría/tendencias) siempre
+  // se responde algo útil aunque la parte de IA falle esa vez.
   const [trendKeywords, aiSynonyms] = await Promise.all([
     token && categoryId
       ? getTrendingSearches(token, siteId, categoryId).catch(() => [])
       : Promise.resolve([]),
-    productName ? generateSearchTerms(productName) : Promise.resolve([]),
+    productName ? generateSearchTerms(productName).catch(() => []) : Promise.resolve([]),
   ]);
 
   const trendTerms = trendKeywords.map((k) => k.keyword);
   const candidates = Array.from(new Set([...trendTerms, ...aiSynonyms].map((t) => t.trim()).filter(Boolean)));
 
-  const filtered = productName && candidates.length > 0 ? await filterRelevantKeywords(productName, candidates) : [];
+  // Si el filtro por IA falla, mejor mostrar los candidatos sin filtrar
+  // (con su score real) que no mostrar ninguna keyword.
+  const filtered =
+    productName && candidates.length > 0 ? await filterRelevantKeywords(productName, candidates).catch(() => candidates) : [];
 
   const trendSet = new Set(trendTerms.map((t) => t.toLowerCase()));
   const keywords = filtered.map((term) => {
@@ -358,7 +366,7 @@ export async function runSeoOptimizer(input: {
         keywords: keywords.map((k) => k.term),
         categoryName: categoryName ?? undefined,
         brand: input.brand,
-      })
+      }).catch(() => null)
     : null;
 
   return {
@@ -373,16 +381,11 @@ export async function runSeoOptimizer(input: {
   };
 }
 
-export async function generateOptimizedCopy(input: {
-  currentTitle: string;
-  keyFeatures: string;
-  brand?: string;
-  category?: string;
-}): Promise<PublicationCopy | null> {
+export async function generateDescription(input: DetailedDescriptionInput): Promise<string | null> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
 
-  return generatePublicationCopy(input);
+  return generateDetailedDescription(input);
 }
 
 // Sugerencias de texto para el set de 5 infografías — el usuario las revisa

@@ -53,60 +53,57 @@ Dame 6 términos así para "${trimmed}". Responde ÚNICAMENTE con un array JSON 
   }
 }
 
-export type PublicationCopyInput = {
-  currentTitle: string;
+export type DetailedDescriptionInput = {
+  productName: string;
   keyFeatures: string;
   brand?: string;
   category?: string;
+  // Estos 3 son afirmaciones reales de venta (qué trae la caja, garantía,
+  // devolución) — a propósito NUNCA se los generamos con IA (a diferencia
+  // del resto del texto): van tal cual el vendedor los escribió, o la
+  // sección entera se omite. Inventar un plazo de garantía o una política
+  // de devolución falsa es un problema legal/de confianza real, no solo un
+  // detalle de marketing.
+  includes?: string;
+  warranty?: string;
+  returnPolicy?: string;
 };
 
-export type PublicationCopy = {
-  title: string;
-  titleReasoning: string;
-  description: string;
-};
-
-// Título y descripción optimizados para Mercado Libre, siguiendo sus
-// reglas reales de publicación (no un texto de marketing genérico):
-// orden Marca+Producto+Modelo+Atributo clave+Cantidad, sin mayúsculas
-// sostenidas, sin palabras subjetivas ("el mejor", "increíble"), sin
-// emojis/símbolos, sin mencionar envío/garantía/promociones (Mercado
-// Libre rechaza publicaciones que lo hacen), y dentro del límite real de
-// caracteres del título (~60).
-export async function generatePublicationCopy(input: PublicationCopyInput): Promise<PublicationCopy | null> {
-  const currentTitle = input.currentTitle.trim().slice(0, 200);
+// Selltrix genera una descripción larga con secciones bien separadas
+// (¡Qué es el producto!, Acerca de este producto, Ventajas de comprarlo,
+// Características, Se entrega con, Garantía, Política de devolución) — la
+// descripción anterior era un solo párrafo corto + una lista, mucho más
+// pobre. Le pedimos al modelo solo las secciones que sí puede redactar sin
+// inventar nada (intro/about/ventajas/características, siempre basadas en
+// keyFeatures) y las 3 secciones de política real las insertamos nosotros
+// tal cual las escribió el vendedor.
+export async function generateDetailedDescription(input: DetailedDescriptionInput): Promise<string | null> {
+  const productName = input.productName.trim().slice(0, 200);
   const keyFeatures = input.keyFeatures.trim().slice(0, 800);
-  if (!currentTitle && !keyFeatures) return null;
+  if (!productName && !keyFeatures) return null;
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 700,
+    max_tokens: 1000,
     messages: [
       {
         role: "user",
-        content: `Sos un experto en optimización de publicaciones de Mercado Libre (Latinoamérica). Te paso los datos de un producto y necesito un título optimizado y una descripción, siguiendo las reglas REALES de Mercado Libre (no marketing genérico):
-
-Reglas del título:
-- Máximo 60 caracteres.
-- Orden: Marca (si aplica) + Producto + Modelo/Variante + Atributo clave (color/tamaño/material) + Cantidad si aplica.
-- Las palabras que más buscaría un comprador van primero.
-- SIN mayúsculas sostenidas, SIN emojis ni símbolos (~ * ¡ ¡), SIN palabras subjetivas ("el mejor", "increíble", "calidad premium"), SIN mencionar envío/garantía/promociones/precio (Mercado Libre rechaza publicaciones que lo hacen en el título).
-- No repetir palabras.
-
-Reglas de la descripción:
-- Empieza con 1-2 frases que resuelvan qué problema soluciona el producto (sin adjetivos vacíos).
-- Sigue con una lista de características/beneficios concretos (viñetas con "•"), basados SOLO en los datos que te doy — no inventes especificaciones que no te pasé.
-- Cierra con una línea de "Qué incluye" si se puede inferir de los datos.
-- Tono directo y claro, sin superlativos vacíos.
+        content: `Sos un experto en redacción de publicaciones de Mercado Libre (Latinoamérica). Necesito una descripción larga y bien estructurada, basada SOLO en los datos reales que te paso — no inventes especificaciones, certificaciones, cifras ni efectos que no estén acá.
 
 Datos del producto:
-- Título actual (puede estar mal optimizado, es solo referencia): "${currentTitle || "(sin título actual)"}"
+- Producto: "${productName || "(sin nombre)"}"
 - Marca: ${input.brand?.trim() || "(no especificada)"}
 - Categoría: ${input.category?.trim() || "(no especificada)"}
-- Características/detalles que me pasa el vendedor: "${keyFeatures || "(no especificadas, usa el título actual como única referencia)"}"
+- Características/detalles reales que me pasa el vendedor: "${keyFeatures || "(no especificadas, usa solo el nombre del producto)"}"
+
+Necesito estas partes:
+- "intro": 1-2 frases tipo "qué es el producto" — directo, sin adjetivos vacíos.
+- "about": un array de 2 párrafos cortos — el primero sobre para qué sirve/en qué situaciones se usa, el segundo sobre la experiencia/valor de usarlo. Basado solo en los datos reales.
+- "advantages": 4 ventajas concretas de comprar este producto (frases cortas, sin inventar datos que no te dieron — pueden ser ventajas genéricas del tipo de producto si no hay más info, ej. "Libertad de movimiento sin cables").
+- "features": 4-6 características concretas del producto, SOLO de los datos que te pasé (si hay pocos datos, devolvé menos features en vez de inventar).
 
 Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicional:
-{"title": "...", "titleReasoning": "una frase corta explicando por qué ese orden/esas palabras", "description": "..."}`,
+{"intro": "...", "about": ["...", "..."], "advantages": ["...", "...", "...", "..."], "features": ["...", "..."]}`,
       },
     ],
   });
@@ -119,14 +116,45 @@ Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicion
   try {
     const match = text.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(match ? match[0] : text);
-    if (typeof parsed?.title !== "string" || typeof parsed?.description !== "string") return null;
-    return {
-      title: parsed.title.trim().slice(0, 60),
-      titleReasoning: typeof parsed.titleReasoning === "string" ? parsed.titleReasoning.trim() : "",
-      description: parsed.description.trim(),
-    };
+    if (typeof parsed?.intro !== "string" || !Array.isArray(parsed?.about)) return null;
+
+    const about: string[] = parsed.about.filter((p: unknown): p is string => typeof p === "string" && p.trim().length > 0);
+    const advantages: string[] = Array.isArray(parsed.advantages)
+      ? parsed.advantages.filter((a: unknown): a is string => typeof a === "string" && a.trim().length > 0)
+      : [];
+    const features: string[] = Array.isArray(parsed.features)
+      ? parsed.features.filter((f: unknown): f is string => typeof f === "string" && f.trim().length > 0)
+      : [];
+
+    const SEP = "\n\n-----------------------------\n\n";
+    const sections: string[] = [`¡QUÉ ES EL PRODUCTO!\n${parsed.intro.trim()}`];
+
+    if (about.length > 0) {
+      sections.push(`ACERCA DE ESTE PRODUCTO\n${about.join("\n\n")}`);
+    }
+    if (advantages.length > 0) {
+      sections.push(`VENTAJAS DE COMPRARLO\n${advantages.map((a) => `• ${a.trim()}`).join("\n")}`);
+    }
+    if (features.length > 0) {
+      sections.push(`CARACTERÍSTICAS DEL PRODUCTO\n${features.map((f) => `• ${f.trim()}`).join("\n")}`);
+    }
+    if (input.includes?.trim()) {
+      const items = input.includes
+        .split(/\n|,/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      sections.push(`SE ENTREGA CON:\n${items.map((i) => `• ${i}`).join("\n")}`);
+    }
+    if (input.warranty?.trim()) {
+      sections.push(`GARANTÍA\n${input.warranty.trim()}`);
+    }
+    if (input.returnPolicy?.trim()) {
+      sections.push(`POLÍTICA DE DEVOLUCIÓN\n${input.returnPolicy.trim()}`);
+    }
+
+    return sections.join(SEP);
   } catch (err) {
-    console.error("generatePublicationCopy: no se pudo parsear la respuesta del modelo:", text, err);
+    console.error("generateDetailedDescription: no se pudo parsear la respuesta del modelo:", text, err);
     return null;
   }
 }
@@ -186,8 +214,8 @@ export type SeoTitlesResult = {
   catalogTitle: string;
 };
 
-// A diferencia de generatePublicationCopy (que inventa un único título sin
-// ningún dato real de búsqueda), esta función recibe las keywords YA
+// A diferencia de un generador que inventa un único título sin ningún
+// dato real de búsqueda, esta función recibe las keywords YA
 // verificadas contra Mercado Libre (tendencias reales de la categoría +
 // sinónimos filtrados) y les pide variantes de título que las usen — mismas
 // reglas reales de título de Mercado Libre (60 caracteres, sin mayúsculas
