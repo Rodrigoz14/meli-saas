@@ -313,6 +313,24 @@ export function getMeliUserProfile(accessToken: string) {
   return meliFetch<MeliUserProfile>("/users/me", accessToken);
 }
 
+export type MeliTrendKeyword = { keyword: string; url: string };
+
+// /trends/{site} (sin categoryId) trae las búsquedas más populares de TODO
+// el sitio; con categoryId trae las más buscadas DENTRO de esa categoría
+// (ej. para "audífonos" -> "airpods max", "audifonos jbl", etc.) — ambas
+// variantes son reales de Mercado Libre, pero requieren el token del
+// usuario (llamado sin sesión, Mercado Libre las bloquea con un 403 de
+// PolicyAgent, por eso el Optimizador SEO las pide server-side con el
+// token real de la cuenta conectada, no desde la extensión).
+export async function getTrendingSearches(
+  accessToken: string,
+  siteId: string,
+  categoryId?: string,
+): Promise<MeliTrendKeyword[]> {
+  const path = categoryId ? `/trends/${siteId}/${categoryId}` : `/trends/${siteId}`;
+  return meliFetch<MeliTrendKeyword[]>(path, accessToken);
+}
+
 // Trae TODOS los ids de publicaciones activas, paginando (la API limita a
 // 100 por página). Antes se cortaba en las primeras 20, lo que subestimaba
 // las ventas reales de cualquier cuenta con más publicaciones.

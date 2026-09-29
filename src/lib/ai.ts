@@ -131,6 +131,129 @@ Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicion
   }
 }
 
+// El Optimizador SEO junta candidatos de varias fuentes (búsquedas
+// relacionadas reales de la categoría vía /trends, + sinónimos de
+// generateSearchTerms) — algunas de esas búsquedas reales de la categoría
+// no tienen nada que ver con ESTE producto puntual (ej. buscar "audifonos"
+// trae "airpods max" en las tendencias de la categoría, que es de otra
+// marca). Este filtro es el que le da sentido a la etiqueta "Filtrados por
+// IA": descarta lo que no aplica al producto concreto, no inventa nada
+// nuevo.
+export async function filterRelevantKeywords(productName: string, candidates: string[]): Promise<string[]> {
+  const name = productName.trim().slice(0, 150);
+  const list = candidates.map((c) => c.trim()).filter(Boolean).slice(0, 60);
+  if (!name || list.length === 0) return [];
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 500,
+    messages: [
+      {
+        role: "user",
+        content: `Producto: "${name}".
+
+Lista de términos de búsqueda candidatos (vienen de tendencias reales de Mercado Libre y de un generador de sinónimos, así que algunos no van a aplicar a este producto puntual):
+${list.map((t) => `- ${t}`).join("\n")}
+
+Devolveme SOLO los términos de esa lista que un comprador usaría para buscar ESTE producto específico (mismo tipo de producto, no otra marca/modelo distinto ni un producto no relacionado). No agregues términos nuevos que no estén en la lista, no reescribas los términos, solo filtrá.
+
+Responde ÚNICAMENTE con un array JSON de strings (subconjunto exacto de la lista de arriba), sin texto adicional.`,
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed)) return [];
+    const allowed = new Set(list.map((t) => t.toLowerCase()));
+    return parsed
+      .filter((t): t is string => typeof t === "string" && allowed.has(t.trim().toLowerCase()))
+      .map((t) => t.trim());
+  } catch (err) {
+    console.error("filterRelevantKeywords: no se pudo parsear la respuesta del modelo:", text, err);
+    return [];
+  }
+}
+
+export type SeoTitlesResult = {
+  titles: string[];
+  catalogTitle: string;
+};
+
+// A diferencia de generatePublicationCopy (que inventa un único título sin
+// ningún dato real de búsqueda), esta función recibe las keywords YA
+// verificadas contra Mercado Libre (tendencias reales de la categoría +
+// sinónimos filtrados) y les pide variantes de título que las usen — mismas
+// reglas reales de título de Mercado Libre (60 caracteres, sin mayúsculas
+// sostenidas ni palabras subjetivas), más un título largo "de catálogo"
+// (hasta 120 caracteres) para la ficha de producto genérica.
+export async function generateSeoTitles(input: {
+  productName: string;
+  keywords: string[];
+  categoryName?: string;
+  brand?: string;
+}): Promise<SeoTitlesResult | null> {
+  const name = input.productName.trim().slice(0, 150);
+  const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 20);
+  if (!name) return null;
+
+  const message = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 500,
+    messages: [
+      {
+        role: "user",
+        content: `Sos un experto en optimización de publicaciones de Mercado Libre (Latinoamérica). Producto: "${name}". Marca: ${input.brand?.trim() || "(no especificada)"}. Categoría real de Mercado Libre: ${input.categoryName?.trim() || "(no detectada)"}.
+
+Palabras clave reales de búsqueda para este producto (vienen de tendencias reales de Mercado Libre, ya filtradas para que apliquen a este producto):
+${keywords.length > 0 ? keywords.map((k) => `- ${k}`).join("\n") : "(sin keywords reales, usa solo el nombre del producto)"}
+
+Necesito 3 títulos de publicación optimizados, cada uno usando una combinación distinta de esas palabras clave reales (no las ignores, son búsquedas reales de compradores), y 1 título largo para catálogo.
+
+Reglas de los 3 títulos de publicación:
+- Máximo 60 caracteres cada uno.
+- Orden: Marca (si aplica) + Producto + Atributo clave + Cantidad si aplica. Las palabras que más se buscan van primero.
+- SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio.
+- Los 3 títulos tienen que ser variantes genuinamente distintas (no la misma frase con una palabra cambiada).
+
+Reglas del título de catálogo:
+- Hasta 120 caracteres, más descriptivo, combinando más de las palabras clave reales para maximizar qué búsquedas lo encuentran.
+- Mismas reglas de qué NO incluir que los títulos normales.
+
+Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicional:
+{"titles": ["...", "...", "..."], "catalogTitle": "..."}`,
+      },
+    ],
+  });
+
+  const text = message.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join("");
+
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed?.titles) || typeof parsed?.catalogTitle !== "string") return null;
+    return {
+      titles: parsed.titles
+        .filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
+        .map((t: string) => t.trim().slice(0, 60))
+        .slice(0, 3),
+      catalogTitle: parsed.catalogTitle.trim().slice(0, 120),
+    };
+  } catch (err) {
+    console.error("generateSeoTitles: no se pudo parsear la respuesta del modelo:", text, err);
+    return null;
+  }
+}
+
 // Llamados cortos (tipo "badge") para la infografía de Beneficios — cada
 // uno tiene que caber en una tarjeta chica sobre la foto, así que son
 // frases de 2-4 palabras, no oraciones. Basados solo en lo que el usuario

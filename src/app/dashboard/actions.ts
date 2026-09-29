@@ -3,8 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { generateInfographicSetClaims, generatePublicationCopy, suggestAccentColor, type InfographicClaim, type PublicationCopy } from "@/lib/ai";
-import { ensureFreshMeliToken, getSaleFee } from "@/lib/meli-api";
+import {
+  filterRelevantKeywords,
+  generateInfographicSetClaims,
+  generatePublicationCopy,
+  generateSearchTerms,
+  generateSeoTitles,
+  suggestAccentColor,
+  type InfographicClaim,
+  type PublicationCopy,
+} from "@/lib/ai";
+import { ensureFreshMeliToken, getSaleFee, getTrendingSearches } from "@/lib/meli-api";
+import { discoverCategory, getCategoryName } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
 
 // Rentabilidad y Costos y gastos son páginas distintas pero comparten los
@@ -269,6 +279,98 @@ export async function calculatePricing(input: PricingCalcInput): Promise<Pricing
   const finalPrice = (low + high) / 2;
   const { amount, isReal } = await resolveCommission(accessToken, input, finalPrice);
   return buildResult(finalPrice, input.cogs, input.shippingCost, input.adsPercent, input.taxPercent, amount, isReal || lastReal);
+}
+
+export type SeoOptimizerResult = {
+  categoryId: string | null;
+  categoryName: string | null;
+  categorySource: "producto-real" | "detectada" | "no-detectada";
+  keywords: { term: string; score: "alta" | "media" | "baja" }[];
+  titles: string[];
+  catalogTitle: string;
+  trendsCount: number;
+  aiSynonymsCount: number;
+};
+
+// Orquesta el Optimizador SEO: detecta la categoría real de Mercado Libre
+// (si no vino ya de una publicación propia), pide las búsquedas más
+// reales dentro de esa categoría, las combina con sinónimos por IA, filtra
+// lo que no aplica a este producto puntual, y por último genera títulos
+// usando esas keywords reales — a diferencia de generatePublicationCopy,
+// que inventa un título sin ningún dato de búsqueda real detrás.
+export async function runSeoOptimizer(input: {
+  productName: string;
+  brand?: string;
+  categoryIdHint?: string;
+  siteId: string;
+}): Promise<SeoOptimizerResult> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  const productName = input.productName.trim();
+  const siteId = input.siteId || "MCO";
+  const token = await ensureFreshMeliToken(session.user.id);
+
+  let categoryId: string | null = null;
+  let categoryName: string | null = null;
+  let categorySource: SeoOptimizerResult["categorySource"] = "no-detectada";
+
+  if (input.categoryIdHint) {
+    categoryId = input.categoryIdHint;
+    categoryName = await getCategoryName(categoryId).catch(() => null);
+    categorySource = "producto-real";
+  } else if (productName) {
+    const match = await discoverCategory(siteId, productName);
+    if (match) {
+      categoryId = match.categoryId;
+      categoryName = match.categoryName;
+      categorySource = "detectada";
+    }
+  }
+
+  const [trendKeywords, aiSynonyms] = await Promise.all([
+    token && categoryId
+      ? getTrendingSearches(token, siteId, categoryId).catch(() => [])
+      : Promise.resolve([]),
+    productName ? generateSearchTerms(productName) : Promise.resolve([]),
+  ]);
+
+  const trendTerms = trendKeywords.map((k) => k.keyword);
+  const candidates = Array.from(new Set([...trendTerms, ...aiSynonyms].map((t) => t.trim()).filter(Boolean)));
+
+  const filtered = productName && candidates.length > 0 ? await filterRelevantKeywords(productName, candidates) : [];
+
+  const trendSet = new Set(trendTerms.map((t) => t.toLowerCase()));
+  const keywords = filtered.map((term) => {
+    const lower = term.toLowerCase();
+    let score: "alta" | "media" | "baja" = "baja";
+    if (trendSet.has(lower)) {
+      score = "alta";
+    } else if ([...trendSet].some((t) => t.includes(lower) || lower.includes(t))) {
+      score = "media";
+    }
+    return { term, score };
+  });
+
+  const seoTitles = productName
+    ? await generateSeoTitles({
+        productName,
+        keywords: keywords.map((k) => k.term),
+        categoryName: categoryName ?? undefined,
+        brand: input.brand,
+      })
+    : null;
+
+  return {
+    categoryId,
+    categoryName,
+    categorySource,
+    keywords,
+    titles: seoTitles?.titles ?? [],
+    catalogTitle: seoTitles?.catalogTitle ?? "",
+    trendsCount: trendTerms.length,
+    aiSynonymsCount: aiSynonyms.length,
+  };
 }
 
 export async function generateOptimizedCopy(input: {

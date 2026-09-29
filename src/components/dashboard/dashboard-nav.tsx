@@ -30,7 +30,8 @@ export function DashboardNav() {
       <div className="container mx-auto overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="flex h-16 w-max min-w-full items-center gap-2">
           {TABS.map((tab) => {
-            const isActive = pathname === tab.href;
+            const isActive =
+              pathname === tab.href || (tab.href !== "/dashboard" && pathname.startsWith(`${tab.href}/`));
             const Icon = tab.icon;
             return (
               <Link

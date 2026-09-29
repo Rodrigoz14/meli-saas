@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Download, ImageIcon, Loader2, Palette, Sparkles, Upload, Wand2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ContextBanner } from "@/components/dashboard/context-banner";
 import { suggestAccentColorFromImage, suggestInfographicSetClaims } from "@/app/dashboard/actions";
+import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
+import type { PublicationProduct } from "@/lib/publications-shared";
 
-type Product = { productId: string; title: string; thumbnail: string; permalink: string };
+type Product = PublicationProduct;
 
 const ACCENT_OPTIONS = [
   { label: "Índigo", value: "#5670f0" },
@@ -64,6 +67,29 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   const [results, setResults] = useState<Record<InfographicSetCategory, string | null>>(
     {} as Record<InfographicSetCategory, string | null>,
   );
+  const [context, setContext] = useState<PublicationContext | null>(null);
+  const [useContext, setUseContext] = useState(true);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const ctx = getLastPublicationContext();
+    if (!ctx) return;
+    setContext(ctx);
+    setProductName(ctx.productName);
+    setKeyFeatures(ctx.keywords.map((k) => k.term).join(", "));
+    if (ctx.productId) {
+      const product = products.find((p) => p.productId === ctx.productId);
+      if (product) {
+        setSelectedProductId(product.productId);
+        setProductThumbnailUrl(product.thumbnail || null);
+      }
+    }
+  }, []);
+
+  function handleDismissContext() {
+    setUseContext(false);
+    setKeyFeatures("");
+  }
 
   const previewSrc = uploadedDataUrl || productThumbnailUrl;
 
@@ -213,6 +239,15 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+        {context && useContext && (
+          <ContextBanner
+            sourceLabel="el Optimizador SEO / Descripción"
+            summary={`Producto: ${context.productName} · ${context.keywords.length} palabras clave`}
+            savedAt={context.savedAt}
+            onDismiss={handleDismissContext}
+          />
+        )}
+
         <div>
           <label className="text-sm font-medium">Publicación real (opcional)</label>
           <select

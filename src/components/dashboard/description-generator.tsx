@@ -1,43 +1,42 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Check, Copy, Loader2, Package, Sparkles } from "lucide-react";
+import { Loader2, Package, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { CopyButton } from "@/components/dashboard/copy-button";
+import { ContextBanner } from "@/components/dashboard/context-banner";
 import { generateOptimizedCopy } from "@/app/dashboard/actions";
-import type { PublicationCopy } from "@/lib/ai";
+import { getLastPublicationContext, type PublicationContext } from "@/lib/publication-context";
+import type { PublicationProduct } from "@/lib/publications-shared";
 
-type Product = { productId: string; title: string; thumbnail: string; permalink: string };
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-      className="flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    >
-      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copiado" : "Copiar"}
-    </button>
-  );
-}
-
-export function PublicationsOptimizer({ products }: { products: Product[] }) {
+// Antes esta herramienta generaba título + descripción juntos, inventando
+// el título sin ningún dato real de búsqueda. Ahora el título "bueno" lo
+// genera el Optimizador SEO (con keywords reales) — esta página se enfoca
+// en la descripción y, si hay contexto reciente del Optimizador SEO,
+// arranca precargada con ese título/categoría/keywords en vez de en blanco.
+export function DescriptionGenerator({ products }: { products: PublicationProduct[] }) {
   const [selectedId, setSelectedId] = useState("");
   const [currentTitle, setCurrentTitle] = useState("");
   const [brand, setBrand] = useState("");
   const [category, setCategory] = useState("");
   const [keyFeatures, setKeyFeatures] = useState("");
-  const [result, setResult] = useState<PublicationCopy | null>(null);
+  const [description, setDescription] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [context, setContext] = useState<PublicationContext | null>(null);
+  const [useContext, setUseContext] = useState(true);
+
+  useEffect(() => {
+    const ctx = getLastPublicationContext();
+    if (!ctx) return;
+    setContext(ctx);
+    setSelectedId(ctx.productId);
+    setCurrentTitle(ctx.bestTitle ?? ctx.productName);
+    setCategory(ctx.categoryName ?? "");
+    setKeyFeatures(ctx.keywords.map((k) => k.term).join(", "));
+  }, []);
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
 
@@ -45,25 +44,32 @@ export function PublicationsOptimizer({ products }: { products: Product[] }) {
     setSelectedId(id);
     const product = products.find((p) => p.productId === id);
     setCurrentTitle(product?.title ?? "");
-    setResult(null);
+    setDescription(null);
+  }
+
+  function handleDismissContext() {
+    setUseContext(false);
+    setCurrentTitle("");
+    setCategory("");
+    setKeyFeatures("");
   }
 
   function handleGenerate() {
     if (!currentTitle.trim() && !keyFeatures.trim()) {
-      toast.error("Ingresá al menos el título actual o las características del producto");
+      toast.error("Ingresá al menos el título o las características del producto");
       return;
     }
     startTransition(async () => {
       try {
         const copy = await generateOptimizedCopy({ currentTitle, keyFeatures, brand, category });
         if (!copy) {
-          toast.error("No se pudo generar el resultado, intentá de nuevo");
+          toast.error("No se pudo generar la descripción, intentá de nuevo");
           return;
         }
-        setResult(copy);
-        toast.success("Título y descripción generados");
+        setDescription(copy.description);
+        toast.success("Descripción generada");
       } catch {
-        toast.error("No se pudo generar el resultado, intentá de nuevo");
+        toast.error("No se pudo generar la descripción, intentá de nuevo");
       }
     });
   }
@@ -71,6 +77,15 @@ export function PublicationsOptimizer({ products }: { products: Product[] }) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
+        {context && useContext && (
+          <ContextBanner
+            sourceLabel="Optimizador SEO"
+            summary={`Producto: ${context.productName} · ${context.keywords.length} palabras clave`}
+            savedAt={context.savedAt}
+            onDismiss={handleDismissContext}
+          />
+        )}
+
         <div>
           <label className="text-sm font-medium">Publicación real (opcional)</label>
           <select
@@ -106,7 +121,7 @@ export function PublicationsOptimizer({ products }: { products: Product[] }) {
         )}
 
         <div>
-          <label className="text-sm font-medium">Título actual</label>
+          <label className="text-sm font-medium">Título</label>
           <Input
             value={currentTitle}
             onChange={(e) => setCurrentTitle(e.target.value)}
@@ -147,62 +162,32 @@ export function PublicationsOptimizer({ products }: { products: Product[] }) {
 
         <Button onClick={handleGenerate} disabled={isPending} className="w-full">
           <Sparkles className="mr-2 h-4 w-4" />
-          {isPending ? "Generando…" : "Generar con IA"}
+          {isPending ? "Generando…" : "Generar Descripción"}
         </Button>
       </div>
 
       <div className="space-y-4">
-        {!result && !isPending && (
+        {!description && !isPending && (
           <div className="flex h-full min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
-            El título y la descripción optimizados van a aparecer acá.
+            La descripción optimizada va a aparecer acá.
           </div>
         )}
 
         {isPending && (
           <div className="flex h-full min-h-[300px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            Generando título y descripción…
+            Generando descripción…
           </div>
         )}
 
-        {result && !isPending && (
-          <>
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-14px_rgba(99,102,241,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(99,102,241,0.85)]">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-primary">Título optimizado</p>
-                <CopyButton text={result.title} />
-              </div>
-              <p className="mt-2 font-display text-lg font-bold tracking-tight">{result.title}</p>
-              <p
-                className={cn(
-                  "mt-1 text-xs",
-                  result.title.length > 60 ? "text-destructive" : "text-muted-foreground",
-                )}
-              >
-                {result.title.length}/60 caracteres
-              </p>
-              {result.titleReasoning && (
-                <p className="mt-3 border-t border-border/60 pt-3 text-xs text-muted-foreground">
-                  {result.titleReasoning}
-                </p>
-              )}
+        {description && !isPending && (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 shadow-[0_0_20px_-14px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(16,185,129,0.85)]">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Descripción optimizada</p>
+              <CopyButton text={description} />
             </div>
-
-            {currentTitle && (
-              <div className="rounded-xl border border-border bg-muted/30 p-4">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Título actual (referencia)</p>
-                <p className="mt-1 text-sm text-muted-foreground line-through">{currentTitle}</p>
-              </div>
-            )}
-
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 shadow-[0_0_20px_-14px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(16,185,129,0.85)]">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Descripción optimizada</p>
-                <CopyButton text={result.description} />
-              </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm">{result.description}</p>
-            </div>
-          </>
+            <p className="mt-2 whitespace-pre-wrap text-sm">{description}</p>
+          </div>
         )}
       </div>
     </div>
