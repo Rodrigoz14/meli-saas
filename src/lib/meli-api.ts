@@ -54,6 +54,49 @@ async function meliFetch<T>(path: string, accessToken: string, attempt = 0): Pro
   return res.json();
 }
 
+// Primera escritura real contra la API de Mercado Libre en este archivo
+// (todo lo demás acá es GET) — mismo patrón de reintento que meliFetch; es
+// seguro reintentar un 429 acá porque un PUT de título/descripción es
+// idempotente (mandarlo 2 veces con el mismo valor da el mismo resultado
+// final, no duplica nada). El body de error real de Mercado Libre se
+// propaga tal cual (ej. "no se puede editar el título de una publicación
+// con ventas") para que el usuario vea el motivo real, no un mensaje
+// genérico.
+async function meliFetchWrite<T>(
+  path: string,
+  accessToken: string,
+  body: unknown,
+  attempt = 0,
+): Promise<T> {
+  const res = await fetch(`${MELI_API}${path}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 429 && attempt < 2) {
+    await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+    return meliFetchWrite<T>(path, accessToken, body, attempt + 1);
+  }
+  if (!res.ok) {
+    const responseBody = await res.text();
+    throw new Error(`Mercado Libre API ${path} -> ${res.status}: ${responseBody}`);
+  }
+  return res.json();
+}
+
+// PUT /items/{id} — el título es un campo directo del ítem. Mercado Libre
+// puede rechazar el cambio (publicación con ventas, catalogada, etc.) con
+// un error real que se propaga tal cual desde meliFetchWrite.
+export async function updateItemTitle(accessToken: string, itemId: string, title: string): Promise<void> {
+  await meliFetchWrite(`/items/${itemId}`, accessToken, { title });
+}
+
+// PUT /items/{id}/description — a diferencia del título, la descripción es
+// un sub-recurso separado del ítem, no un campo de /items/{id}.
+export async function updateItemDescription(accessToken: string, itemId: string, description: string): Promise<void> {
+  await meliFetchWrite(`/items/${itemId}/description`, accessToken, { plain_text: description });
+}
+
 
 type MeliBillingPeriod = {
   key: string;

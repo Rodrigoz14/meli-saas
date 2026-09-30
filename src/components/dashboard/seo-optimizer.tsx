@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { ImageUploadField } from "@/components/dashboard/image-upload-field";
-import { runSeoOptimizer, type CategoryTier, type SeoOptimizerResult } from "@/app/dashboard/actions";
+import { PublishToMeliButton } from "@/components/dashboard/publish-to-meli-button";
+import { publishTitleToMeli, runSeoOptimizer, type CategoryTier, type SeoOptimizerResult } from "@/app/dashboard/actions";
 import { getLastImage, saveLastImage, clearLastImage, savePublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
@@ -31,7 +32,22 @@ const TIER_LABELS: Record<CategoryTier, string> = {
   baja: "Baja",
 };
 
-function TitleCard({ index, title, limit, catalog }: { index: number; title: string; limit: number; catalog?: boolean }) {
+function TitleCard({
+  index,
+  title,
+  limit,
+  catalog,
+  publishTarget,
+}: {
+  index: number;
+  title: string;
+  limit: number;
+  catalog?: boolean;
+  // El título de catálogo no es un campo real de Mercado Libre (es un
+  // concepto propio de MeliBoost) — por eso solo los 3 títulos normales
+  // reciben publishTarget y pueden publicarse de verdad.
+  publishTarget?: { productId: string; permalink: string };
+}) {
   const over = title.length > limit;
   const pct = Math.min(100, Math.round((title.length / limit) * 100));
   return (
@@ -69,6 +85,16 @@ function TitleCard({ index, title, limit, catalog }: { index: number; title: str
           {title.length}/{limit} caracteres
         </span>
       </div>
+      {publishTarget && (
+        <div className="mt-2 pl-7.5">
+          <PublishToMeliButton
+            label="este título"
+            content={title}
+            permalink={publishTarget.permalink}
+            publish={(content) => publishTitleToMeli(publishTarget.productId, content)}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -326,7 +352,17 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                 </p>
                 <div className="mt-3 space-y-2.5">
                   {result.titles.map((title, i) => (
-                    <TitleCard key={i} index={i + 1} title={title} limit={60} />
+                    <TitleCard
+                      key={i}
+                      index={i + 1}
+                      title={title}
+                      limit={60}
+                      publishTarget={
+                        selectedProduct?.meliItemId
+                          ? { productId: selectedProduct.productId, permalink: selectedProduct.permalink }
+                          : undefined
+                      }
+                    />
                   ))}
                   {result.catalogTitle && (
                     <TitleCard index={result.titles.length + 1} title={result.catalogTitle} limit={120} catalog />

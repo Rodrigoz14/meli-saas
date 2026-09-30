@@ -14,7 +14,13 @@ import {
   type DetailedDescriptionInput,
   type InfographicClaim,
 } from "@/lib/ai";
-import { ensureFreshMeliToken, getSaleFee, getTrendingSearches } from "@/lib/meli-api";
+import {
+  ensureFreshMeliToken,
+  getSaleFee,
+  getTrendingSearches,
+  updateItemDescription,
+  updateItemTitle,
+} from "@/lib/meli-api";
 import { discoverCategory, getCategoryDetails, type MeliCategoryNode } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
 
@@ -521,4 +527,61 @@ export async function suggestAccentColorFromImage(input: {
     imageUrl: hasRealImage ? input.imageUrl : undefined,
   });
   return suggestAccentColor(rawDataUrl);
+}
+
+export type PublishResult = { ok: boolean; error?: string };
+
+// Nunca confía en un meliItemId mandado desde el cliente — lo vuelve a
+// resolver desde la DB, atado al productId Y al userId autenticado, así
+// un usuario no puede escribirle a una publicación que no es suya aunque
+// manipule el request. Devuelve {ok,error} en vez de lanzar porque el
+// motivo real del rechazo de Mercado Libre (ej. "no se puede editar el
+// título de una publicación con ventas") es información que el usuario
+// tiene que ver, no un toast genérico.
+async function resolveOwnMeliItemId(productId: string, userId: string): Promise<string | null> {
+  const product = await prisma.product.findFirst({ where: { id: productId, userId } });
+  return product?.meliItemId ?? null;
+}
+
+// Publica el título optimizado directo sobre la publicación real del
+// usuario en Mercado Libre (PUT /items/{id}) — a diferencia de "Copiar",
+// esto escribe de verdad sobre un listado en vivo, por eso la UI tiene que
+// confirmar antes de llamar a esto.
+export async function publishTitleToMeli(productId: string, title: string): Promise<PublishResult> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  const meliItemId = await resolveOwnMeliItemId(productId, session.user.id);
+  if (!meliItemId) return { ok: false, error: "Esta publicación no tiene un ID real de Mercado Libre asociado." };
+
+  const accessToken = await ensureFreshMeliToken(session.user.id);
+  if (!accessToken) return { ok: false, error: "No hay una cuenta de Mercado Libre conectada." };
+
+  try {
+    await updateItemTitle(accessToken, meliItemId, title);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Mercado Libre rechazó el cambio." };
+  }
+}
+
+// Publica la descripción generada directo sobre la publicación real
+// (PUT /items/{id}/description — sub-recurso separado del título en la
+// API de Mercado Libre).
+export async function publishDescriptionToMeli(productId: string, description: string): Promise<PublishResult> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  const meliItemId = await resolveOwnMeliItemId(productId, session.user.id);
+  if (!meliItemId) return { ok: false, error: "Esta publicación no tiene un ID real de Mercado Libre asociado." };
+
+  const accessToken = await ensureFreshMeliToken(session.user.id);
+  if (!accessToken) return { ok: false, error: "No hay una cuenta de Mercado Libre conectada." };
+
+  try {
+    await updateItemDescription(accessToken, meliItemId, description);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Mercado Libre rechazó el cambio." };
+  }
 }

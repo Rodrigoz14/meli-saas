@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
 import { ImageUploadField } from "@/components/dashboard/image-upload-field";
-import { generateDescription } from "@/app/dashboard/actions";
+import { PublishToMeliButton } from "@/components/dashboard/publish-to-meli-button";
+import { generateDescription, publishDescriptionToMeli } from "@/app/dashboard/actions";
 import {
   clearLastImage,
   getLastImage,
@@ -274,6 +275,16 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
               <CopyButton text={description} />
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm">{description}</p>
+            {selectedProduct?.meliItemId && (
+              <div className="mt-4 border-t border-border/60 pt-4">
+                <PublishToMeliButton
+                  label="esta descripción"
+                  content={description}
+                  permalink={selectedProduct.permalink}
+                  publish={(content) => publishDescriptionToMeli(selectedProduct.productId, content)}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
