@@ -55,6 +55,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isSuggestingColor, setIsSuggestingColor] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isZipping, setIsZipping] = useState(false);
   const [generatingStatus, setGeneratingStatus] = useState("");
   const [results, setResults] = useState<Record<InfographicSetCategory, string | null>>(
     {} as Record<InfographicSetCategory, string | null>,
@@ -97,6 +98,46 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   }
 
   const previewSrc = uploadedDataUrl || productThumbnailUrl;
+  const generatedCount = CATEGORY_ORDER.filter((c) => results[c]).length;
+
+  async function handleDownloadAll() {
+    setIsZipping(true);
+    try {
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+
+      await Promise.all(
+        CATEGORY_ORDER.map(async (category) => {
+          const url = results[category];
+          if (!url) return;
+          const res = await fetch(url);
+          const blob = await res.blob();
+          zip.file(`${category}.png`, blob);
+        }),
+      );
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const safeName =
+        (productName || "infografias")
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 60) || "infografias";
+
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(zipBlob);
+      link.download = `${safeName}-meliboost.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {
+      toast.error("No se pudo armar el zip, intentá de nuevo");
+    } finally {
+      setIsZipping(false);
+    }
+  }
 
   function handleSelectProduct(id: string) {
     setSelectedProductId(id);
@@ -402,38 +443,47 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {CATEGORY_ORDER.map((category) => {
-          const url = results[category];
-          return (
-            <div
-              key={category}
-              className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center"
-            >
-              <p className="text-xs font-semibold text-muted-foreground">{CATEGORY_LABELS[category]}</p>
-              {isGenerating && !url && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
-              {!isGenerating && !url && <ImageIcon className="h-6 w-6 text-muted-foreground/50" />}
-              {url && (
-                <>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={CATEGORY_LABELS[category]}
-                    className="w-full rounded-lg border border-border shadow-[0_0_24px_-14px_rgba(99,102,241,0.7)]"
-                  />
-                  <a
-                    href={url}
-                    download={`infografia-${category}-meliboost.png`}
-                    className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Descargar
-                  </a>
-                </>
-              )}
-            </div>
-          );
-        })}
+      <div className="space-y-4">
+        {generatedCount > 0 && (
+          <Button onClick={handleDownloadAll} disabled={isZipping} variant="outline" className="w-full">
+            {isZipping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            {isZipping ? "Armando zip…" : `Descargar todas (${generatedCount}) en .zip`}
+          </Button>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {CATEGORY_ORDER.map((category) => {
+            const url = results[category];
+            return (
+              <div
+                key={category}
+                className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center"
+              >
+                <p className="text-xs font-semibold text-muted-foreground">{CATEGORY_LABELS[category]}</p>
+                {isGenerating && !url && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
+                {!isGenerating && !url && <ImageIcon className="h-6 w-6 text-muted-foreground/50" />}
+                {url && (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={CATEGORY_LABELS[category]}
+                      className="w-full rounded-lg border border-border shadow-[0_0_24px_-14px_rgba(99,102,241,0.7)]"
+                    />
+                    <a
+                      href={url}
+                      download={`infografia-${category}-meliboost.png`}
+                      className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Descargar
+                    </a>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
