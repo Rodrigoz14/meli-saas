@@ -9,6 +9,8 @@ import { ContextBanner } from "@/components/dashboard/context-banner";
 import { suggestAccentColorFromImage, suggestInfographicSetClaims } from "@/app/dashboard/actions";
 import { getLastImage, getLastPublicationContext, saveLastImage, type PublicationContext } from "@/lib/publication-context";
 import { fileToDataUrl } from "@/lib/file-to-data-url";
+import { saveGeneratedImages } from "@/lib/infographic-store";
+import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/infographic-categories";
 import type { InfographicClaim, InfographicSetCategory } from "@/lib/ai";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
@@ -28,17 +30,6 @@ const ACCENT_OPTIONS = [
   { label: "Violeta", value: "#a855f7" },
   { label: "Gris", value: "#64748b" },
 ];
-
-const CATEGORY_ORDER: InfographicSetCategory[] = ["portada", "producto", "beneficios", "comparacion", "en_uso", "aclaracion"];
-
-const CATEGORY_LABELS: Record<InfographicSetCategory, string> = {
-  portada: "1. Portada",
-  producto: "2. Producto",
-  beneficios: "3. Beneficios",
-  comparacion: "4. Comparación",
-  en_uso: "5. Producto en uso",
-  aclaracion: "6. Aclaración",
-};
 
 function emptyClaims(): InfographicClaim[] {
   return CATEGORY_ORDER.map((category) => ({ category, headline: "", subtext: "", bullets: [] }));
@@ -260,24 +251,31 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
               claim,
             }),
           });
-          if (!res.ok) return { category: claim.category, url: null };
+          if (!res.ok) return { category: claim.category, url: null, blob: null };
           const blob = await res.blob();
-          return { category: claim.category, url: URL.createObjectURL(blob) };
+          return { category: claim.category, url: URL.createObjectURL(blob), blob };
         } catch {
-          return { category: claim.category, url: null };
+          return { category: claim.category, url: null, blob: null };
         }
       }),
     );
 
     const next = {} as Record<InfographicSetCategory, string | null>;
+    const blobs: Partial<Record<InfographicSetCategory, Blob>> = {};
     let failures = 0;
     for (const o of outcomes) {
       next[o.category] = o.url;
+      if (o.blob) blobs[o.category] = o.blob;
       if (!o.url) failures += 1;
     }
     setResults(next);
     setIsGenerating(false);
     setGeneratingStatus("");
+
+    // Para que la pestaña "Publicar" pueda mostrar/subir estas mismas
+    // imágenes sin tener que regenerarlas — mismo productId que ya usan
+    // SEO/Descripción para encontrar el contexto compartido.
+    void saveGeneratedImages(selectedProductId || "_scratch", blobs);
 
     if (failures === 0) toast.success(`Set de ${outcomes.length} infografías generado`);
     else if (failures < outcomes.length) toast.error(`${failures} de ${outcomes.length} infografías fallaron — probá regenerar esas`);

@@ -13,6 +13,7 @@ const TABS = [
   { href: "/dashboard/publicaciones/seo", label: "Optimizador SEO" },
   { href: "/dashboard/publicaciones/descripcion", label: "Descripción" },
   { href: "/dashboard/publicaciones/imagenes", label: "Generador de Imágenes" },
+  { href: "/dashboard/publicaciones/publicar", label: "Publicar" },
 ];
 
 export function PublicacionesTabs() {

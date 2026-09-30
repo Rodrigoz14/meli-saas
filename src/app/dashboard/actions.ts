@@ -15,11 +15,13 @@ import {
   type InfographicClaim,
 } from "@/lib/ai";
 import {
+  appendItemPictures,
   ensureFreshMeliToken,
   getSaleFee,
   getTrendingSearches,
   updateItemDescription,
   updateItemTitle,
+  uploadPicture,
 } from "@/lib/meli-api";
 import { discoverCategory, getCategoryDetails, type MeliCategoryNode } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
@@ -584,4 +586,58 @@ export async function publishDescriptionToMeli(productId: string, description: s
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Mercado Libre rechazó el cambio." };
   }
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) throw new Error("Imagen inválida");
+  const [, mimeType, base64] = match;
+  return new Blob([Buffer.from(base64, "base64")], { type: mimeType });
+}
+
+// Sube las infografías elegidas como fotos reales de la publicación,
+// SUMÁNDOLAS a las que ya tiene (nunca borra las existentes — ver
+// appendItemPictures en meli-api.ts, que trae las actuales antes de
+// escribir). Si una imagen puntual falla al subir, sigue con el resto en
+// vez de abortar todo el lote.
+export async function publishImagesToMeli(
+  productId: string,
+  images: { category: string; dataUrl: string }[],
+): Promise<PublishResult> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  const meliItemId = await resolveOwnMeliItemId(productId, session.user.id);
+  if (!meliItemId) return { ok: false, error: "Esta publicación no tiene un ID real de Mercado Libre asociado." };
+
+  const accessToken = await ensureFreshMeliToken(session.user.id);
+  if (!accessToken) return { ok: false, error: "No hay una cuenta de Mercado Libre conectada." };
+
+  if (images.length === 0) return { ok: false, error: "No hay imágenes seleccionadas para subir." };
+
+  const uploadedIds: string[] = [];
+  const failedCategories: string[] = [];
+  for (const image of images) {
+    try {
+      const id = await uploadPicture(accessToken, dataUrlToBlob(image.dataUrl), `${image.category}.png`);
+      uploadedIds.push(id);
+    } catch {
+      failedCategories.push(image.category);
+    }
+  }
+
+  if (uploadedIds.length === 0) {
+    return { ok: false, error: "No se pudo subir ninguna imagen a Mercado Libre." };
+  }
+
+  try {
+    await appendItemPictures(accessToken, meliItemId, uploadedIds);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Mercado Libre rechazó las imágenes." };
+  }
+
+  if (failedCategories.length > 0) {
+    return { ok: true, error: `${failedCategories.length} imagen(es) no se pudieron subir: ${failedCategories.join(", ")}` };
+  }
+  return { ok: true };
 }

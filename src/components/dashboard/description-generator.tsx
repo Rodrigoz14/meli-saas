@@ -16,6 +16,7 @@ import {
   getLastImage,
   getLastPublicationContext,
   saveLastImage,
+  savePublicationContext,
   type PublicationContext,
 } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
@@ -112,6 +113,15 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
           return;
         }
         setDescription(result);
+        // No se guardaba en ningún lado — se perdía al cambiar de
+        // pestaña. Reusa lo que ya haya en contexto (títulos/keywords)
+        // en vez de pisarlo.
+        savePublicationContext({
+          ...(context ?? { productId: selectedId, productName: currentTitle, keywords: [] }),
+          productId: selectedId,
+          productName: currentTitle || context?.productName || "",
+          description: result,
+        });
         toast.success("Descripción generada");
       } catch {
         toast.error("No se pudo generar la descripción, intentá de nuevo");

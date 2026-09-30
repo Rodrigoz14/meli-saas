@@ -147,7 +147,11 @@ export async function generateDetailedDescription(input: DetailedDescriptionInpu
 
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1700,
+    // La versión "más detallada" de este prompt (3 párrafos + 6 ventajas +
+    // hasta 9 características, todo en oraciones completas) puede superar
+    // 1700 tokens de salida y cortarse a mitad del JSON — visto en vivo,
+    // rompía el parseo. 2600 da margen real de sobra.
+    max_tokens: 2600,
     messages: [
       {
         role: "user",

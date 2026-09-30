@@ -18,7 +18,12 @@ export type PublicationContext = {
   // Optimizador SEO — más rico que la lista plana de keywords, así que
   // Descripción lo prefiere sobre esa lista cuando existe.
   rawKeyFeatures?: string;
+  // Los 3 títulos de publicación que generó el Optimizador SEO (más el
+  // de catálogo, aparte) — bestTitle se mantiene para no romper la
+  // precarga que ya usan Descripción/Imágenes (siempre es titles[0]).
   bestTitle?: string;
+  titles?: string[];
+  catalogTitle?: string;
   description?: string;
   savedAt: number;
 };

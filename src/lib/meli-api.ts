@@ -16,7 +16,7 @@ export type MeliItem = {
   // `thumbnail` es la versión chica (sufijo "-I", pensada para grillas de
   // búsqueda) — la misma respuesta ya trae la foto real en resolución
   // completa acá, sin ninguna llamada extra a la API.
-  pictures?: { url?: string; secure_url?: string }[];
+  pictures?: { id?: string; url?: string; secure_url?: string }[];
   category_id: string;
   listing_type_id: string;
   available_quantity: number;
@@ -95,6 +95,39 @@ export async function updateItemTitle(accessToken: string, itemId: string, title
 // un sub-recurso separado del ítem, no un campo de /items/{id}.
 export async function updateItemDescription(accessToken: string, itemId: string, description: string): Promise<void> {
   await meliFetchWrite(`/items/${itemId}/description`, accessToken, { plain_text: description });
+}
+
+// POST /pictures/items/upload — sube el binario a Mercado Libre y
+// devuelve su id real, todavía SIN asociar a ninguna publicación (subir
+// sin asociar no toca ningún listado en vivo). Multipart, no JSON, por
+// eso no pasa por meliFetchWrite.
+export async function uploadPicture(accessToken: string, blob: Blob, filename: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", blob, filename);
+
+  const res = await fetch(`${MELI_API}/pictures/items/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Mercado Libre API /pictures/items/upload -> ${res.status}: ${body}`);
+  }
+  const data = (await res.json()) as { id?: string };
+  if (!data.id) throw new Error("Mercado Libre no devolvió un id de imagen");
+  return data.id;
+}
+
+// Mercado Libre reemplaza TODO el array de "pictures" en cada PUT a
+// /items/{id} — para agregar sin borrar las fotos reales que ya tiene la
+// publicación, hay que traerlas primero y remandarlas junto con las
+// nuevas (nunca al revés, nunca solo las nuevas).
+export async function appendItemPictures(accessToken: string, itemId: string, newPictureIds: string[]): Promise<void> {
+  const [item] = await getItemsDetails(accessToken, [itemId]);
+  const existingIds = (item?.pictures ?? []).map((p) => p.id).filter((id): id is string => Boolean(id));
+  const pictures = [...existingIds, ...newPictureIds].map((id) => ({ id }));
+  await meliFetchWrite(`/items/${itemId}`, accessToken, { pictures });
 }
 
 

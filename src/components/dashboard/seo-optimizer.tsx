@@ -167,6 +167,8 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
           keywords: data.keywords,
           rawKeyFeatures: keyFeatures || undefined,
           bestTitle: data.titles[0],
+          titles: data.titles,
+          catalogTitle: data.catalogTitle || undefined,
         });
         toast.success("Palabras clave y títulos generados");
       } catch {
