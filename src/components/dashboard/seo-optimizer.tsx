@@ -368,6 +368,12 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                     <TitleCard index={result.titles.length + 1} title={result.catalogTitle} limit={120} catalog />
                   )}
                 </div>
+                {!selectedProduct?.meliItemId && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Elegí una publicación real arriba (no "Empezar desde cero") para poder publicar estos títulos
+                    directo en Mercado Libre.
+                  </p>
+                )}
               </div>
             )}
 

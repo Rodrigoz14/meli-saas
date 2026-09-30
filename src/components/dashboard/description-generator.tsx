@@ -275,16 +275,21 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
               <CopyButton text={description} />
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm">{description}</p>
-            {selectedProduct?.meliItemId && (
-              <div className="mt-4 border-t border-border/60 pt-4">
+            <div className="mt-4 border-t border-border/60 pt-4">
+              {selectedProduct?.meliItemId ? (
                 <PublishToMeliButton
                   label="esta descripción"
                   content={description}
                   permalink={selectedProduct.permalink}
                   publish={(content) => publishDescriptionToMeli(selectedProduct.productId, content)}
                 />
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Elegí una publicación real arriba (no "Empezar desde cero") para poder publicar esta descripción
+                  directo en Mercado Libre.
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
