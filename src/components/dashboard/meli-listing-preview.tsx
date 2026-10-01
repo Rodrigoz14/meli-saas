@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, MessageCircleQuestion, Package, ShoppingCart, Star, Store, Truck } from "lucide-react";
+import { ChevronRight, ImageIcon, MessageCircleQuestion, Package, Search, ShoppingCart, Star, Store, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const SIMILAR_PLACEHOLDERS = Array.from({ length: 5 });
 
 // Mockup propio inspirado en el layout real y completo de una ficha de
 // producto de Mercado Libre (Andes UI): galería con miniaturas verticales
@@ -33,6 +35,30 @@ export function MeliListingPreview({
     <div className="overflow-hidden rounded-xl border border-border">
       <div className="flex items-center justify-between bg-muted/40 px-3 py-1.5">
         <span className="text-[11px] font-medium text-muted-foreground">Vista previa — así se vería en Mercado Libre</span>
+      </div>
+
+      {/* Franja amarilla real de la cabecera de Mercado Libre — barra de
+          búsqueda genérica, sin logo/marca, solo el color de interfaz */}
+      <div className="bg-[#fff159] px-3 py-2">
+        <div className="flex items-center gap-2 rounded-md bg-white px-3 py-1.5 text-[12px] text-[#999]">
+          <Search className="h-3.5 w-3.5 shrink-0" />
+          Buscar productos, marcas y más...
+        </div>
+      </div>
+
+      {/* "También te puede interesar" — placeholders genéricos, sin datos reales */}
+      <div className="bg-[#f5f5f5] px-3 py-2.5">
+        <p className="px-1 text-[11px] text-[#666]">También puede interesarte</p>
+        <div className="mt-1.5 flex gap-2 overflow-x-auto">
+          {SIMILAR_PLACEHOLDERS.map((_, i) => (
+            <div
+              key={i}
+              className="flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md bg-[#e0e0e0]"
+            >
+              <ImageIcon className="h-4 w-4 text-[#aaa]" />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Fondo gris claro de la página real de ML, con cada sección como card blanca separada */}
@@ -104,12 +130,15 @@ export function MeliListingPreview({
             </div>
 
             <div className="mt-3 flex flex-col gap-2 border-t border-[#eee] pt-3">
-              <button type="button" className="rounded-md bg-[#3483fa] px-3 py-2 text-sm font-semibold text-white">
+              <button
+                type="button"
+                className="rounded-md bg-[#3483fa] px-3 py-2.5 text-sm font-semibold text-white shadow-[0_2px_0_0_rgba(0,0,0,0.08)] hover:bg-[#2968c8]"
+              >
                 Comprar ahora
               </button>
               <button
                 type="button"
-                className="flex items-center justify-center gap-2 rounded-md bg-[#eaf2ff] px-3 py-2 text-sm font-semibold text-[#3483fa]"
+                className="flex items-center justify-center gap-2 rounded-md bg-[#e7f0ff] px-3 py-2.5 text-sm font-semibold text-[#3483fa] hover:bg-[#d8e8ff]"
               >
                 <ShoppingCart className="h-4 w-4" />
                 Agregar al carrito
