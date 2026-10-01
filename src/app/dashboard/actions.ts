@@ -486,6 +486,33 @@ export async function runSeoOptimizer(input: {
   };
 }
 
+// "Generar más títulos" en el Optimizador SEO — reusa las mismas keywords
+// reales ya calculadas (no vuelve a pegarle a Mercado Libre ni a repetir
+// el filtro por IA), solo le pide al modelo variantes nuevas, distintas a
+// las que ya se muestran.
+export async function generateMoreSeoTitles(input: {
+  productName: string;
+  keywords: string[];
+  categoryName?: string;
+  brand?: string;
+  keyFeatures?: string;
+  excludeTitles: string[];
+}): Promise<string[]> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  const result = await generateSeoTitles({
+    productName: input.productName,
+    keywords: input.keywords,
+    categoryName: input.categoryName,
+    brand: input.brand,
+    keyFeatures: input.keyFeatures,
+    excludeTitles: input.excludeTitles,
+  }).catch(() => null);
+
+  return result?.titles ?? [];
+}
+
 export async function generateDescription(
   input: Omit<DetailedDescriptionInput, "imageDescription"> & { imageDataUrl?: string },
 ): Promise<string | null> {

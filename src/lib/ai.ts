@@ -277,6 +277,18 @@ Responde ÚNICAMENTE con un array JSON de strings (subconjunto exacto de la list
   }
 }
 
+// Mercado Libre no exige esto, pero Selltrix y la mayoría de publicaciones
+// reales usan Title Case — cada palabra con su primera letra en mayúscula,
+// sin tocar el resto de cada palabra (así "MacroBlends" no se rompe, y
+// "300gr" queda igual). Se aplica en código en vez de confiar en que el
+// modelo lo respete siempre.
+function toTitleCase(text: string): string {
+  return text
+    .split(" ")
+    .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+    .join(" ");
+}
+
 export type SeoTitlesResult = {
   titles: string[];
   catalogTitle: string;
@@ -296,11 +308,16 @@ export async function generateSeoTitles(input: {
   brand?: string;
   keyFeatures?: string;
   imageDescription?: string;
+  // Para "Generar más títulos": la misma función, pidiéndole variantes
+  // genuinamente distintas a las que ya se mostraron, en vez de arrancar
+  // de cero o arriesgar duplicados casi idénticos.
+  excludeTitles?: string[];
 }): Promise<SeoTitlesResult | null> {
   const name = input.productName.trim().slice(0, 150);
   const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 25);
   const keyFeatures = input.keyFeatures?.trim().slice(0, 500) ?? "";
   const imageDescription = input.imageDescription?.trim().slice(0, 300) ?? "";
+  const excludeTitles = input.excludeTitles?.map((t) => t.trim()).filter(Boolean) ?? [];
   if (!name) return null;
 
   const message = await anthropic.messages.create({
@@ -315,8 +332,9 @@ ${imageDescription ? `Lo que se ve realmente en la foto: "${imageDescription}"` 
 
 Palabras clave reales de búsqueda para este producto (vienen de tendencias reales de Mercado Libre, ya filtradas para que apliquen a este producto):
 ${keywords.length > 0 ? keywords.map((k) => `- ${k}`).join("\n") : "(sin keywords reales, usa solo el nombre del producto)"}
+${excludeTitles.length > 0 ? `\nYa generamos estos títulos antes — los nuevos tienen que ser variantes GENUINAMENTE distintas, no parecidas:\n${excludeTitles.map((t) => `- ${t}`).join("\n")}` : ""}
 
-Necesito 3 títulos de publicación optimizados y 1 título largo para catálogo — sé lo más detallado y denso posible en información real, aprovechando TODO el espacio de caracteres disponible (no dejes el título corto si hay más keywords/atributos reales para meter).
+Necesito 3 títulos de publicación optimizados${excludeTitles.length > 0 ? " MÁS (distintos a los de arriba)" : ""} y 1 título largo para catálogo — sé lo más detallado y denso posible en información real, aprovechando TODO el espacio de caracteres disponible (no dejes el título corto si hay más keywords/atributos reales para meter).
 
 Reglas de los 3 títulos de publicación:
 - Usá el máximo de caracteres posible, cerca del límite de 60 (no te quedes corto si hay keywords/atributos reales para agregar).
@@ -348,9 +366,9 @@ Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicion
     return {
       titles: parsed.titles
         .filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
-        .map((t: string) => t.trim().slice(0, 60))
+        .map((t: string) => toTitleCase(t.trim().slice(0, 60)))
         .slice(0, 3),
-      catalogTitle: parsed.catalogTitle.trim().slice(0, 120),
+      catalogTitle: toTitleCase(parsed.catalogTitle.trim().slice(0, 120)),
     };
   } catch (err) {
     console.error("generateSeoTitles: no se pudo parsear la respuesta del modelo:", text, err);

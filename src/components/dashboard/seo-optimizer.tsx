@@ -3,14 +3,20 @@
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Loader2, Package, Search, TrendingUp } from "lucide-react";
+import { Loader2, Package, Search, Sparkles, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { CopyButton } from "@/components/dashboard/copy-button";
 import { ImageUploadField } from "@/components/dashboard/image-upload-field";
 import { PublishToMeliButton } from "@/components/dashboard/publish-to-meli-button";
-import { publishTitleToMeli, runSeoOptimizer, type CategoryTier, type SeoOptimizerResult } from "@/app/dashboard/actions";
+import {
+  generateMoreSeoTitles,
+  publishTitleToMeli,
+  runSeoOptimizer,
+  type CategoryTier,
+  type SeoOptimizerResult,
+} from "@/app/dashboard/actions";
 import { getLastImage, saveLastImage, clearLastImage, savePublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
@@ -108,6 +114,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
   const [productThumbnailUrl, setProductThumbnailUrl] = useState<string | null>(null);
   const [result, setResult] = useState<SeoOptimizerResult | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isGeneratingMore, setIsGeneratingMore] = useState(false);
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
   const previewSrc = imageDataUrl || productThumbnailUrl;
@@ -175,6 +182,45 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
         toast.error("No se pudo generar el resultado, intentá de nuevo");
       }
     });
+  }
+
+  async function handleGenerateMore() {
+    if (!result) return;
+    setIsGeneratingMore(true);
+    try {
+      const newTitles = await generateMoreSeoTitles({
+        productName,
+        keywords: result.keywords.map((k) => k.term),
+        categoryName: result.categoryName ?? undefined,
+        brand: brand || undefined,
+        keyFeatures: keyFeatures || undefined,
+        excludeTitles: result.titles,
+      });
+      if (newTitles.length === 0) {
+        toast.error("No se pudieron generar más títulos, intentá de nuevo");
+        return;
+      }
+      const existingLower = new Set(result.titles.map((t) => t.toLowerCase()));
+      const uniqueNew = newTitles.filter((t) => !existingLower.has(t.toLowerCase()));
+      const updatedTitles = [...result.titles, ...uniqueNew];
+      setResult({ ...result, titles: updatedTitles });
+      savePublicationContext({
+        productId: selectedId,
+        productName,
+        categoryId: result.categoryId ?? undefined,
+        categoryName: result.categoryName ?? undefined,
+        keywords: result.keywords,
+        rawKeyFeatures: keyFeatures || undefined,
+        bestTitle: updatedTitles[0],
+        titles: updatedTitles,
+        catalogTitle: result.catalogTitle || undefined,
+      });
+      toast.success(`${uniqueNew.length} título(s) nuevo(s) generado(s)`);
+    } catch {
+      toast.error("No se pudo generar más títulos, intentá de nuevo");
+    } finally {
+      setIsGeneratingMore(false);
+    }
   }
 
   return (
@@ -370,6 +416,21 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                     <TitleCard index={result.titles.length + 1} title={result.catalogTitle} limit={120} catalog />
                   )}
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateMore}
+                  disabled={isGeneratingMore}
+                  className="mt-3"
+                >
+                  {isGeneratingMore ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {isGeneratingMore ? "Generando…" : "Generar más títulos"}
+                </Button>
                 {!selectedProduct?.meliItemId && (
                   <p className="mt-3 text-xs text-muted-foreground">
                     Elegí una publicación real arriba (no "Empezar desde cero") para poder publicar estos títulos

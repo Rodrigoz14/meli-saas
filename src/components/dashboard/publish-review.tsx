@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, ExternalLink, Loader2, Package, Send } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2, Package, Send, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,6 +49,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
   const [images, setImages] = useState<ImageMap>({});
   const [imageUrls, setImageUrls] = useState<UrlMap>({});
   const [selectedImages, setSelectedImages] = useState<SelectedMap>({});
+  const [extraImages, setExtraImages] = useState<{ id: string; dataUrl: string }[]>([]);
   const [titleIndex, setTitleIndex] = useState(0);
   const [editableTitle, setEditableTitle] = useState("");
   const [editableDescription, setEditableDescription] = useState("");
@@ -60,7 +61,10 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
   const titles = context?.titles?.length ? context.titles : context?.bestTitle ? [context.bestTitle] : [];
-  const previewImages = CATEGORY_ORDER.map((c) => imageUrls[c]).filter((u): u is string => Boolean(u));
+  const previewImages = [
+    ...CATEGORY_ORDER.map((c) => imageUrls[c]).filter((u): u is string => Boolean(u)),
+    ...extraImages.map((e) => e.dataUrl),
+  ];
 
   async function loadForProduct(productId: string) {
     setIsLoading(true);
@@ -81,6 +85,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
     }
     setImageUrls(urls);
     setSelectedImages(Object.fromEntries(CATEGORY_ORDER.map((c) => [c, Boolean(blobs[c])])) as SelectedMap);
+    setExtraImages([]);
     setIsLoading(false);
   }
 
@@ -100,6 +105,26 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
   function handleSelectTitle(index: number) {
     setTitleIndex(index);
     setEditableTitle(titles[index] ?? "");
+  }
+
+  async function handleAddExtraImages(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+
+    const tooBig = files.filter((f) => f.size > 8 * 1024 * 1024);
+    if (tooBig.length > 0) {
+      toast.error("Alguna imagen pesa más de 8MB y no se agregó");
+    }
+    const valid = files.filter((f) => f.size <= 8 * 1024 * 1024);
+    const added = await Promise.all(
+      valid.map(async (file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, dataUrl: await fileToDataUrl(file) })),
+    );
+    setExtraImages((prev) => [...prev, ...added]);
+  }
+
+  function handleRemoveExtraImage(id: string) {
+    setExtraImages((prev) => prev.filter((img) => img.id !== id));
   }
 
   function handleOpenChange(next: boolean) {
@@ -126,12 +151,13 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
       }));
     }
     const chosenCategories = CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]);
-    if (chosenCategories.length > 0) {
+    if (chosenCategories.length > 0 || extraImages.length > 0) {
       try {
-        const payload = await Promise.all(
+        const generatedPayload = await Promise.all(
           chosenCategories.map(async (category) => ({ category, dataUrl: await fileToDataUrl(images[category]!) })),
         );
-        results.images = await publishImagesToMeli(productId, payload);
+        const extraPayload = extraImages.map((img, i) => ({ category: `extra-${i + 1}`, dataUrl: img.dataUrl }));
+        results.images = await publishImagesToMeli(productId, [...generatedPayload, ...extraPayload]);
       } catch {
         results.images = { ok: false, error: "No se pudieron preparar las imágenes para subir." };
       }
@@ -211,7 +237,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
           </div>
         )}
 
-        {previewImages.length > 0 && (
+        {Object.values(imageUrls).some(Boolean) && (
           <div>
             <label className="text-sm font-medium">Infografías generadas</label>
             <p className="mt-0.5 text-xs text-muted-foreground">Elegí cuáles subir como fotos reales de la publicación.</p>
@@ -249,6 +275,33 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
           </div>
         )}
 
+        <div>
+          <label className="text-sm font-medium">Imágenes adicionales (opcional)</label>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Sumá fotos propias del producto además de (o en vez de) las infografías generadas.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {extraImages.map((img) => (
+              <div key={img.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border/60">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={img.dataUrl} alt="" className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveExtraImage(img.id)}
+                  className="absolute top-0.5 right-0.5 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+            <label className="flex h-16 w-16 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted-foreground hover:bg-muted/40">
+              <Upload className="h-4 w-4" />
+              <span className="text-[10px]">Subir</span>
+              <input type="file" accept="image/*" multiple onChange={handleAddExtraImages} className="hidden" />
+            </label>
+          </div>
+        </div>
+
         <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
           <Button
             type="button"
@@ -278,8 +331,11 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
               <ul className="space-y-1 text-sm text-muted-foreground">
                 {editableTitle.trim() && <li>• Título: &ldquo;{editableTitle.trim()}&rdquo;</li>}
                 {editableDescription.trim() && <li>• Descripción ({editableDescription.trim().length} caracteres)</li>}
-                {CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]).length > 0 && (
-                  <li>• {CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]).length} foto(s) nueva(s)</li>
+                {CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]).length + extraImages.length > 0 && (
+                  <li>
+                    • {CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]).length + extraImages.length} foto(s)
+                    nueva(s)
+                  </li>
                 )}
               </ul>
             )}
