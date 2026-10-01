@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, CreditCard, MessageCircleQuestion, Package, ShoppingCart, Star, Store, Truck } from "lucide-react";
+import { ChevronRight, MessageCircleQuestion, Package, ShoppingCart, Star, Store, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Mockup propio inspirado en el layout real y completo de una ficha de
-// producto de Mercado Libre (Andes UI), de punta a punta — galería +
-// compra, medios de pago, características, descripción, preguntas y
-// opiniones, vendedor — tal como se vería una publicación recién creada
-// (sin historial todavía, por eso preguntas/opiniones muestran el mismo
-// estado vacío real que usa Mercado Libre para una publicación nueva, en
-// vez de inventar reseñas/preguntas que no existen). No es un clon
+// producto de Mercado Libre (Andes UI): galería con miniaturas verticales
+// + título a la izquierda, y una caja de compra separada a la derecha
+// (envío, vendedor, botones, medios de pago) — tal como se ve en una
+// publicación real de escritorio — seguido de las secciones de abajo
+// (características, descripción, preguntas, opiniones). Se muestra como
+// una publicación recién creada (sin historial todavía, por eso
+// preguntas/opiniones usan el mismo estado vacío real que usa Mercado
+// Libre, en vez de inventar reseñas que no existen). No es un clon
 // pixel-perfect ni se publica a nadie, es una referencia dentro de la
 // cuenta del usuario para decidir si publicar.
 export function MeliListingPreview({
@@ -35,68 +37,87 @@ export function MeliListingPreview({
 
       {/* Fondo gris claro de la página real de ML, con cada sección como card blanca separada */}
       <div className="space-y-2 bg-[#ebebeb] p-3 text-[#333]">
-        {categoryName && (
-          <p className="flex items-center gap-1 px-1 text-[12px] text-[#3483fa]">
-            Inicio <ChevronRight className="h-3 w-3 text-[#999]" /> {categoryName}
-          </p>
-        )}
+        <div className="flex items-center justify-between px-1 text-[12px]">
+          {categoryName ? (
+            <p className="flex items-center gap-1 text-[#3483fa]">
+              Inicio <ChevronRight className="h-3 w-3 text-[#999]" /> {categoryName}
+            </p>
+          ) : (
+            <span />
+          )}
+          <span className="text-[#3483fa]">Compartir</span>
+        </div>
 
-        {/* Galería + compra */}
-        <div className="rounded-lg bg-white p-4">
-          <div className="flex gap-2">
-            {images.length > 1 && (
-              <div className="flex max-h-[340px] flex-col gap-1.5 overflow-y-auto">
-                {images.map((src, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setMainIndex(i)}
-                    className={cn(
-                      "h-12 w-12 shrink-0 overflow-hidden rounded-md border-2 bg-white",
-                      i === mainIndex ? "border-[#3483fa]" : "border-[#eee] hover:border-[#ccc]",
-                    )}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="h-full w-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="flex aspect-square flex-1 items-center justify-center overflow-hidden rounded-lg bg-white">
-              {mainImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={mainImage} alt={title} className="h-full w-full object-contain" />
-              ) : (
-                <Package className="h-10 w-10 text-[#ccc]" />
+        {/* Galería + título a la izquierda, caja de compra separada a la derecha — mismo layout que una ficha real de escritorio */}
+        <div className="grid gap-2 lg:grid-cols-[1fr_230px]">
+          <div className="rounded-lg bg-white p-4">
+            <div className="flex gap-2">
+              {images.length > 1 && (
+                <div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto">
+                  {images.map((src, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setMainIndex(i)}
+                      className={cn(
+                        "h-11 w-11 shrink-0 overflow-hidden rounded-md border-2 bg-white",
+                        i === mainIndex ? "border-[#3483fa]" : "border-[#eee] hover:border-[#ccc]",
+                      )}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
               )}
+              <div className="flex aspect-square flex-1 items-center justify-center overflow-hidden rounded-lg bg-white">
+                {mainImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={mainImage} alt={title} className="h-full w-full object-contain" />
+                ) : (
+                  <Package className="h-10 w-10 text-[#ccc]" />
+                )}
+              </div>
+            </div>
+
+            <div className="mt-4 border-t border-[#eee] pt-3">
+              <p className="text-[13px] text-[#999]">Nuevo</p>
+              <h2 className="mt-1 text-xl leading-tight font-normal text-[#333]">{title || "(sin título)"}</h2>
             </div>
           </div>
 
-          <div className="mt-4">
-            <p className="text-[13px] text-[#999]">Nuevo&nbsp;&nbsp;|&nbsp;&nbsp;+1 vendido</p>
-            <h2 className="mt-1 text-xl leading-tight font-normal text-[#333]">{title || "(sin título)"}</h2>
-
-            <p className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-[#00a650]">
-              <Truck className="h-4 w-4" />
-              Llega gratis mañana
+          {/* Caja de compra: envío, vendedor, botones y medios de pago — separada del título, igual que en la ficha real */}
+          <div className="rounded-lg bg-white p-4">
+            <p className="flex items-center gap-1.5 text-[13px] font-medium text-[#00a650]">
+              <Truck className="h-4 w-4 shrink-0" />
+              Envío gratis a todo el país
             </p>
+            <p className="mt-1 text-[12px] text-[#3483fa]">Calcular cuándo llega</p>
 
-            <div className="mt-4 flex flex-col gap-2 sm:max-w-[260px]">
-              <button type="button" className="rounded-md bg-[#3483fa] px-4 py-2.5 text-sm font-semibold text-white">
+            <div className="mt-3 flex items-center gap-2 border-t border-[#eee] pt-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f0f0f0]">
+                <Store className="h-3.5 w-3.5 text-[#999]" />
+              </div>
+              <p className="text-[12px] text-[#555]">
+                Vendido por <span className="font-medium text-[#333]">Tu tienda</span>
+              </p>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 border-t border-[#eee] pt-3">
+              <button type="button" className="rounded-md bg-[#3483fa] px-3 py-2 text-sm font-semibold text-white">
                 Comprar ahora
               </button>
               <button
                 type="button"
-                className="flex items-center justify-center gap-2 rounded-md bg-[#eaf2ff] px-4 py-2.5 text-sm font-semibold text-[#3483fa]"
+                className="flex items-center justify-center gap-2 rounded-md bg-[#eaf2ff] px-3 py-2 text-sm font-semibold text-[#3483fa]"
               >
                 <ShoppingCart className="h-4 w-4" />
                 Agregar al carrito
               </button>
             </div>
 
-            <p className="mt-4 flex items-center gap-1.5 border-t border-[#eee] pt-3 text-[12px] text-[#999]">
-              <CreditCard className="h-3.5 w-3.5" />
-              Mercado Pago · Tarjetas de crédito, débito y efectivo
+            <p className="mt-3 border-t border-[#eee] pt-3 text-[11px] text-[#999]">
+              Mercado Pago · Tarjetas, débito y efectivo
             </p>
           </div>
         </div>
@@ -139,20 +160,6 @@ export function MeliListingPreview({
             Opiniones del producto
           </p>
           <p className="mt-2 text-sm text-[#999]">Este producto todavía no tiene opiniones.</p>
-        </div>
-
-        {/* Vendedor */}
-        <div className="rounded-lg bg-white p-4">
-          <p className="text-base font-semibold">Información del vendedor</p>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f0f0f0]">
-              <Store className="h-5 w-5 text-[#999]" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">Tu tienda</p>
-              <p className="text-xs text-[#999]">Reputación y ubicación se muestran en la publicación real.</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

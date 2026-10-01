@@ -226,7 +226,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
   const hasAnything = titles.length > 0 || Boolean(context?.description) || imageItems.length > 0;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 lg:grid-cols-[400px_1fr]">
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
         <div>
           <label className="text-sm font-medium">Publicación real</label>
