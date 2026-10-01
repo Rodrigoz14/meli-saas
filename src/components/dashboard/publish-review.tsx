@@ -316,7 +316,12 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
       </div>
 
       <div>
-        <MeliListingPreview title={editableTitle} images={previewImages} description={editableDescription} />
+        <MeliListingPreview
+          title={editableTitle}
+          images={previewImages}
+          description={editableDescription}
+          categoryName={context?.categoryName}
+        />
         {selectedProduct?.thumbnail && previewImages.length === 0 && (
           <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
             <Image src={selectedProduct.thumbnail} alt="" width={20} height={20} className="rounded" unoptimized />
