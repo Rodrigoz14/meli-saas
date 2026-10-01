@@ -7,7 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ContextBanner } from "@/components/dashboard/context-banner";
 import { suggestAccentColorFromImage, suggestInfographicSetClaims } from "@/app/dashboard/actions";
-import { getLastImage, getLastPublicationContext, saveLastImage, type PublicationContext } from "@/lib/publication-context";
+import {
+  getLastImage,
+  getLastPublicationContext,
+  getPublicationContext,
+  saveLastImage,
+  savePublicationContext,
+  type PublicationContext,
+} from "@/lib/publication-context";
 import { fileToDataUrl } from "@/lib/file-to-data-url";
 import { saveGeneratedImages } from "@/lib/infographic-store";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/infographic-categories";
@@ -142,6 +149,15 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
     setProductThumbnailUrl(product.thumbnail || null);
     setUploadedDataUrl(null);
     if (product.thumbnail) saveLastImage(product.thumbnail);
+    // Si el usuario arranca directo en esta pestaña (sin pasar por SEO ni
+    // Descripción antes), esto es lo único que le avisa a "Publicar" cuál
+    // es el producto activo — si no, el puntero "último usado" nunca se
+    // setea y Publicar no encuentra ni el producto ni sus infografías.
+    savePublicationContext({
+      ...(getPublicationContext(id) ?? { productId: id, productName: product.title, keywords: [] }),
+      productId: id,
+      productName: product.title,
+    });
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

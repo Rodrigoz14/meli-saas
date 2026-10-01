@@ -3,7 +3,17 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, ExternalLink, Loader2, Package, Send, Upload, X } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Loader2,
+  Send,
+  Upload,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,8 +40,20 @@ import type { InfographicSetCategory } from "@/lib/ai";
 import type { PublicationProduct } from "@/lib/publications-shared";
 
 type ImageMap = Partial<Record<InfographicSetCategory, Blob>>;
-type UrlMap = Partial<Record<InfographicSetCategory, string>>;
-type SelectedMap = Partial<Record<InfographicSetCategory, boolean>>;
+
+// Un solo orden para TODO lo que se va a publicar (infografías + fotos
+// subidas a mano) — antes eran 2 listas separadas sin orden entre ellas;
+// el orden importa de verdad porque la PRIMERA foto incluida pasa a ser
+// la portada de la publicación en Mercado Libre.
+type ImageItem = {
+  id: string;
+  label: string;
+  previewUrl: string;
+  included: boolean;
+  source: "infographic" | "extra";
+  category?: InfographicSetCategory;
+  dataUrl?: string; // solo para "extra" — ya es un data URL listo para publicar
+};
 
 type PublishResults = {
   title?: PublishResult;
@@ -47,9 +69,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
   const [selectedId, setSelectedId] = useState("");
   const [context, setContext] = useState<PublicationContext | null>(null);
   const [images, setImages] = useState<ImageMap>({});
-  const [imageUrls, setImageUrls] = useState<UrlMap>({});
-  const [selectedImages, setSelectedImages] = useState<SelectedMap>({});
-  const [extraImages, setExtraImages] = useState<{ id: string; dataUrl: string }[]>([]);
+  const [imageItems, setImageItems] = useState<ImageItem[]>([]);
   const [titleIndex, setTitleIndex] = useState(0);
   const [editableTitle, setEditableTitle] = useState("");
   const [editableDescription, setEditableDescription] = useState("");
@@ -61,10 +81,8 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
   const titles = context?.titles?.length ? context.titles : context?.bestTitle ? [context.bestTitle] : [];
-  const previewImages = [
-    ...CATEGORY_ORDER.map((c) => imageUrls[c]).filter((u): u is string => Boolean(u)),
-    ...extraImages.map((e) => e.dataUrl),
-  ];
+  const includedImages = imageItems.filter((i) => i.included);
+  const previewImages = includedImages.map((i) => i.previewUrl);
 
   async function loadForProduct(productId: string) {
     setIsLoading(true);
@@ -78,14 +96,15 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
 
     const blobs = await getGeneratedImages<InfographicSetCategory>(productId, CATEGORY_ORDER);
     setImages(blobs);
-    const urls: UrlMap = {};
-    for (const category of CATEGORY_ORDER) {
-      const blob = blobs[category];
-      if (blob) urls[category] = URL.createObjectURL(blob);
-    }
-    setImageUrls(urls);
-    setSelectedImages(Object.fromEntries(CATEGORY_ORDER.map((c) => [c, Boolean(blobs[c])])) as SelectedMap);
-    setExtraImages([]);
+    const items: ImageItem[] = CATEGORY_ORDER.filter((c) => blobs[c]).map((category) => ({
+      id: category,
+      label: CATEGORY_LABELS[category],
+      previewUrl: URL.createObjectURL(blobs[category]!),
+      included: true,
+      source: "infographic",
+      category,
+    }));
+    setImageItems(items);
     setIsLoading(false);
   }
 
@@ -118,13 +137,37 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
     }
     const valid = files.filter((f) => f.size <= 8 * 1024 * 1024);
     const added = await Promise.all(
-      valid.map(async (file) => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, dataUrl: await fileToDataUrl(file) })),
+      valid.map(async (file, i) => {
+        const dataUrl = await fileToDataUrl(file);
+        return {
+          id: `extra-${Date.now()}-${i}`,
+          label: "Foto propia",
+          previewUrl: dataUrl,
+          included: true,
+          source: "extra" as const,
+          dataUrl,
+        };
+      }),
     );
-    setExtraImages((prev) => [...prev, ...added]);
+    setImageItems((prev) => [...prev, ...added]);
   }
 
-  function handleRemoveExtraImage(id: string) {
-    setExtraImages((prev) => prev.filter((img) => img.id !== id));
+  function handleRemoveImageItem(id: string) {
+    setImageItems((prev) => prev.filter((img) => img.id !== id));
+  }
+
+  function handleToggleImageItem(id: string) {
+    setImageItems((prev) => prev.map((img) => (img.id === id ? { ...img, included: !img.included } : img)));
+  }
+
+  function handleMoveImageItem(index: number, direction: -1 | 1) {
+    setImageItems((prev) => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }
 
   function handleOpenChange(next: boolean) {
@@ -150,14 +193,18 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
         error: err instanceof Error ? err.message : "No se pudo publicar la descripción.",
       }));
     }
-    const chosenCategories = CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]);
-    if (chosenCategories.length > 0 || extraImages.length > 0) {
+    if (includedImages.length > 0) {
       try {
-        const generatedPayload = await Promise.all(
-          chosenCategories.map(async (category) => ({ category, dataUrl: await fileToDataUrl(images[category]!) })),
+        // El orden de este array es el orden real en que van a quedar las
+        // fotos nuevas en la publicación — por eso se manda tal cual
+        // quedó ordenado en pantalla, no se reordena acá.
+        const payload = await Promise.all(
+          includedImages.map(async (item, i) => ({
+            category: item.source === "infographic" ? item.category! : `extra-${i + 1}`,
+            dataUrl: item.source === "extra" ? item.dataUrl! : await fileToDataUrl(images[item.category!]!),
+          })),
         );
-        const extraPayload = extraImages.map((img, i) => ({ category: `extra-${i + 1}`, dataUrl: img.dataUrl }));
-        results.images = await publishImagesToMeli(productId, [...generatedPayload, ...extraPayload]);
+        results.images = await publishImagesToMeli(productId, payload);
       } catch {
         results.images = { ok: false, error: "No se pudieron preparar las imágenes para subir." };
       }
@@ -176,7 +223,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
     );
   }
 
-  const hasAnything = titles.length > 0 || Boolean(context?.description) || previewImages.length > 0;
+  const hasAnything = titles.length > 0 || Boolean(context?.description) || imageItems.length > 0;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -237,66 +284,70 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
           </div>
         )}
 
-        {Object.values(imageUrls).some(Boolean) && (
-          <div>
-            <label className="text-sm font-medium">Infografías generadas</label>
-            <p className="mt-0.5 text-xs text-muted-foreground">Elegí cuáles subir como fotos reales de la publicación.</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {CATEGORY_ORDER.map((category) => {
-                const url = imageUrls[category];
-                return (
-                  <label
-                    key={category}
-                    className={`flex flex-col items-center gap-1.5 rounded-lg border p-2 text-center ${
-                      url ? "cursor-pointer border-border/60" : "border-dashed border-border/40 opacity-50"
-                    }`}
-                  >
-                    <div className="flex h-16 w-full items-center justify-center overflow-hidden rounded-md bg-muted/40">
-                      {url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={url} alt={CATEGORY_LABELS[category]} className="h-full w-full object-cover" />
-                      ) : (
-                        <Package className="h-5 w-5 text-muted-foreground/40" />
-                      )}
-                    </div>
-                    <span className="text-[11px] text-muted-foreground">{CATEGORY_LABELS[category]}</span>
-                    {url && (
-                      <input
-                        type="checkbox"
-                        checked={Boolean(selectedImages[category])}
-                        onChange={(e) => setSelectedImages((prev) => ({ ...prev, [category]: e.target.checked }))}
-                        className="h-3.5 w-3.5"
-                      />
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         <div>
-          <label className="text-sm font-medium">Imágenes adicionales (opcional)</label>
+          <label className="text-sm font-medium">Fotos a publicar</label>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Sumá fotos propias del producto además de (o en vez de) las infografías generadas.
+            Ordenalas con las flechas — la primera que esté tildada pasa a ser la portada de la publicación.
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {extraImages.map((img) => (
-              <div key={img.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border/60">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.dataUrl} alt="" className="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => handleRemoveExtraImage(img.id)}
-                  className="absolute top-0.5 right-0.5 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
-                >
-                  <X className="h-3 w-3" />
-                </button>
+          <div className="mt-2 space-y-1.5">
+            {imageItems.map((item, index) => (
+              <div
+                key={item.id}
+                className={`flex items-center gap-2 rounded-lg border p-2 ${
+                  item.included ? "border-border/60" : "border-dashed border-border/40 opacity-60"
+                }`}
+              >
+                <div className="flex flex-col">
+                  <button
+                    type="button"
+                    onClick={() => handleMoveImageItem(index, -1)}
+                    disabled={index === 0}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleMoveImageItem(index, 1)}
+                    disabled={index === imageItems.length - 1}
+                    className="text-muted-foreground hover:text-foreground disabled:opacity-30"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-muted/40">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={item.previewUrl} alt={item.label} className="h-full w-full object-cover" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">{item.label}</p>
+                  {index === 0 && item.included && <p className="text-[11px] text-primary">Portada</p>}
+                </div>
+
+                <input
+                  type="checkbox"
+                  checked={item.included}
+                  onChange={() => handleToggleImageItem(item.id)}
+                  title="Incluir al publicar"
+                  className="h-3.5 w-3.5 shrink-0"
+                />
+                {item.source === "extra" && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImageItem(item.id)}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ))}
-            <label className="flex h-16 w-16 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-border text-muted-foreground hover:bg-muted/40">
-              <Upload className="h-4 w-4" />
-              <span className="text-[10px]">Subir</span>
+
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border p-2.5 text-xs text-muted-foreground hover:bg-muted/40">
+              <Upload className="h-3.5 w-3.5" />
+              Subir más fotos
               <input type="file" accept="image/*" multiple onChange={handleAddExtraImages} className="hidden" />
             </label>
           </div>
@@ -331,12 +382,7 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
               <ul className="space-y-1 text-sm text-muted-foreground">
                 {editableTitle.trim() && <li>• Título: &ldquo;{editableTitle.trim()}&rdquo;</li>}
                 {editableDescription.trim() && <li>• Descripción ({editableDescription.trim().length} caracteres)</li>}
-                {CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]).length + extraImages.length > 0 && (
-                  <li>
-                    • {CATEGORY_ORDER.filter((c) => selectedImages[c] && images[c]).length + extraImages.length} foto(s)
-                    nueva(s)
-                  </li>
-                )}
+                {includedImages.length > 0 && <li>• {includedImages.length} foto(s) nueva(s), en el orden elegido</li>}
               </ul>
             )}
 
