@@ -338,11 +338,12 @@ Necesito 3 títulos de publicación optimizados${excludeTitles.length > 0 ? " M�
 
 Reglas de los 3 títulos de publicación:
 - Usá el máximo de caracteres posible, cerca del límite de 60 (no te quedes corto si hay keywords/atributos reales para agregar).
-- Cada título combina una selección DISTINTA de 2-3 keywords reales de la lista (no las ignores, son búsquedas reales de compradores) + cualquier atributo real (marca/color/modelo/característica) que te haya dado el vendedor o la foto.
+- Cada título combina una selección DISTINTA de 2-3 keywords reales de la lista (no las ignores, son búsquedas reales de compradores) + cualquier atributo real (marca/modelo/capacidad/material/característica) que te haya dado el vendedor o la foto.
 - Orden: Marca (si aplica) + Producto + Atributo clave + Cantidad si aplica. Las palabras que más se buscan van primero.
 - SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio.
+- NO menciones el color del producto en ningún título, ni siquiera si lo sabés por las características o la foto — el color suele variar entre unidades/variantes de una misma publicación, así que no va en el título.
 - Los 3 títulos tienen que ser variantes genuinamente distintas (no la misma frase con una palabra cambiada) — cada uno resaltando un ángulo distinto (ej. uno enfocado en la marca/modelo, otro en un atributo real, otro en el uso).
-- NUNCA inventes un atributo (color, capacidad, material) que no esté en las keywords, características o descripción de foto que te pasé.
+- NUNCA inventes un atributo (capacidad, material, etc.) que no esté en las keywords, características o descripción de foto que te pasé.
 
 Reglas del título de catálogo:
 - Hasta 120 caracteres, usá la mayor cantidad posible combinando TODAS las keywords/atributos reales relevantes que entren, para maximizar qué búsquedas lo encuentran.
