@@ -94,9 +94,9 @@ TIPOGRAFÍA Y TEXTO:
 - Headline principal a la izquierda, 2 líneas, tipografía sans-serif condensada extra bold, todo mayúsculas: línea 1 en {COLOR_TEXTO} "{FRASE_GANCHO_LINEA_1}", línea 2 en {COLOR_ACENTO} notablemente más grande "{FRASE_GANCHO_LINEA_2}".
 - Debajo, con espacio respecto al headline, 3-4 bullets en una sola columna: ícono circular lineal (contorno {COLOR_ACENTO}) + texto corto en {COLOR_TEXTO}: "{BENEFICIO_1}", "{BENEFICIO_2}", "{BENEFICIO_3}", "{BENEFICIO_4}".
 
-ESTILO: sigue el SISTEMA DE DISEÑO al pie de la letra. Look premium tipo suplementos/farmacia, alto contraste, cero saturación visual. Sin marcas de agua, sin logos ajenos, sin errores ortográficos.
+ESTILO: sigue el SISTEMA DE DISEÑO al pie de la letra. Look premium de campaña publicitaria de marca, coherente con la categoría real del producto (sea suplemento, electrónica, ropa, hogar, belleza, etc.), alto contraste, cero saturación visual. Sin marcas de agua, sin logos ajenos, sin errores ortográficos.
 
-NO HACER: no tapar información nutricional ni el nombre de marca del envase con texto ni íconos. No usar fondo negro ni oscuro bajo ninguna circunstancia.
+NO HACER: no tapar ninguna información impresa en el empaque o etiqueta real (ingredientes, especificaciones, certificaciones, instrucciones, etc.) ni el nombre de marca del producto con texto ni íconos. No usar fondo negro ni oscuro bajo ninguna circunstancia.
 ```
 
 ## 3. Beneficios
