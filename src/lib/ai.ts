@@ -432,10 +432,10 @@ export type InfographicClaim = {
 const INFOGRAPHIC_SET_CATEGORIES: { key: InfographicSetCategory; desc: string }[] = [
   { key: "portada", desc: "Portada minimalista tipo foto de catálogo — solo el producto centrado sobre un fondo limpio, SIN bullets de venta. El headline es opcional y muy corto (una palabra o el nombre de marca), puede ir vacío \"\"." },
   { key: "producto", desc: "Presentación limpia del producto — headline corto con el nombre/atributo principal, sin bullets de venta." },
-  { key: "beneficios", desc: "El beneficio más fuerte como headline grande (ej. \"NO TIENE AZÚCAR\"), 3-4 bullets cortos de características/beneficios reales." },
+  { key: "beneficios", desc: "El beneficio más fuerte como headline grande (ej. \"BATERÍA DE 20 HORAS\" o \"NO SE ENREDA\"), 3-4 bullets cortos de características/beneficios reales." },
   { key: "comparacion", desc: "Tabla \"headline vs otras marcas genéricas\" — 4-5 bullets de características donde el producto gana, en términos genéricos, SIN nombrar marcas de la competencia." },
-  { key: "en_uso", desc: "Cómo se usa/consume el producto en la práctica — headline con el modo de uso, 2-3 bullets de contexto de uso." },
-  { key: "aclaracion", desc: "Aclara un mito o preocupación común del rubro del producto (headline tipo \"NO DA ACNÉ\" o \"SIN CONTRAINDICACIONES\"), 2-3 bullets que lo respaldan." },
+  { key: "en_uso", desc: "Cómo se usa o aprovecha el producto en la vida real según su categoría — headline con la situación de uso, 2-3 bullets de contexto de uso." },
+  { key: "aclaracion", desc: "Aclara una duda o mito frecuente sobre el producto de su categoría (headline tipo \"ES COMPATIBLE CON TODOS\" o \"NO REQUIERE INSTALACIÓN\"), 2-3 bullets que lo respaldan." },
 ];
 
 // Sugerencias de texto para el set de 5 infografías (producto, beneficios,
@@ -463,7 +463,7 @@ Necesito una PROPUESTA de texto para un set de ${INFOGRAPHIC_SET_CATEGORIES.leng
 ${INFOGRAPHIC_SET_CATEGORIES.map((c, i) => `${i + 1}. ${c.key}: ${c.desc}`).join("\n")}
 
 Reglas estrictas:
-- SOLO usá datos/afirmaciones que estén en el nombre o las características que te pasé. Si no hay suficiente información para una categoría, proponé algo genérico y neutro (ej. "Calidad garantizada") en vez de inventar un dato específico (nunca inventes cifras, porcentajes, ingredientes, certificaciones o efectos que no te dieron).
+- SOLO usá datos/afirmaciones que estén en el nombre o las características que te pasé. Si no hay suficiente información para una categoría, proponé algo genérico y neutro (ej. "Calidad garantizada") en vez de inventar un dato específico (nunca inventes cifras, porcentajes, materiales, especificaciones técnicas, certificaciones o efectos que no te dieron).
 - En "comparacion" nunca nombres una marca competidora real — usá términos genéricos como "otras marcas" u "otros productos".
 - Los headlines van en MAYÚSCULAS, cortos (máximo 5-6 palabras). Los bullets son frases cortas (máximo 6-8 palabras cada una).
 - "subtext" es una frase de apoyo opcional (puede ir vacía "").

@@ -14,7 +14,8 @@ automáticamente.
 | Preservar el producto real | Con el proveedor anterior (Cloudflare/Flux) la IA alucinaba el producto — inventaba forma, texto o marca distintos. Con Higgsfield esto ya no pasa, pero la instrucción se mantiene explícita en los 6 prompts. |
 | Fondo blanco + color de acento, nunca negro | Mercado Libre **rechazó infografías reales con fondo negro** (caso real reportado por el usuario). El fondo va siempre de blanco al color de marca elegido/sugerido, nunca a negro ni a un tono muy oscuro. |
 | Fondos "trabajados" (degradados + formas + textura) | Pedido explícito: "mejorá los fondos, usando figuras con el color de contraste o degradados, texturas, etc." — un fondo plano no cumple esto. |
-| Render dinámico del envase (mockup 3D + ángulo/pose) | Dos pedidos explícitos combinados: (1) convertir el producto en un mockup 3D fotorrealista para que se vea mejor que un recorte plano, y (2) permitir renders con más dinamismo (otro ángulo, inclinado, flotando) para que la pieza no se vea estática — **sin perder la coherencia** del producto real (mismo diseño, texto, logo y colores). |
+| Libertad creativa sobre el producto (perspectiva, ángulo, posición, render) | Pedido explícito: para todo tipo de producto, las piezas pueden variar perspectiva, ángulo, posición y tipo de render para que se vean más dinámicas. **Excepción:** la portada no se modifica (usa la foto real tal cual). En todas las piezas la identidad del producto (logo, etiqueta, textos, colores) queda fija — nunca se reescribe ni inventa. |
+| Prompts válidos para cualquier categoría | Pedido explícito: ningún prompt debe asumir un rubro (suplementos, farmacia, alimentos). Se reemplazaron ejemplos y términos específicos ("modo de preparación", "información nutricional", "envase genérico", "NO TIENE AZÚCAR", "NO DA ACNÉ") por versiones neutrales según categoría. |
 | Tipografía/espaciado/íconos consistentes entre las piezas del set | Pedido de mejorar "en un 100%" la calidad y el diseño — un set de infografías con tipografías e íconos distintos entre sí se ve poco profesional. |
 | Solo 5 categorías originales (producto, beneficios, comparación, en uso, aclaración) | Las imágenes de fichas de producto que se compartieron como referencia eran para guiar el **estilo/diseño**, no para agregar categorías nuevas — se probaron 13 categorías y se revirtió a las 5 originales por pedido explícito. |
 | Categoría "Portada" (nueva, va primera) | Pedido explícito posterior: una imagen de portada minimalista — solo el producto centrado sobre un fondo, sin bullets ni texto de venta — para usar como primera imagen del set. |
@@ -47,12 +48,13 @@ SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de calidad — no te lo p
 - Íconos: un único estilo lineal (outline, grosor de trazo uniforme) para TODOS los íconos de la pieza, siempre en {COLOR_ACENTO}. Nunca mezclar íconos de línea con íconos rellenos en la misma imagen.
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
-- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
+- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del producto, sin sombras duras ni negras.
+- Identidad del producto (regla fija): el logo, la etiqueta, los textos impresos, los colores de marca y las proporciones reales del producto tienen que quedar exactamente como en la foto original. Nunca inventes ni reescribas texto, logos o detalles del producto.
+- Libertad de puesta en escena: el producto puede mostrarse con distinta perspectiva, ángulo, posición, inclinación o tipo de render (fotorrealista 3D, con reflejos, flotando, en pedestal, con sombras dinámicas) para dar más creatividad a la pieza — siempre respetando la identidad del producto de arriba.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.
 
-Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), insertado sobre un fondo nuevo.
+Usa como base la imagen adjunta del producto, insertado sobre un fondo nuevo. PRODUCTO SIN CAMBIOS: no modifiques su perspectiva, ángulo, posición ni tipo de render — usá la foto real tal cual, solo recortala y ubicala sobre el fondo.
 
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre tipo "portada"/foto de catálogo — minimalista, casi sin texto, el protagonista absoluto es el producto centrado.
 
@@ -76,12 +78,13 @@ SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de calidad — no te lo p
 - Íconos: un único estilo lineal (outline, grosor de trazo uniforme) para TODOS los íconos de la pieza, siempre en {COLOR_ACENTO}. Nunca mezclar íconos de línea con íconos rellenos en la misma imagen.
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
-- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
+- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del producto, sin sombras duras ni negras.
+- Identidad del producto (regla fija): el logo, la etiqueta, los textos impresos, los colores de marca y las proporciones reales del producto tienen que quedar exactamente como en la foto original. Nunca inventes ni reescribas texto, logos o detalles del producto.
+- Libertad de puesta en escena: el producto puede mostrarse con distinta perspectiva, ángulo, posición, inclinación o tipo de render (fotorrealista 3D, con reflejos, flotando, en pedestal, con sombras dinámicas) para dar más creatividad a la pieza — siempre respetando la identidad del producto de arriba.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.
 
-Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), insertado sobre un fondo nuevo.
+Usa como base la imagen adjunta del producto, insertado sobre un fondo nuevo. LIBERTAD CREATIVA SOBRE EL PRODUCTO: podés cambiar su perspectiva, ángulo, posición o tipo de render (3/4, frontal, cenital, flotando, con reflejos) para que la pieza se vea más dinámica — manteniendo intacta su identidad (etiqueta, logo, textos y colores).
 
 Genera una infografía cuadrada de 1200x1200 px, formato ficha de producto para Mercado Libre — debe verse como la campaña publicitaria de una marca premium, no como una plantilla genérica.
 
@@ -109,12 +112,13 @@ SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de calidad — no te lo p
 - Íconos: un único estilo lineal (outline, grosor de trazo uniforme) para TODOS los íconos de la pieza, siempre en {COLOR_ACENTO}. Nunca mezclar íconos de línea con íconos rellenos en la misma imagen.
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
-- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
+- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del producto, sin sombras duras ni negras.
+- Identidad del producto (regla fija): el logo, la etiqueta, los textos impresos, los colores de marca y las proporciones reales del producto tienen que quedar exactamente como en la foto original. Nunca inventes ni reescribas texto, logos o detalles del producto.
+- Libertad de puesta en escena: el producto puede mostrarse con distinta perspectiva, ángulo, posición, inclinación o tipo de render (fotorrealista 3D, con reflejos, flotando, en pedestal, con sombras dinámicas) para dar más creatividad a la pieza — siempre respetando la identidad del producto de arriba.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.
 
-Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño). Solo se compone sobre un fondo nuevo.
+Usa como base la imagen adjunta del producto, solo se compone sobre un fondo nuevo. LIBERTAD CREATIVA SOBRE EL PRODUCTO: podés cambiar su perspectiva, ángulo, posición o tipo de render para que la pieza se vea más dinámica — manteniendo intacta su identidad (etiqueta, logo, textos y colores).
 
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre enfocada 100% en comunicar beneficios de {NOMBRE_PRODUCTO}.
 
@@ -141,12 +145,13 @@ SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de calidad — no te lo p
 - Íconos: un único estilo lineal (outline, grosor de trazo uniforme) para TODOS los íconos de la pieza, siempre en {COLOR_ACENTO}. Nunca mezclar íconos de línea con íconos rellenos en la misma imagen.
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
-- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
+- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del producto, sin sombras duras ni negras.
+- Identidad del producto (regla fija): el logo, la etiqueta, los textos impresos, los colores de marca y las proporciones reales del producto tienen que quedar exactamente como en la foto original. Nunca inventes ni reescribas texto, logos o detalles del producto.
+- Libertad de puesta en escena: el producto puede mostrarse con distinta perspectiva, ángulo, posición, inclinación o tipo de render (fotorrealista 3D, con reflejos, flotando, en pedestal, con sombras dinámicas) para dar más creatividad a la pieza — siempre respetando la identidad del producto de arriba.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.
 
-Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), en el lado izquierdo.
+Usa como base la imagen adjunta del producto, en el lado izquierdo. LIBERTAD CREATIVA SOBRE EL PRODUCTO: podés cambiar su perspectiva, ángulo o tipo de render para que la comparación se vea más dinámica — manteniendo intacta su identidad (etiqueta, logo, textos y colores).
 
 Genera una infografía cuadrada de 1200x1200 px de comparación directa para Mercado Libre entre {NOMBRE_PRODUCTO} y un producto genérico/sin marca.
 
@@ -169,14 +174,15 @@ SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de calidad — no te lo p
 - Íconos: un único estilo lineal (outline, grosor de trazo uniforme) para TODOS los íconos de la pieza, siempre en {COLOR_ACENTO}. Nunca mezclar íconos de línea con íconos rellenos en la misma imagen.
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
-- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
+- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del producto, sin sombras duras ni negras.
+- Identidad del producto (regla fija): el logo, la etiqueta, los textos impresos, los colores de marca y las proporciones reales del producto tienen que quedar exactamente como en la foto original. Nunca inventes ni reescribas texto, logos o detalles del producto.
+- Libertad de puesta en escena: el producto puede mostrarse con distinta perspectiva, ángulo, posición, inclinación o tipo de render (fotorrealista 3D, con reflejos, flotando, en pedestal, con sombras dinámicas) para dar más creatividad a la pieza — siempre respetando la identidad del producto de arriba.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.
 
-Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño), integrado con sombra e iluminación de la escena.
+Usa como base la imagen adjunta del producto, integrado con sombra e iluminación de la escena. LIBERTAD CREATIVA SOBRE EL PRODUCTO: podés cambiar su perspectiva, ángulo, posición o tipo de render para que se vea natural dentro de cada escena de uso — manteniendo intacta su identidad (etiqueta, logo, textos y colores).
 
-Genera una infografía cuadrada de 1200x1200 px para Mercado Libre que muestre {NOMBRE_PRODUCTO} en uso / modo de preparación.
+Genera una infografía cuadrada de 1200x1200 px para Mercado Libre que muestre {NOMBRE_PRODUCTO} en uso real, en la vida cotidiana (cómo se usa, se aplica, se lleva o se aprovecha según su categoría).
 
 COMPOSICIÓN:
 - Título superior extra bold en 2 líneas: línea 1 en {COLOR_TEXTO} "{TITULO_USO_LINEA_1}", línea 2 en {COLOR_ACENTO} más grande "{TITULO_USO_LINEA_2}".
@@ -186,7 +192,7 @@ COMPOSICIÓN:
 
 BARRA INFERIOR: 3 claims cortos con ícono, mismo estilo lineal, texto en {COLOR_TEXTO}: "{CLAIM_USO_1}", "{CLAIM_USO_2}", "{CLAIM_USO_3}".
 
-ESTILO: sigue el SISTEMA DE DISEÑO. Fotografía realista y profesional, iluminación coherente entre envase y fondo, alta legibilidad en miniatura.
+ESTILO: sigue el SISTEMA DE DISEÑO. Fotografía realista y profesional, iluminación coherente entre el producto y el fondo, alta legibilidad en miniatura.
 
 NO HACER: no generar rostros de personas reconocibles ni logos ajenos. No usar fondo negro ni oscuro.
 ```
@@ -201,12 +207,13 @@ SISTEMA DE DISEÑO (aplica a toda la pieza, es la base de calidad — no te lo p
 - Íconos: un único estilo lineal (outline, grosor de trazo uniforme) para TODOS los íconos de la pieza, siempre en {COLOR_ACENTO}. Nunca mezclar íconos de línea con íconos rellenos en la misma imagen.
 - Tarjetas y bloques de texto: cuando el texto necesite un fondo propio para separarse del fondo general, usa una tarjeta en {COLOR_PANEL} con esquinas redondeadas suaves y una sombra muy sutil — nunca negro ni gris oscuro.
 - Fondos: nunca un color plano sin más — todo fondo debe tener al menos dos capas de las siguientes (siempre en tonos {COLOR_PRIMARIO}/{COLOR_ACENTO}, jamás negro): (1) un degradado direccional o radial suave; (2) una o dos formas geométricas grandes y desenfocadas (círculos, blobs orgánicos o bandas diagonales) en {COLOR_ACENTO} con baja opacidad, a modo de acento decorativo detrás del producto o del texto; (3) una textura sutil de bajo contraste (puntos finos, líneas diagonales delgadas o un ruido/grano suave) que le dé profundidad sin competir con el texto. El resultado debe verse trabajado, con capas y movimiento — nunca un color liso tipo diapositiva de PowerPoint.
-- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del envase, sin sombras duras ni negras.
-- Render dinámico del envase: renderizalo como un mockup 3D fotorrealista (volumen, reflejos y sombras de su material real) en vez de un recorte plano, y podés variar el ángulo, una leve inclinación o hacerlo flotar para dar más movimiento — pero el diseño, texto, logo, colores y proporciones reales de la etiqueta tienen que quedar exactamente iguales; es una licencia de puesta en escena, no de reinventar el producto.
+- Fotografía del producto: iluminación de estudio tipo softbox a 45°, sombra de contacto realista debajo del producto, sin sombras duras ni negras.
+- Identidad del producto (regla fija): el logo, la etiqueta, los textos impresos, los colores de marca y las proporciones reales del producto tienen que quedar exactamente como en la foto original. Nunca inventes ni reescribas texto, logos o detalles del producto.
+- Libertad de puesta en escena: el producto puede mostrarse con distinta perspectiva, ángulo, posición, inclinación o tipo de render (fotorrealista 3D, con reflejos, flotando, en pedestal, con sombras dinámicas) para dar más creatividad a la pieza — siempre respetando la identidad del producto de arriba.
 - Legibilidad en miniatura: el comprador va a ver esta imagen a unos 300x300px en Mercado Libre — todo el texto debe leerse perfectamente a ese tamaño, con alto contraste y sin fuentes finas.
 - Consistencia de set: esta pieza es una de varias infografías del mismo producto — usa siempre la misma tipografía, el mismo estilo de ícono y la misma paleta, para que todas se vean como una sola campaña.
 
-Usa como base la imagen adjunta del producto (aplicá el "render dinámico del envase" del sistema de diseño). Solo se compone sobre el fondo generado.
+Usa como base la imagen adjunta del producto. Solo se compone sobre el fondo generado. LIBERTAD CREATIVA SOBRE EL PRODUCTO: podés cambiar su perspectiva, ángulo o posición para destacarlo mejor — manteniendo intacta su identidad (etiqueta, logo, textos y colores).
 
 Genera una infografía cuadrada de 1200x1200 px para Mercado Libre tipo "aclaración" de {NOMBRE_PRODUCTO}, con foco en un solo mensaje contundente.
 
@@ -221,7 +228,7 @@ BARRA INFERIOR (opcional): 2-3 claims con ícono, mismo estilo lineal, texto en 
 
 ESTILO: sigue el SISTEMA DE DISEÑO. Máximo contraste tipográfico, tono directo y confiable.
 
-NO HACER: no incluir afirmaciones médicas/regulatorias que no estén en la etiqueta real, no exagerar cifras, no usar fondo negro ni oscuro.
+NO HACER: no incluir afirmaciones de salud, seguridad o certificación que no estén impresas en el producto real, no exagerar cifras, no usar fondo negro ni oscuro.
 ```
 
 ---
