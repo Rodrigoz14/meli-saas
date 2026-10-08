@@ -656,16 +656,12 @@ export function ProductSearch() {
       seen.add(key);
       return true;
     });
-    // Mismo criterio que usa la extensión para una sola búsqueda: ventas
-    // reales (+N vendidos) primero porque son dato real de Mercado Libre, el
-    // resto por visitas estimadas.
-    deduped.sort((a, b) => {
-      const aReal = a.realSales != null;
-      const bReal = b.realSales != null;
-      if (aReal !== bReal) return aReal ? -1 : 1;
-      if (aReal) return (b.realSales ?? 0) - (a.realSales ?? 0);
-      return b.visits - a.visits;
-    });
+    // Ordenado por facturación estimada (precio × visitas estimadas × 3%),
+    // no por visitas crudas — así un producto caro bien posicionado pesa más
+    // que uno barato que solo quedó primero en su propia búsqueda. Sigue
+    // siendo una estimación por posición (ver banner de arriba), no ventas
+    // reales.
+    deduped.sort((a, b) => b.estimatedRevenue - a.estimatedRevenue);
 
     setScanTop(deduped.slice(0, 10));
     setScanLabel(null);
