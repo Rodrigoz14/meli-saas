@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { ArrowDown, ArrowUp, ArrowUpDown, Package, Puzzle, Search, Zap } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Loader2, Package, Puzzle, Radar, Search, Zap } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -25,15 +25,21 @@ import { buildNicheReport, buildRelatedKeywords, type NicheReport, type NicheRow
 // un marcador de posición con la forma correcta de la URL final.
 const EXTENSION_WEBSTORE_URL = "https://chromewebstore.google.com/detail/REPLACE_WITH_EXTENSION_ID";
 
-type SortKey = "title" | "price" | "visits" | "estimatedRevenue" | "seller";
+type SortKey = "title" | "price" | "visits" | "monthlySales" | "estimatedRevenue" | "seller";
 
 const SORT_LABELS: Record<SortKey, string> = {
   title: "publicación",
   price: "precio",
   visits: "visitas",
+  monthlySales: "ventas prob./mes",
   estimatedRevenue: "facturación estimada",
   seller: "vendedor",
 };
+
+// Supuesto de negocio del usuario para esta columna (independiente del 3%
+// interno que usa estimatedRevenue, calibrado contra datos reales de
+// Selltrix para la curva de visitas por posición — no son el mismo número).
+const USER_CONVERSION_RATE = 0.04;
 
 function money(value: number, currencyId: string) {
   try {
@@ -50,11 +56,22 @@ function money(value: number, currencyId: string) {
 // Escucha el "handshake" de la extensión de Chrome (content-scripts/bridge.js)
 // y reenvía búsquedas/resultados vía window.postMessage. Si la extensión no
 // está instalada, nunca llega MELIBOOST_EXTENSION_READY y se usa el mock.
+type SearchOutcome = {
+  rows: NicheRow[];
+  ok: boolean;
+  trending: { isTrending: boolean; trendingKeyword: string | null };
+};
+
 function useExtensionBridge(
   onProgress: (label: string) => void,
   onResult: (query: string, rows: NicheRow[], ok: boolean, trending: { isTrending: boolean; trendingKeyword: string | null }) => void,
 ) {
   const [available, setAvailable] = useState(false);
+  // Resolvers de búsquedas encadenadas (escaneo de varios nichos seguidos) —
+  // si una query tiene un resolver pendiente, el resultado se resuelve ahí
+  // en vez de pasar por onResult, para no pisar el estado de la búsqueda
+  // manual mientras corre un escaneo en segundo plano.
+  const pendingRef = useRef(new Map<string, (outcome: SearchOutcome) => void>());
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
@@ -63,10 +80,18 @@ function useExtensionBridge(
       if (data.type === "MELIBOOST_EXTENSION_READY") setAvailable(true);
       if (data.type === "MELIBOOST_SEARCH_PROGRESS") onProgress(data.label);
       if (data.type === "MELIBOOST_SEARCH_RESULT") {
-        onResult(data.query, data.rows ?? [], Boolean(data.ok), {
-          isTrending: Boolean(data.isTrending),
-          trendingKeyword: data.trendingKeyword ?? null,
-        });
+        const outcome: SearchOutcome = {
+          rows: data.rows ?? [],
+          ok: Boolean(data.ok),
+          trending: { isTrending: Boolean(data.isTrending), trendingKeyword: data.trendingKeyword ?? null },
+        };
+        const resolver = pendingRef.current.get(data.query);
+        if (resolver) {
+          pendingRef.current.delete(data.query);
+          resolver(outcome);
+          return;
+        }
+        onResult(data.query, outcome.rows, outcome.ok, outcome.trending);
       }
     }
     window.addEventListener("message", handleMessage);
@@ -82,7 +107,25 @@ function useExtensionBridge(
     window.postMessage({ source: "meliboost-page", type: "MELIBOOST_START_SEARCH", query, site }, "*");
   }
 
-  return { available, startSearch };
+  // Versión "await" de startSearch, para encadenar N búsquedas una atrás de
+  // otra sin que el usuario tenga que tipear y hacer clic N veces. Cada
+  // búsqueda real abre/scrapea pestañas de Mercado Libre, así que puede
+  // tardar — por eso el timeout generoso en vez de colgarse para siempre si
+  // una query puntual falla en silencio.
+  function startSearchAsync(query: string, site: string, timeoutMs = 60_000): Promise<SearchOutcome> {
+    return new Promise((resolve) => {
+      pendingRef.current.set(query, resolve);
+      startSearch(query, site);
+      setTimeout(() => {
+        if (pendingRef.current.has(query)) {
+          pendingRef.current.delete(query);
+          resolve({ rows: [], ok: false, trending: { isTrending: false, trendingKeyword: null } });
+        }
+      }, timeoutMs);
+    });
+  }
+
+  return { available, startSearch, startSearchAsync };
 }
 
 function SortableHead({
@@ -178,6 +221,8 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
           return row.price;
         case "visits":
           return row.visits;
+        case "monthlySales":
+          return row.visits * USER_CONVERSION_RATE;
         case "estimatedRevenue":
           return row.estimatedRevenue;
       }
@@ -206,6 +251,15 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
               className="text-center"
             />
             <SortableHead label="Precio" sortKey="price" activeKey={sortKey} direction={sortDir} onSort={handleSort} />
+            <TableHead className="text-center">Conv.</TableHead>
+            <SortableHead
+              label="Ventas prob./mes"
+              sortKey="monthlySales"
+              activeKey={sortKey}
+              direction={sortDir}
+              onSort={handleSort}
+              className="text-center"
+            />
             <SortableHead
               label="Fact. estimada"
               sortKey="estimatedRevenue"
@@ -258,6 +312,12 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
                     money(row.price, currencyId)
                   )}
                 </TableCell>
+                <TableCell className="text-center text-xs text-muted-foreground">
+                  {(USER_CONVERSION_RATE * 100).toFixed(0)}%
+                </TableCell>
+                <TableCell className="text-center font-medium">
+                  {Math.round(row.visits * USER_CONVERSION_RATE).toLocaleString("es")}
+                </TableCell>
                 <TableCell className="font-semibold">
                   <div className="flex flex-col">
                     <span>{money(row.estimatedRevenue, currencyId)}</span>
@@ -297,6 +357,48 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
       </Table>
     </div>
   );
+}
+
+function exportRowsToCsv(query: string, rows: NicheRow[]) {
+  const header = [
+    "Publicación",
+    "Precio",
+    "Visitas estimadas/mes",
+    "Conversión asumida",
+    "Ventas prob./mes",
+    "Facturación estimada",
+    "Vendidos histórico real",
+    "Catálogo",
+    "Full",
+    "Origen",
+    "Vendedor",
+    "Link",
+  ];
+  const data = rows.map((row) => [
+    row.title,
+    row.price,
+    row.visits,
+    `${(USER_CONVERSION_RATE * 100).toFixed(0)}%`,
+    Math.round(row.visits * USER_CONVERSION_RATE),
+    row.estimatedRevenue,
+    row.realSales ?? "",
+    row.isCatalog ? "sí" : "no",
+    row.isFull ? "sí" : "no",
+    row.origin,
+    row.seller || "",
+    row.permalink || "",
+  ]);
+  const csv = [header, ...data]
+    .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const safeQuery = query.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "busqueda";
+  a.download = `busqueda-productos-${safeQuery}-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function DemandTab({ report }: { report: NicheReport }) {
@@ -355,7 +457,16 @@ function DemandTab({ report }: { report: NicheReport }) {
       />
 
       <div>
-        <p className="mb-3 text-sm font-semibold">Publicaciones ({report.rows.length})</p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-sm font-semibold">Publicaciones ({report.rows.length})</p>
+          <button
+            type="button"
+            onClick={() => exportRowsToCsv(report.query, report.rows)}
+            className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <Download className="h-3.5 w-3.5" /> Exportar CSV
+          </button>
+        </div>
         <ProductsTable rows={report.rows} currencyId={report.currencyId} />
       </div>
     </div>
@@ -468,7 +579,16 @@ export function ProductSearch() {
   // prefijos encima ("mini mini mini ...") en cada clic sucesivo.
   const [pinnedKeywords, setPinnedKeywords] = useState<string[]>([]);
 
-  const { available: extensionAvailable, startSearch } = useExtensionBridge(
+  // Escaneo de varios nichos seguidos (en vez de uno a la vez): arranca de
+  // las tendencias reales de Mercado Libre para el país elegido (API oficial
+  // de Tendencias, no una lista inventada) y encadena una búsqueda real por
+  // cada una, igual que si el usuario las tipeara una por una.
+  const [scanStatus, setScanStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [scanLabel, setScanLabel] = useState<string | null>(null);
+  const [scanTop, setScanTop] = useState<NicheRow[] | null>(null);
+  const [scanKeywordCount, setScanKeywordCount] = useState(0);
+
+  const { available: extensionAvailable, startSearch, startSearchAsync } = useExtensionBridge(
     (label) => {
       setProgressLabel(label);
       setRealDataError(null);
@@ -492,6 +612,64 @@ export function ProductSearch() {
     setProgressLabel(`Analizando "${value}"...`);
     setReport(null);
     startSearch(value, site);
+  }
+
+  async function runTrendScan() {
+    setScanStatus("running");
+    setScanTop(null);
+    setScanLabel("Buscando tendencias reales de Mercado Libre…");
+
+    const trendsRes = await fetch(`/api/extension/trends?site=${site}`)
+      .then((r) => r.json())
+      .catch(() => null);
+    const keywords: string[] = (trendsRes?.keywords ?? []).filter(
+      (k: unknown): k is string => typeof k === "string" && k.trim().length > 0,
+    );
+
+    if (keywords.length === 0) {
+      setScanStatus("error");
+      setScanLabel(
+        "No encontramos tendencias reales para este país ahora mismo (puede ser que Mercado Libre no tenga datos para hoy, o que el token haya que reconectarlo en Configuración).",
+      );
+      return;
+    }
+
+    const top = keywords.slice(0, 10);
+    setScanKeywordCount(top.length);
+
+    const allRows: NicheRow[] = [];
+    for (let i = 0; i < top.length; i++) {
+      const keyword = top[i];
+      setScanLabel(`Analizando "${keyword}" (${i + 1}/${top.length})…`);
+      const outcome = await startSearchAsync(keyword, site);
+      if (outcome.ok) {
+        for (const row of outcome.rows) {
+          allRows.push({ ...row, id: `${keyword}-${row.id}` });
+        }
+      }
+    }
+
+    const seen = new Set<string>();
+    const deduped = allRows.filter((row) => {
+      const key = row.permalink || row.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    // Mismo criterio que usa la extensión para una sola búsqueda: ventas
+    // reales (+N vendidos) primero porque son dato real de Mercado Libre, el
+    // resto por visitas estimadas.
+    deduped.sort((a, b) => {
+      const aReal = a.realSales != null;
+      const bReal = b.realSales != null;
+      if (aReal !== bReal) return aReal ? -1 : 1;
+      if (aReal) return (b.realSales ?? 0) - (a.realSales ?? 0);
+      return b.visits - a.visits;
+    });
+
+    setScanTop(deduped.slice(0, 10));
+    setScanLabel(null);
+    setScanStatus("done");
   }
 
   // Esta función depende por completo de leer Mercado Libre desde el propio
@@ -528,6 +706,57 @@ export function ProductSearch() {
         dato real (es un acumulado histórico, no de los últimos 30 días) y priorizamos esas publicaciones primero.
         Visitas y facturación siguen siendo una estimación por posición para todas las filas — Mercado Libre no
         expone las vistas reales de publicaciones ajenas a nadie.
+      </div>
+
+      <div className="mt-6 rounded-xl border border-border bg-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <Radar className="h-4 w-4 text-blue-500" /> Escanear tendencias reales (Top 10)
+            </p>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              En vez de buscar nicho por nicho, esto toma las búsquedas en tendencia real de Mercado Libre para el
+              país elegido y las analiza una por una, automáticamente, para traerte los 10 productos con más
+              demanda combinando todas.
+            </p>
+          </div>
+          <Button type="button" onClick={runTrendScan} disabled={scanStatus === "running"}>
+            {scanStatus === "running" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Escaneando…
+              </>
+            ) : (
+              <>
+                <Radar className="mr-2 h-4 w-4" /> Escanear ahora
+              </>
+            )}
+          </Button>
+        </div>
+
+        {scanLabel && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {scanStatus === "error" ? "⚠️ " : ""}
+            {scanLabel}
+          </p>
+        )}
+
+        {scanStatus === "done" && scanTop && (
+          <div className="mt-5">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Top {scanTop.length} de {scanKeywordCount} tendencias analizadas, combinadas y sin duplicados.
+              </p>
+              <button
+                type="button"
+                onClick={() => exportRowsToCsv("tendencias-top10", scanTop)}
+                className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm hover:bg-muted"
+              >
+                <Download className="h-3.5 w-3.5" /> Exportar CSV
+              </button>
+            </div>
+            <ProductsTable rows={scanTop} currencyId="COP" />
+          </div>
+        )}
       </div>
 
       <form
