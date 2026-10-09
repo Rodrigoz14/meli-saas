@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { RevenueSummary } from "@/components/dashboard/revenue-summary";
 import { PeriodSelect } from "@/components/dashboard/period-select";
 import { ExportSummaryButton } from "@/components/dashboard/export-summary-button";
+import { DashboardTitleBar } from "@/components/dashboard/dashboard-title-bar";
 import { computeRevenueSummary } from "@/lib/revenue-summary";
 import { getRentabilidadData } from "@/lib/dashboard-data";
 
@@ -29,7 +30,7 @@ export default async function DashboardPage({
 
   if (!data.connected) {
     return (
-      <div className="container mx-auto flex flex-col items-center gap-4 px-6 py-24 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-[22px] border border-border bg-card px-6 py-24 text-center">
         <h1 className="font-display text-2xl font-bold">
           Todavía no conectaste tu cuenta de Mercado Libre
         </h1>
@@ -77,47 +78,44 @@ export default async function DashboardPage({
       : null;
 
   return (
-    <div className="container mx-auto px-6 py-10">
-      <h1 className="font-display text-3xl font-bold tracking-tight">Dashboard</h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        Ingresos, comisión y costo de envío vienen directo de Mercado Libre
-        (datos reales de cada venta, no estimaciones). Solo ingresa el costo
-        de tu producto.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <PeriodSelect days={days} />
-        {summary && <ExportSummaryButton days={days} rows={summary.exportRows} />}
-      </div>
+    <>
+      <DashboardTitleBar
+        title="Dashboard"
+        subtitle="Ingresos, comisión y costo de envío vienen directo de Mercado Libre (datos reales de cada venta, no estimaciones). Solo ingresa el costo de tu producto."
+        actions={
+          <>
+            <PeriodSelect days={days} />
+            {summary && <ExportSummaryButton days={days} rows={summary.exportRows} />}
+          </>
+        }
+      />
 
       {errorMessage && (
-        <p className="mt-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+        <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
           {errorMessage}
         </p>
       )}
 
       {!errorMessage && rows.length === 0 && (
-        <p className="mt-6 text-muted-foreground">
+        <p className="rounded-2xl border border-border bg-card p-4 text-muted-foreground">
           No encontramos publicaciones activas en tu cuenta de Mercado Libre.
         </p>
       )}
 
       {!errorMessage && rows.length > 0 && (
-        <div className="mt-4">
-          <RevenueSummary
-            days={days}
-            currencyId={rows[0].currencyId}
-            totalRevenue={totalRevenue}
-            totalUnits={totalUnits}
-            totalCommission={totalCommission}
-            totalShipping={totalShipping}
-            totalCogs={totalCogs}
-            totalOperatingCosts={totalOperatingCosts}
-            totalAds={totalAds}
-            taxWithholdingPercent={taxWithholdingPercent}
-          />
-        </div>
+        <RevenueSummary
+          days={days}
+          currencyId={rows[0].currencyId}
+          totalRevenue={totalRevenue}
+          totalUnits={totalUnits}
+          totalCommission={totalCommission}
+          totalShipping={totalShipping}
+          totalCogs={totalCogs}
+          totalOperatingCosts={totalOperatingCosts}
+          totalAds={totalAds}
+          taxWithholdingPercent={taxWithholdingPercent}
+        />
       )}
-    </div>
+    </>
   );
 }

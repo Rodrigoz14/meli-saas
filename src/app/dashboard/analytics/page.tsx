@@ -7,6 +7,7 @@ export const maxDuration = 60;
 
 import { Button } from "@/components/ui/button";
 import { AnalyticsSection } from "@/components/dashboard/analytics-section";
+import { DashboardTitleBar } from "@/components/dashboard/dashboard-title-bar";
 import { getAnalyticsData } from "@/lib/analytics-data";
 
 export default async function AnalyticsPage({
@@ -24,7 +25,7 @@ export default async function AnalyticsPage({
 
   if (!data.connected) {
     return (
-      <div className="container mx-auto flex flex-col items-center gap-4 px-6 py-24 text-center">
+      <div className="flex flex-col items-center gap-4 rounded-[22px] border border-border bg-card px-6 py-24 text-center">
         <h1 className="font-display text-2xl font-bold">
           Todavía no conectaste tu cuenta de Mercado Libre
         </h1>
@@ -39,29 +40,25 @@ export default async function AnalyticsPage({
   }
 
   return (
-    <div className="container mx-auto px-6 py-10">
-      <h1 className="font-display text-3xl font-bold tracking-tight">Analytics</h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        Comparación de períodos, atribución de causas y publicaciones ganadoras/perdedoras.
-      </p>
+    <>
+      <DashboardTitleBar
+        title="Analytics"
+        subtitle="Comparación de períodos, atribución de causas y publicaciones ganadoras/perdedoras."
+      />
 
       {data.errorMessage && (
-        <p className="mt-8 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+        <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
           {data.errorMessage}
         </p>
       )}
 
       {!data.errorMessage && data.items.length === 0 && (
-        <p className="mt-8 text-muted-foreground">
+        <p className="rounded-2xl border border-border bg-card p-4 text-muted-foreground">
           No encontramos publicaciones activas en tu cuenta de Mercado Libre.
         </p>
       )}
 
-      {!data.errorMessage && data.items.length > 0 && (
-        <div className="mt-8">
-          <AnalyticsSection data={data} days={days} />
-        </div>
-      )}
-    </div>
+      {!data.errorMessage && data.items.length > 0 && <AnalyticsSection data={data} days={days} />}
+    </>
   );
 }

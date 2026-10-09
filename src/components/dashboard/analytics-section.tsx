@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { KpiCard as SharedKpiCard } from "@/components/dashboard/kpi-card";
 import type { AnalyticsData, ImpactBreakdown, ItemAnalytics, PeriodTotals } from "@/lib/analytics-data";
 
 type ConnectedAnalyticsData = Extract<AnalyticsData, { connected: true }>;
@@ -107,20 +108,27 @@ function KpiCard({
 }) {
   const isPositive = changePct >= 0;
   return (
-    <div
-      className="rounded-xl border border-border bg-card p-4 shadow-[0_0_18px_-14px_var(--glow)] transition-shadow hover:shadow-[0_0_24px_-8px_var(--glow)]"
-      style={{ "--glow": glowRgb } as React.CSSProperties}
-    >
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-display text-2xl font-bold tracking-tight">{value}</p>
-      <div className="mt-1 flex items-center justify-between text-xs">
-        <span className="text-muted-foreground">ant: {prevValue}</span>
-        <span className={cn("flex items-center gap-0.5 font-medium", isPositive ? "text-emerald-500" : "text-rose-500")}>
-          {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-          {Math.abs(changePct).toFixed(1)}%
-        </span>
-      </div>
-      {hint && <div className="mt-1.5 text-[11px] text-muted-foreground">{hint}</div>}
+    <div style={{ "--glow": glowRgb } as React.CSSProperties}>
+      <SharedKpiCard
+        label={label}
+        value={value}
+        tone="neutral"
+        className="shadow-[0_18px_36px_-20px_var(--glow)] hover:shadow-[0_18px_36px_-20px_var(--glow)]"
+        hint={
+          <>
+            <div className="flex items-center justify-between">
+              <span>ant: {prevValue}</span>
+              <span
+                className={cn("flex items-center gap-0.5 font-medium", isPositive ? "text-success" : "text-destructive")}
+              >
+                {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                {Math.abs(changePct).toFixed(1)}%
+              </span>
+            </div>
+            {hint ? <div className="mt-1">{hint}</div> : null}
+          </>
+        }
+      />
     </div>
   );
 }
@@ -132,13 +140,13 @@ function ImpactBar({ label, value, maxAbs, currencyId }: { label: string; value:
     <div>
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
-        <span className={cn("font-semibold", isPositive ? "text-emerald-500" : "text-rose-500")}>
+        <span className={cn("font-semibold", isPositive ? "text-success" : "text-destructive")}>
           {formatSigned(value, currencyId)}
         </span>
       </div>
-      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-track">
         <div
-          className={cn("h-2 rounded-full", isPositive ? "bg-emerald-500" : "bg-rose-500")}
+          className={cn("h-2 rounded-full", isPositive ? "bg-success" : "bg-destructive")}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -372,8 +380,8 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
 
   const tierLabel: Record<Tier, string> = { killer: "KILLER", potencial: "POTENCIAL", cola: "COLA LARGA" };
   const tierClass: Record<Tier, string> = {
-    killer: "bg-emerald-500/15 text-emerald-500",
-    potencial: "bg-blue-500/15 text-blue-500",
+    killer: "bg-success-bg text-success",
+    potencial: "bg-info-bg text-info",
     cola: "bg-muted text-muted-foreground",
   };
 
@@ -419,7 +427,7 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th className="px-3 py-2">Pareto</th>

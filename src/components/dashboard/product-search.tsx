@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Loader2, Package, Puzzle, Radar, Search, Zap } from "lucide-react";
+import { Download, Loader2, Package, Puzzle, Radar, Search, Zap } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,8 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 import { buildNicheReport, buildRelatedKeywords, type NicheReport, type NicheRow } from "@/lib/niche-mock";
+import { SortableHead } from "@/components/dashboard/sortable-head";
+import { cn } from "@/lib/utils";
 
 // TODO: reemplazar REPLACE_WITH_EXTENSION_ID por el id real una vez que la
 // extensión de MeliBoost quede publicada en la Chrome Web Store (se ve en
@@ -26,15 +27,6 @@ import { buildNicheReport, buildRelatedKeywords, type NicheReport, type NicheRow
 const EXTENSION_WEBSTORE_URL = "https://chromewebstore.google.com/detail/REPLACE_WITH_EXTENSION_ID";
 
 type SortKey = "title" | "price" | "visits" | "monthlySales" | "estimatedRevenue" | "seller";
-
-const SORT_LABELS: Record<SortKey, string> = {
-  title: "publicación",
-  price: "precio",
-  visits: "visitas",
-  monthlySales: "ventas prob./mes",
-  estimatedRevenue: "facturación estimada",
-  seller: "vendedor",
-};
 
 // Supuesto de negocio del usuario para esta columna (independiente del 3%
 // interno que usa estimatedRevenue, calibrado contra datos reales de
@@ -128,42 +120,6 @@ function useExtensionBridge(
   return { available, startSearch, startSearchAsync };
 }
 
-function SortableHead({
-  label,
-  sortKey,
-  activeKey,
-  direction,
-  onSort,
-  className,
-}: {
-  label: string;
-  sortKey: SortKey;
-  activeKey: SortKey;
-  direction: "asc" | "desc";
-  onSort: (key: SortKey) => void;
-  className?: string;
-}) {
-  const isActive = activeKey === sortKey;
-  const Icon = isActive ? (direction === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
-
-  return (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        title={`Ordenar por ${SORT_LABELS[sortKey]}`}
-        className={cn(
-          "flex items-center gap-1 hover:text-foreground",
-          isActive && "font-semibold text-foreground",
-        )}
-      >
-        {label}
-        <Icon className="h-3.5 w-3.5" />
-      </button>
-    </TableHead>
-  );
-}
-
 function KpiCard({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -183,15 +139,8 @@ function VerdictBox({
   text: string;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-xl border p-4",
-        approved ? "border-emerald-500/30 bg-emerald-500/10" : "border-amber-500/30 bg-amber-500/10",
-      )}
-    >
-      <Badge className={approved ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-500"}>
-        {title}
-      </Badge>
+    <div className={cn("rounded-xl border p-4", approved ? "border-[var(--success)]/30 bg-success-bg" : "border-[var(--warning)]/30 bg-warning-bg")}>
+      <Badge className={approved ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}>{title}</Badge>
       <p className="mt-2 text-sm text-muted-foreground">{text}</p>
     </div>
   );
@@ -696,12 +645,18 @@ export function ProductSearch() {
 
   return (
     <div>
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
-        Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
-        imagen). Cuando una publicación muestra &ldquo;+N vendidos&rdquo; en Mercado Libre, se lo mostramos como
-        dato real (es un acumulado histórico, no de los últimos 30 días) y priorizamos esas publicaciones primero.
-        Visitas y facturación siguen siendo una estimación por posición para todas las filas — Mercado Libre no
-        expone las vistas reales de publicaciones ajenas a nadie.
+      <div className="flex items-start gap-2 rounded-2xl border border-[var(--success)]/30 bg-success-bg p-3 text-sm text-success">
+        <span className="relative mt-1 flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-70" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+        </span>
+        <span>
+          Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
+          imagen). Cuando una publicación muestra &ldquo;+N vendidos&rdquo; en Mercado Libre, se lo mostramos como
+          dato real (es un acumulado histórico, no de los últimos 30 días) y priorizamos esas publicaciones primero.
+          Visitas y facturación siguen siendo una estimación por posición para todas las filas — Mercado Libre no
+          expone las vistas reales de publicaciones ajenas a nadie.
+        </span>
       </div>
 
       <div className="mt-6 rounded-xl border border-border bg-card p-6">
@@ -761,12 +716,12 @@ export function ProductSearch() {
           setPinnedKeywords(buildRelatedKeywords(query));
           runSearch(query);
         }}
-        className="mt-6 flex flex-wrap items-center gap-3"
+        className="mt-6 flex flex-wrap items-center gap-3 rounded-[20px] border border-border bg-card p-2.5 shadow-[0_18px_36px_-24px_var(--glow)]"
       >
         <select
           value={site}
           onChange={(e) => setSite(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-9 rounded-xl border border-input bg-background px-3 text-sm"
           aria-label="País"
         >
           <option value="CO">🇨🇴 Colombia</option>
@@ -780,7 +735,7 @@ export function ProductSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar producto o nicho (ej: auriculares bluetooth)"
-          className="max-w-md flex-1"
+          className="max-w-md flex-1 border-none shadow-none"
         />
         <Button type="submit" disabled={Boolean(progressLabel)}>
           <Search className="mr-2 h-4 w-4" />

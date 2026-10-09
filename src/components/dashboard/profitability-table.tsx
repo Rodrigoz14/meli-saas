@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
+import { ArrowUpDown, Download, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
   Table,
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { computePeriodProfit, diagnose } from "@/lib/profitability";
 import type { AdsItemMetric } from "@/lib/meli-api";
 import { InlineCogsInput } from "@/components/dashboard/inline-cogs-input";
+import { SortableHead } from "@/components/dashboard/sortable-head";
 
 export type ProfitabilityRow = {
   productId: string;
@@ -62,16 +63,6 @@ type SortKey =
   | "netProfit"
   | "margin";
 
-const SORT_LABELS: Record<SortKey, string> = {
-  units: "unidades vendidas",
-  revenue: "ingresos",
-  price: "precio",
-  commission: "comisión",
-  shipping: "envío",
-  netProfit: "margen $",
-  margin: "margen %",
-};
-
 function formatMoney(value: number, currencyId: string) {
   try {
     return new Intl.NumberFormat("es", {
@@ -82,42 +73,6 @@ function formatMoney(value: number, currencyId: string) {
   } catch {
     return `$${value.toLocaleString()}`;
   }
-}
-
-function SortableHead({
-  label,
-  sortKey,
-  activeKey,
-  direction,
-  onSort,
-  className,
-}: {
-  label: string;
-  sortKey: SortKey;
-  activeKey: SortKey;
-  direction: "asc" | "desc";
-  onSort: (key: SortKey) => void;
-  className?: string;
-}) {
-  const isActive = activeKey === sortKey;
-  const Icon = isActive ? (direction === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
-
-  return (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        title={`Ordenar por ${SORT_LABELS[sortKey]}`}
-        className={cn(
-          "flex items-center gap-1 hover:text-foreground",
-          isActive && "font-semibold text-foreground",
-        )}
-      >
-        {label}
-        <Icon className="h-3.5 w-3.5" />
-      </button>
-    </TableHead>
-  );
 }
 
 function Row({
@@ -218,7 +173,7 @@ function Row({
       <TableCell>
         <Badge
           variant={margin >= 15 ? "secondary" : "destructive"}
-          className={margin >= 15 ? "bg-emerald-500/15 text-emerald-500" : undefined}
+          className={margin >= 15 ? "bg-success-bg text-success" : undefined}
         >
           {margin.toFixed(1)}%
         </Badge>

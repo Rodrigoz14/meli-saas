@@ -11,7 +11,7 @@ export type RevenueSummaryTotals = {
   taxWithholdingPercent: number;
 };
 
-export type RevenueBreakdownItem = { label: string; value: number; color: string };
+export type RevenueBreakdownItem = { label: string; value: number; color: string; barColor: string };
 
 export type RevenueSummaryComputed = {
   retenciones: number;
@@ -41,12 +41,12 @@ export function computeRevenueSummary(t: RevenueSummaryTotals): RevenueSummaryCo
       : null;
 
   const breakdown: RevenueBreakdownItem[] = [
-    { label: "Comisiones Mercado Libre", value: t.totalCommission, color: "text-orange-500" },
-    { label: "Costo de envío", value: t.totalShipping, color: "text-cyan-500" },
-    { label: "Inversión en Publicidad", value: t.totalAds, color: "text-violet-500" },
-    { label: "Retenciones", value: retenciones, color: "text-amber-500" },
-    { label: "Costo de Producto (COGS)", value: t.totalCogs, color: "text-rose-500" },
-    { label: "Gastos Operativos", value: t.totalOperatingCosts, color: "text-slate-400" },
+    { label: "Comisiones Mercado Libre", value: t.totalCommission, color: "text-[var(--cost-1)]", barColor: "bg-[var(--cost-1)]" },
+    { label: "Costo de envío", value: t.totalShipping, color: "text-[var(--cost-2)]", barColor: "bg-[var(--cost-2)]" },
+    { label: "Inversión en Publicidad", value: t.totalAds, color: "text-[var(--cost-3)]", barColor: "bg-[var(--cost-3)]" },
+    { label: "Retenciones", value: retenciones, color: "text-[var(--cost-4)]", barColor: "bg-[var(--cost-4)]" },
+    { label: "Costo de Producto (COGS)", value: t.totalCogs, color: "text-[var(--cost-5)]", barColor: "bg-[var(--cost-5)]" },
+    { label: "Gastos Operativos", value: t.totalOperatingCosts, color: "text-[var(--cost-6)]", barColor: "bg-[var(--cost-6)]" },
   ];
 
   const exportRows: SummaryExportRow[] = [

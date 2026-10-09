@@ -1,42 +1,40 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { Check, ChevronDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 const PERIOD_OPTIONS = [7, 15, 30, 60, 90];
+const SEGMENT_WIDTH = 52;
 
 export function PeriodSelect({ days }: { days: number }) {
   const router = useRouter();
   const pathname = usePathname();
+  const activeIndex = Math.max(0, PERIOD_OPTIONS.indexOf(days));
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium shadow-sm hover:bg-muted">
-        Últimos {days} días
-        <ChevronDown className="h-4 w-4 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-40">
-        {PERIOD_OPTIONS.map((option) => {
-          const isActive = option === days;
-          return (
-            <DropdownMenuItem
-              key={option}
-              onClick={() => router.push(`${pathname}?days=${option}`)}
-              className={cn("justify-between", isActive && "bg-primary/15 font-semibold text-primary")}
-            >
-              Últimos {option} días
-              {isActive && <Check className="h-3.5 w-3.5" />}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="relative flex items-center rounded-[13px] border border-border bg-muted p-1">
+      <div
+        className="absolute top-1 left-1 z-0 h-[30px] rounded-[10px] bg-gradient-to-r from-primary to-primary-2 shadow-[0_6px_16px_-6px_var(--glow)] transition-transform duration-400 ease-[cubic-bezier(.2,.8,.2,1)]"
+        style={{ width: SEGMENT_WIDTH, transform: `translateX(${activeIndex * SEGMENT_WIDTH}px)` }}
+        aria-hidden
+      />
+      {PERIOD_OPTIONS.map((option) => {
+        const isActive = option === days;
+        return (
+          <button
+            key={option}
+            type="button"
+            onClick={() => router.push(`${pathname}?days=${option}`)}
+            style={{ width: SEGMENT_WIDTH }}
+            className={cn(
+              "relative z-10 h-[30px] rounded-[10px] text-[13px] font-bold transition-colors duration-300",
+              isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {option}d
+          </button>
+        );
+      })}
+    </div>
   );
 }
