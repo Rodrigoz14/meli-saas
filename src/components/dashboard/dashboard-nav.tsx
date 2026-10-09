@@ -5,51 +5,61 @@ import { usePathname } from "next/navigation";
 import { BarChart3, Boxes, FileText, LayoutDashboard, Receipt, Search, Settings, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const TABS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/dashboard/rentabilidad", label: "Rentabilidad", icon: TrendingUp },
-  { href: "/dashboard/costos-gastos", label: "Costos y gastos", icon: Receipt },
-  { href: "/dashboard/publicaciones", label: "Publicaciones", icon: FileText },
-  { href: "/dashboard/busqueda-productos", label: "Búsqueda de productos", icon: Search },
-  { href: "/dashboard/inventario", label: "Inventario", icon: Boxes },
-  { href: "/dashboard/configuracion", label: "Configuración", icon: Settings },
+const GROUPS = [
+  {
+    label: "Finanzas",
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/dashboard/rentabilidad", label: "Rentabilidad", icon: TrendingUp },
+      { href: "/dashboard/costos-gastos", label: "Costos y gastos", icon: Receipt },
+    ],
+  },
+  {
+    label: "Catálogo",
+    items: [
+      { href: "/dashboard/publicaciones", label: "Publicaciones", icon: FileText },
+      { href: "/dashboard/busqueda-productos", label: "Búsqueda de productos", icon: Search },
+      { href: "/dashboard/inventario", label: "Inventario", icon: Boxes },
+    ],
+  },
+  {
+    label: "Cuenta",
+    items: [{ href: "/dashboard/configuracion", label: "Configuración", icon: Settings }],
+  },
 ];
 
 export function DashboardNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky top-16 z-40 border-b border-border/60 bg-background/95 shadow-sm backdrop-blur-lg">
-      {/* Sin flex-wrap las pestañas se apretaban hasta partir el texto en
-          varias líneas y forzaban TODA la página a desbordar horizontalmente
-          en mobile (confirmado real: quedaba menos de la mitad del ancho de
-          pantalla usable). Ahora la fila no se achica — se scrollea
-          horizontalmente dentro de la barra nomás, sin tocar el resto de la
-          página, igual que una tab bar de app nativa. */}
-      <div className="container mx-auto overflow-x-auto px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex h-16 w-max min-w-full items-center gap-2">
-          {TABS.map((tab) => {
+    <nav className="flex flex-1 flex-col gap-5 overflow-y-auto">
+      {GROUPS.map((group) => (
+        <div key={group.label} className="flex flex-col gap-1">
+          <p className="px-3 text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
+            {group.label}
+          </p>
+          {group.items.map((item) => {
             const isActive =
-              pathname === tab.href || (tab.href !== "/dashboard" && pathname.startsWith(`${tab.href}/`));
-            const Icon = tab.icon;
+              pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
+            const Icon = item.icon;
             return (
               <Link
-                key={tab.href}
-                href={tab.href}
+                key={item.href}
+                href={item.href}
                 className={cn(
-                  "relative flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-full px-5 py-2.5 text-base text-muted-foreground transition-all duration-200 hover:bg-muted/60 hover:text-foreground",
+                  "flex h-10 items-center gap-2.5 rounded-xl px-3 text-sm text-muted-foreground transition-all duration-200 hover:translate-x-[3px] hover:bg-muted hover:text-foreground",
                   isActive &&
-                    "bg-primary/10 font-semibold text-primary shadow-[0_0_16px_-4px_var(--primary)] hover:bg-primary/15 hover:text-primary",
+                    "bg-gradient-to-r from-primary to-primary-2 font-semibold text-primary-foreground shadow-[0_8px_22px_-8px_var(--glow)] hover:translate-x-0 hover:from-primary hover:to-primary-2 hover:text-primary-foreground",
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" />
-                {tab.label}
+                <Icon className="h-[18px] w-[18px] shrink-0" />
+                {item.label}
               </Link>
             );
           })}
         </div>
-      </div>
+      ))}
     </nav>
   );
 }

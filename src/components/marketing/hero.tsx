@@ -3,6 +3,7 @@ import { ArrowRight, PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { heroStats } from "@/lib/marketing-data";
 import { DashboardPreview } from "@/components/marketing/dashboard-preview";
+import { CursorGlow } from "@/components/marketing/cursor-glow";
 
 export function Hero() {
   return (
@@ -77,7 +78,9 @@ export function Hero() {
         </div>
 
         <div className="relative mx-auto w-full max-w-lg lg:mx-0 lg:max-w-none">
-          <DashboardPreview />
+          <CursorGlow>
+            <DashboardPreview />
+          </CursorGlow>
         </div>
       </div>
     </section>

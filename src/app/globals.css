@@ -8,7 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-body);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-mono-raw);
   --font-heading: var(--font-display-raw);
   --font-display: var(--font-display-raw);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -40,6 +40,25 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-primary-2: var(--primary-2);
+  --color-glow: var(--glow);
+  --color-glow-secondary: var(--glow-secondary);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger-bg: var(--danger-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-track: var(--track);
+  --color-banner-warning-bg: var(--banner-warning-bg);
+  --color-banner-warning-border: var(--banner-warning-border);
+  --color-cost-1: var(--cost-1);
+  --color-cost-2: var(--cost-2);
+  --color-cost-3: var(--cost-3);
+  --color-cost-4: var(--cost-4);
+  --color-cost-5: var(--cost-5);
+  --color-cost-6: var(--cost-6);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -50,72 +69,112 @@
 }
 
 :root {
-  --background: hsl(0 0% 100%);
-  --foreground: hsl(234 45% 7%);
-  --card: hsl(220 30% 99%);
-  --card-foreground: hsl(234 45% 7%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(234 45% 7%);
-  --primary: hsl(231.1 85% 53%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(186.5 80% 34%);
-  --secondary-foreground: hsl(0 0% 100%);
-  --muted: hsl(220 25% 95%);
-  --muted-foreground: hsl(222 20% 32%);
-  --accent: hsl(231 70% 95%);
-  --accent-foreground: hsl(231.1 85% 40%);
-  --destructive: hsl(350 78% 42%);
-  --border: hsl(220 20% 87%);
-  --input: hsl(220 20% 87%);
-  --ring: hsl(231.1 85% 53%);
-  --chart-1: hsl(231.1 85% 53%);
-  --chart-2: hsl(186.5 80% 34%);
-  --chart-3: hsl(266 70% 58%);
-  --chart-4: hsl(35 92% 55%);
-  --chart-5: hsl(350 78% 52%);
-  --radius: 0.75rem;
-  --sidebar: hsl(220 30% 99%);
-  --sidebar-foreground: hsl(234 45% 7%);
-  --sidebar-primary: hsl(231.1 85% 53%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(231 70% 95%);
-  --sidebar-accent-foreground: hsl(231.1 85% 40%);
-  --sidebar-border: hsl(220 20% 87%);
-  --sidebar-ring: hsl(231.1 85% 53%);
+  color-scheme: light;
+  --background: #EEF0F6;
+  --foreground: #0A0C1A;
+  --card: #FFFFFF;
+  --card-foreground: #0A0C1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0C1A;
+  --primary: #2140ED;
+  --primary-2: #4363FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #118D9C;
+  --secondary-foreground: #FFFFFF;
+  --muted: #F5F6FA;
+  --muted-foreground: #4E5268;
+  --accent: #EEF1FE;
+  --accent-foreground: #1A33C4;
+  --destructive: #C0182F;
+  --border: #E1E4EE;
+  --input: #E1E4EE;
+  --ring: #2140ED;
+  --glow: rgba(33, 64, 237, 0.45);
+  --glow-secondary: rgba(17, 141, 156, 0.5);
+  --success: #0E7280;
+  --success-bg: rgba(17, 141, 156, 0.12);
+  --warning: #9A5600;
+  --warning-bg: rgba(229, 154, 11, 0.14);
+  --danger-bg: rgba(192, 24, 47, 0.09);
+  --info: #1A33C4;
+  --info-bg: #EEF1FE;
+  --banner-warning-bg: #FFF6E2;
+  --banner-warning-border: #F5DDA6;
+  --track: #E6E8F0;
+  --cost-1: #2140ED;
+  --cost-2: #4F6BFF;
+  --cost-3: #7C8CF5;
+  --cost-4: #A9B4FA;
+  --cost-5: #0A0C1A;
+  --cost-6: #9DA1B5;
+  --chart-1: #2140ED;
+  --chart-2: #118D9C;
+  --chart-3: #4363FF;
+  --chart-4: #9A5600;
+  --chart-5: #C0182F;
+  --radius: 0.875rem;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0A0C1A;
+  --sidebar-primary: #2140ED;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #EEF1FE;
+  --sidebar-accent-foreground: #1A33C4;
+  --sidebar-border: #E1E4EE;
+  --sidebar-ring: #2140ED;
 }
 
 .dark {
-  --background: hsl(234 45% 6%);
-  --foreground: hsl(210 40% 98%);
-  --card: hsl(234 40% 9%);
-  --card-foreground: hsl(210 40% 98%);
-  --popover: hsl(234 42% 8%);
-  --popover-foreground: hsl(210 40% 98%);
-  --primary: hsl(231.1 89.7% 61.8%);
-  --primary-foreground: hsl(0 0% 100%);
-  --secondary: hsl(186.5 75.8% 54.7%);
-  --secondary-foreground: hsl(238.1 95.2% 12%);
-  --muted: hsl(233 25% 15%);
-  --muted-foreground: hsl(220 15% 65%);
-  --accent: hsl(238.1 60% 20%);
-  --accent-foreground: hsl(210 40% 98%);
-  --destructive: hsl(350 89% 60%);
-  --border: hsl(233 25% 18%);
-  --input: hsl(233 25% 18%);
-  --ring: hsl(231.1 89.7% 61.8%);
-  --chart-1: hsl(231.1 89.7% 61.8%);
-  --chart-2: hsl(186.5 75.8% 54.7%);
-  --chart-3: hsl(266 75% 68%);
-  --chart-4: hsl(35 92% 60%);
-  --chart-5: hsl(350 89% 65%);
-  --sidebar: hsl(234 40% 9%);
-  --sidebar-foreground: hsl(210 40% 98%);
-  --sidebar-primary: hsl(231.1 89.7% 61.8%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(238.1 60% 20%);
-  --sidebar-accent-foreground: hsl(210 40% 98%);
-  --sidebar-border: hsl(233 25% 18%);
-  --sidebar-ring: hsl(231.1 89.7% 61.8%);
+  color-scheme: dark;
+  --background: #07081A;
+  --foreground: #EEF0F8;
+  --card: #11142F;
+  --card-foreground: #EEF0F8;
+  --popover: #11142F;
+  --popover-foreground: #EEF0F8;
+  --primary: #5470F7;
+  --primary-2: #7C8CFF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #34CFE0;
+  --secondary-foreground: #07081A;
+  --muted: rgba(127, 148, 255, 0.07);
+  --muted-foreground: #A3A8C3;
+  --accent: rgba(84, 112, 247, 0.16);
+  --accent-foreground: #A9B7FF;
+  --destructive: #FF6B81;
+  --border: rgba(127, 148, 255, 0.16);
+  --input: rgba(127, 148, 255, 0.16);
+  --ring: #5470F7;
+  --glow: rgba(84, 112, 247, 0.8);
+  --glow-secondary: rgba(52, 207, 224, 0.7);
+  --success: #34CFE0;
+  --success-bg: rgba(52, 207, 224, 0.13);
+  --warning: #F5B94A;
+  --warning-bg: rgba(245, 185, 74, 0.14);
+  --danger-bg: rgba(255, 107, 129, 0.13);
+  --info: #A9B7FF;
+  --info-bg: rgba(84, 112, 247, 0.18);
+  --banner-warning-bg: rgba(245, 185, 74, 0.08);
+  --banner-warning-border: rgba(245, 185, 74, 0.3);
+  --track: rgba(127, 148, 255, 0.12);
+  --cost-1: #7F94FF;
+  --cost-2: #5470F7;
+  --cost-3: #A78BFA;
+  --cost-4: #F5B94A;
+  --cost-5: #FF6B81;
+  --cost-6: #6B7194;
+  --chart-1: #5470F7;
+  --chart-2: #34CFE0;
+  --chart-3: #7C8CFF;
+  --chart-4: #F5B94A;
+  --chart-5: #FF6B81;
+  --sidebar: #11142F;
+  --sidebar-foreground: #EEF0F8;
+  --sidebar-primary: #5470F7;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: rgba(84, 112, 247, 0.16);
+  --sidebar-accent-foreground: #EEF0F8;
+  --sidebar-border: rgba(127, 148, 255, 0.16);
+  --sidebar-ring: #5470F7;
 }
 
 @layer base {
@@ -127,5 +186,91 @@
   }
   html {
     @apply font-sans;
+  }
+  select option {
+    background: var(--card);
+    color: var(--foreground);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mb-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes sheen {
+  0%,
+  55% {
+    left: -60%;
+  }
+  100% {
+    left: 130%;
+  }
+}
+
+@keyframes float {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(50px, -40px) scale(1.16);
+  }
+}
+
+@keyframes indeterminate-bar {
+  from {
+    left: -110%;
+  }
+  to {
+    left: 260%;
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.45s ease both;
+}
+
+.animate-mb-shimmer {
+  background-image: linear-gradient(90deg, transparent 0%, var(--foreground) 50%, transparent 100%);
+  background-size: 200% 100%;
+  opacity: 0.06;
+  animation: mb-shimmer 1.8s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 14s ease-in-out infinite alternate;
+}
+
+.animate-sheen {
+  animation: sheen 3.6s ease-in-out infinite;
+}
+
+.animate-indeterminate-bar {
+  animation: indeterminate-bar 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

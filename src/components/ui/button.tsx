@@ -44,14 +44,25 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  children,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const hasSheen = variant === "default" || variant === "secondary";
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, className }), hasSheen && "relative overflow-hidden")}
       {...props}
-    />
+    >
+      {children}
+      {hasSheen ? (
+        <span
+          aria-hidden
+          className="animate-sheen pointer-events-none absolute inset-y-0 w-2/5 bg-gradient-to-r from-transparent via-white/45 to-transparent"
+          style={{ left: "-60%" }}
+        />
+      ) : null}
+    </ButtonPrimitive>
   )
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import {
@@ -62,8 +62,10 @@ export type TaxEntryItem = { id: string; label: string; percent: number };
 
 const CATEGORY_OPTIONS = ["Nómina", "Empaque", "Publicidad", "Servicios", "Otros"];
 
-const PROGRESS_BAR_CLASS =
-  "rounded-full bg-gradient-to-r from-blue-500 to-purple-500 shadow-[0_0_14px_2px_rgba(139,92,246,0.55)]";
+const PROGRESS_BAR_CLASS = "rounded-full bg-gradient-to-r from-primary to-primary-2 shadow-[0_0_14px_2px_var(--glow)]";
+
+const TAB_VALUES = ["gastos", "cogs", "facturacion-ml", "calculadora"] as const;
+type TabValue = (typeof TAB_VALUES)[number];
 
 function formatMoney(value: number, currencyId: string) {
   try {
@@ -951,6 +953,7 @@ export function CostsExpensesSection({
   taxEntries,
   billingSummary,
   siteId,
+  initialTab,
 }: {
   currencyId: string;
   products: CostProduct[];
@@ -959,12 +962,21 @@ export function CostsExpensesSection({
   taxEntries: TaxEntryItem[];
   billingSummary: BillingSummary | null;
   siteId: string;
+  initialTab?: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab: TabValue = TAB_VALUES.includes(initialTab as TabValue) ? (initialTab as TabValue) : "gastos";
+
+  function handleTabChange(value: unknown) {
+    router.push(`${pathname}?tab=${value}`);
+  }
+
   return (
-    <Tabs defaultValue="gastos">
+    <Tabs value={tab} onValueChange={handleTabChange}>
       <TabsList>
         <TabsTrigger value="gastos">Gastos Operativos</TabsTrigger>
-        <TabsTrigger value="costos">Costos de Producto (COGS)</TabsTrigger>
+        <TabsTrigger value="cogs">Costos de Producto (COGS)</TabsTrigger>
         <TabsTrigger value="facturacion-ml">
           <Landmark className="mr-1.5 h-3.5 w-3.5" /> Facturación ML
         </TabsTrigger>
@@ -975,7 +987,7 @@ export function CostsExpensesSection({
       <TabsContent value="gastos" className="mt-6">
         <ExpensesTab currencyId={currencyId} costs={operatingCosts} taxEntries={taxEntries} />
       </TabsContent>
-      <TabsContent value="costos" className="mt-6">
+      <TabsContent value="cogs" className="mt-6">
         <CostsTab products={products} currencyId={currencyId} />
       </TabsContent>
       <TabsContent value="facturacion-ml" className="mt-6">

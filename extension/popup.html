@@ -6,26 +6,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <style>
       /* Misma paleta y tipografía que src/app/globals.css + layout.tsx
-         (tema oscuro de MeliBoost: Plus Jakarta Sans para números/títulos,
-         Inter para el resto, glow por color semántico en las tarjetas). */
+         (tema oscuro de MeliBoost: Archivo para todo, IBM Plex Mono para
+         IDs, glow por color semántico en las tarjetas). */
       :root {
-        --background: #0a0d17;
-        --card: #12162a;
-        --border: #23283f;
-        --foreground: #f4f6fb;
-        --muted-foreground: #9aa4c2;
-        --muted: #1c2035;
-        --primary: #5670f0;
-        --secondary: #34cee0;
-        --emerald: #10b981;
-        --violet: #8b5cf6;
-        --amber: #f5a524;
-        --destructive: #f23d63;
+        --background: #07081a;
+        --card: #11142f;
+        --border: rgba(127, 148, 255, 0.16);
+        --foreground: #eef0f8;
+        --muted-foreground: #a3a8c3;
+        --muted: rgba(127, 148, 255, 0.07);
+        --primary: #5470f7;
+        --secondary: #34cfe0;
+        --emerald: #34cfe0;
+        --violet: #b79bff;
+        --amber: #f5b94a;
+        --destructive: #ff6b81;
       }
       * {
         box-sizing: border-box;
@@ -36,7 +36,7 @@
         min-width: 340px;
         width: 100%;
         height: 100%;
-        font: 13px/1.45 "Inter", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        font: 13px/1.45 "Archivo", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
         color: var(--foreground);
         background: var(--background);
       }
@@ -46,8 +46,9 @@
         min-height: 100vh;
       }
       .font-display {
-        font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+        font-family: "Archivo", sans-serif;
         letter-spacing: -0.01em;
+        font-weight: 800;
       }
       header {
         flex: 0 0 auto;

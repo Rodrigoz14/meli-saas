@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
   DropdownMenu,
@@ -46,12 +46,13 @@ export function ExportSummaryButton({ days, rows }: { days: number; rows: Summar
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted">
-        <Download className="h-3.5 w-3.5" /> Exportar resumen
+      <DropdownMenuTrigger className="group flex h-10 items-center gap-2 rounded-xl border border-border bg-muted px-3 text-sm font-medium hover:bg-muted/70">
+        <Download className="h-4 w-4" /> Exportar resumen
+        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-aria-expanded:rotate-180" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={handleExportCsv}>Descargar CSV</DropdownMenuItem>
-        <DropdownMenuItem onClick={handleExportXlsx}>Descargar XLSX</DropdownMenuItem>
+      <DropdownMenuContent align="end" className="min-w-48">
+        <DropdownMenuItem onClick={handleExportCsv}>Descargar CSV · .csv</DropdownMenuItem>
+        <DropdownMenuItem onClick={handleExportXlsx}>Descargar Excel · .xls</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

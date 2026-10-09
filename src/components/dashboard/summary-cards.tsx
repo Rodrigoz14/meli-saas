@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AlertTriangle, PieChart, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,8 +35,8 @@ export function SummaryCards({
   const completeness = totalProducts > 0 ? Math.round((withCost / totalProducts) * 100) : 0;
 
   return (
-    <div className="grid gap-6 md:grid-cols-3">
-      <div className="group rounded-xl border border-emerald-500/20 bg-card p-6 shadow-[0_0_20px_-12px_rgba(16,185,129,0.7)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(16,185,129,0.85)]">
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="group rounded-2xl border border-border bg-card p-6 shadow-[0_18px_36px_-20px_var(--glow-secondary)] transition-all duration-300 hover:-translate-y-[3px]">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Wallet className="h-4 w-4" />
           <span className="text-sm font-medium">Margen de Contribución Total</span>
@@ -43,34 +44,34 @@ export function SummaryCards({
         <p className="mt-1 text-xs text-muted-foreground/70">
           Disponible para gastos operativos (últimos 30 días)
         </p>
-        <p className="mt-3 font-display text-3xl font-bold tracking-tight text-emerald-500">
+        <p className="mt-3 font-display text-3xl font-bold tracking-tight text-success">
           {formatMoney(totalNetProfit, currencyId)}
         </p>
       </div>
 
-      <div className="group rounded-xl border border-border bg-card p-6 shadow-[0_0_20px_-14px_rgba(99,102,241,0.5)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(99,102,241,0.7)]">
+      <div className="group rounded-2xl border border-border bg-card p-6 shadow-[0_18px_36px_-20px_var(--glow)] transition-all duration-300 hover:-translate-y-[3px]">
         <div className="flex items-center gap-2 text-muted-foreground">
           <PieChart className="h-4 w-4" />
           <span className="text-sm font-medium">Salud del Portafolio</span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground/70">Distribución por rentabilidad</p>
         <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-lg bg-emerald-500/10 p-3">
-            <p className="text-2xl font-bold text-emerald-500">{killers}</p>
-            <p className="text-[11px] uppercase text-muted-foreground">Killers ≥30%</p>
+          <div className="rounded-lg bg-success-bg p-3">
+            <p className="text-2xl font-bold text-success">{killers}</p>
+            <p className="text-[11px] text-muted-foreground uppercase">Killers ≥30%</p>
           </div>
-          <div className="rounded-lg bg-amber-500/10 p-3">
-            <p className="text-2xl font-bold text-amber-500">{regulares}</p>
-            <p className="text-[11px] uppercase text-muted-foreground">Regulares 15-29%</p>
+          <div className="rounded-lg bg-warning-bg p-3">
+            <p className="text-2xl font-bold text-warning">{regulares}</p>
+            <p className="text-[11px] text-muted-foreground uppercase">Regulares 15-29%</p>
           </div>
-          <div className="rounded-lg bg-destructive/10 p-3">
+          <div className="rounded-lg bg-danger-bg p-3">
             <p className="text-2xl font-bold text-destructive">{criticos}</p>
-            <p className="text-[11px] uppercase text-muted-foreground">Críticos &lt;15%</p>
+            <p className="text-[11px] text-muted-foreground uppercase">Críticos &lt;15%</p>
           </div>
         </div>
       </div>
 
-      <div className="group rounded-xl border border-amber-500/20 bg-card p-6 shadow-[0_0_20px_-12px_rgba(245,158,11,0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_28px_-10px_rgba(245,158,11,0.8)]">
+      <div className="group rounded-2xl border border-border bg-card p-6 shadow-[0_18px_36px_-20px_rgba(229,154,11,0.35)] transition-all duration-300 hover:-translate-y-[3px]">
         <div className="flex items-center gap-2 text-muted-foreground">
           <AlertTriangle className="h-4 w-4" />
           <span className="text-sm font-medium">Completitud de Costos</span>
@@ -81,16 +82,13 @@ export function SummaryCards({
             className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full"
             style={{
               background: `conic-gradient(${
-                completeness === 100 ? "#10b981" : "#f59e0b"
-              } ${completeness}%, var(--muted) ${completeness}%)`,
+                completeness === 100 ? "var(--success)" : "var(--warning)"
+              } ${completeness}%, var(--track) ${completeness}%)`,
             }}
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-card">
               <span
-                className={cn(
-                  "text-sm font-bold",
-                  completeness === 100 ? "text-emerald-500" : "text-amber-500",
-                )}
+                className={cn("text-sm font-bold", completeness === 100 ? "text-success" : "text-warning")}
               >
                 {completeness}%
               </span>
@@ -104,6 +102,14 @@ export function SummaryCards({
             <span className="text-xs text-muted-foreground/70">
               {withCost} de {totalProducts} con COGS
             </span>
+            {missing > 0 ? (
+              <>
+                {" · "}
+                <Link href="/dashboard/costos-gastos?tab=cogs" className="text-xs text-primary hover:underline">
+                  Asignar COGS →
+                </Link>
+              </>
+            ) : null}
           </p>
         </div>
       </div>

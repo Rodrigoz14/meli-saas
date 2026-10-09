@@ -230,29 +230,27 @@ export function PricingCalculator({
           </Button>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="relative overflow-hidden rounded-2xl border border-[rgba(127,148,255,0.2)] bg-[linear-gradient(160deg,#0A0C1A,#171C42)] p-5 text-white shadow-[0_30px_60px_-24px_var(--glow-secondary)]">
           {!result ? (
-            <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-center text-sm text-muted-foreground">
-              <Sparkles className="h-6 w-6 text-muted-foreground/50" />
+            <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-2 text-center text-sm text-[#C5C8DA]">
+              <Sparkles className="h-6 w-6 text-[#C5C8DA]/50" />
               <p>Completá los datos y calculá para ver el desglose.</p>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[#C5C8DA]">
                     {mode === "costToPrice" ? "Precio de venta sugerido" : "Precio evaluado"}
                   </p>
-                  <p className="font-display text-3xl font-bold tracking-tight">
+                  <p className="font-display text-[40px] leading-none font-extrabold tracking-[-0.04em]">
                     {formatMoney(result.price, currencyId)}
                   </p>
                 </div>
                 <span
                   className={cn(
                     "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium",
-                    result.commissionIsReal
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                      : "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                    result.commissionIsReal ? "bg-[#34CFE0]/15 text-[#7FE3EE]" : "bg-[#F5B94A]/15 text-[#F5B94A]",
                   )}
                 >
                   {result.commissionIsReal ? (
@@ -267,41 +265,40 @@ export function PricingCalculator({
                 </span>
               </div>
 
-              <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-transparent p-4">
+              <div className="rounded-xl border border-[rgba(127,148,255,0.2)] bg-white/5 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                    Utilidad Neta / unidad
-                  </span>
-                  <span className="font-display text-xl font-bold text-emerald-500">
-                    {formatMoney(result.netProfit, currencyId)}
-                  </span>
+                  <span className="text-sm font-semibold text-[#7FE3EE]">Utilidad Neta / unidad</span>
+                  <span className="font-display text-xl font-bold">{formatMoney(result.netProfit, currencyId)}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Margen Neto</span>
-                  <span className="text-sm font-bold text-emerald-500">{result.marginPercent.toFixed(1)}%</span>
+                  <span className="text-xs text-[#C5C8DA]">Margen Neto</span>
+                  <span className="text-sm font-bold text-[#7FE3EE]">{result.marginPercent.toFixed(1)}%</span>
                 </div>
               </div>
 
               <div className="space-y-1.5 text-sm">
                 {[
-                  { label: "Comisión Mercado Libre", value: result.commissionAmount, sub: `${result.commissionPercent.toFixed(1)}%`, color: "text-orange-500" },
-                  { label: "Costo de envío", value: result.shippingCost, color: "text-cyan-500" },
-                  { label: "Inversión en Ads", value: result.adsAmount, color: "text-violet-500" },
-                  { label: "Retenciones / Impuestos", value: result.taxAmount, color: "text-amber-500" },
-                  { label: "Costo de producto (COGS)", value: result.cogs, color: "text-rose-500" },
+                  { label: "Comisión Mercado Libre", value: result.commissionAmount, sub: `${result.commissionPercent.toFixed(1)}%` },
+                  { label: "Costo de envío", value: result.shippingCost },
+                  { label: "Inversión en Ads", value: result.adsAmount },
+                  { label: "Retenciones / Impuestos", value: result.taxAmount },
+                  { label: "Costo de producto (COGS)", value: result.cogs },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between border-b border-border/60 py-1.5 last:border-0">
-                    <span className="text-muted-foreground">{item.label}</span>
-                    <span className={item.color}>
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between border-b border-[rgba(127,148,255,0.16)] py-1.5 last:border-0"
+                  >
+                    <span className="text-[#C5C8DA]">{item.label}</span>
+                    <span className="text-white">
                       -{formatMoney(item.value, currencyId)}
-                      {item.sub && <span className="ml-1 text-xs text-muted-foreground/70">({item.sub})</span>}
+                      {item.sub && <span className="ml-1 text-xs text-[#C5C8DA]/70">({item.sub})</span>}
                     </span>
                   </div>
                 ))}
               </div>
 
               {mode === "costToPrice" && (
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <p className="flex items-center gap-1.5 text-xs text-[#C5C8DA]">
                   <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                   Precio calculado por aproximación sucesiva contra la comisión real de ML — puede variar unos
                   pesos del margen exacto pedido.

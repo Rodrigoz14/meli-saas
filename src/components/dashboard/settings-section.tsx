@@ -58,15 +58,36 @@ export function SettingsSection({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-[0_0_20px_-12px_rgba(99,102,241,0.7)]">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
-            <ShoppingBag className="h-5 w-5" />
+      <div className="relative overflow-hidden rounded-2xl p-[1.5px]">
+        {meliProfile && (
+          <div
+            className="absolute inset-0 animate-[spin_6s_linear_infinite]"
+            style={{
+              background:
+                "conic-gradient(from 0deg, transparent 0 230deg, #5470F7 285deg, #34CFE0 330deg, transparent 360deg)",
+            }}
+          />
+        )}
+        <div className="relative rounded-2xl border border-primary/20 bg-primary/5 p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <h2 className="font-display text-lg font-bold tracking-tight">Perfil de Mercado Libre</h2>
+            </div>
+            {meliProfile && (
+              <span className="flex items-center gap-1.5 rounded-full bg-success-bg px-2.5 py-1 text-xs font-medium text-success">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-70" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+                </span>
+                Conectado
+              </span>
+            )}
           </div>
-          <h2 className="font-display text-lg font-bold tracking-tight">Perfil de Mercado Libre</h2>
-        </div>
 
-        {!meliProfile ? (
+          {!meliProfile ? (
           <p className="mt-5 text-sm text-muted-foreground">No pudimos traer tu perfil de Mercado Libre.</p>
         ) : (
           <>
@@ -102,6 +123,7 @@ export function SettingsSection({
             </Button>
           </>
         )}
+        </div>
       </div>
     </div>
   );
