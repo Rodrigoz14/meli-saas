@@ -13,17 +13,15 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { KpiCard as SharedKpiCard } from "@/components/dashboard/kpi-card";
 import type { AnalyticsData, ImpactBreakdown, ItemAnalytics, PeriodTotals } from "@/lib/analytics-data";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoney, formatPercent } from "@/lib/format-money";
 
 type ConnectedAnalyticsData = Extract<AnalyticsData, { connected: true }>;
 
 function formatSigned(value: number, currencyId: string) {
-  return `${value >= 0 ? "+" : "-"}${formatMoney(Math.abs(value), currencyId)}`;
+  return `${value >= 0 ? "+" : "−"}${formatMoney(Math.abs(value), currencyId)}`;
 }
 
 function pctChange(now: number, prev: number) {
@@ -66,20 +64,6 @@ function buildInsight(now: PeriodTotals, prev: PeriodTotals, impact: ImpactBreak
   return sentence;
 }
 
-function reasonTag(item: ItemAnalytics) {
-  const deltaRevenue = item.revenueNow - item.revenuePrev;
-  const visitsChangePct = pctChange(item.visitsNow, item.visitsPrev);
-  const convNow = item.visitsNow > 0 ? item.unitsNow / item.visitsNow : 0;
-  const convPrev = item.visitsPrev > 0 ? item.unitsPrev / item.visitsPrev : 0;
-  const convChangePct = pctChange(convNow, convPrev);
-  const visitsDominant = Math.abs(visitsChangePct) >= Math.abs(convChangePct);
-
-  if (deltaRevenue < 0) {
-    return visitsDominant ? "Caída por Tráfico" : "Caída por Conversión";
-  }
-  return visitsDominant ? "Impulso por Visibilidad" : "Mejora en Cierre de Ventas";
-}
-
 function KpiCard({
   label,
   value,
@@ -97,53 +81,67 @@ function KpiCard({
 }) {
   const isPositive = changePct >= 0;
   return (
-    <div style={{ "--glow": glowRgb } as React.CSSProperties}>
-      <SharedKpiCard
-        label={label}
-        value={value}
-        tone="neutral"
-        className="shadow-[0_18px_36px_-20px_var(--glow)] hover:shadow-[0_18px_36px_-20px_var(--glow)]"
-        hint={
-          <>
-            <div className="flex items-center justify-between">
-              <span>ant: {prevValue}</span>
-              <span
-                className={cn("flex items-center gap-0.5 font-medium", isPositive ? "text-success" : "text-destructive")}
-              >
-                {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                {Math.abs(changePct).toFixed(1)}%
-              </span>
-            </div>
-            {hint ? <div className="mt-1">{hint}</div> : null}
-          </>
-        }
-      />
+    <div
+      className="rounded-[18px] border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-[3px] hover:border-line-hi hover:shadow-[0_18px_36px_-20px_var(--glow)]"
+      style={{ "--glow": glowRgb } as React.CSSProperties}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[13px] font-semibold text-muted-foreground">{label}</p>
+        <span
+          className={cn(
+            "flex shrink-0 items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-bold",
+            isPositive ? "bg-success-bg text-success" : "bg-danger-bg text-destructive",
+          )}
+        >
+          {isPositive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+          {formatPercent(Math.abs(changePct))}
+        </span>
+      </div>
+      <p className="mt-2 font-display text-[26px] leading-none font-bold tracking-[-0.02em] tabular-nums">{value}</p>
+      <p className="mt-2 text-xs text-muted-foreground">Período anterior: {prevValue}</p>
+      {hint ? <div className="mt-1 text-xs text-muted-foreground">{hint}</div> : null}
     </div>
   );
 }
 
-function ImpactBar({ label, value, maxAbs, currencyId }: { label: string; value: number; maxAbs: number; currencyId: string }) {
+function ImpactBar({
+  label,
+  value,
+  maxAbs,
+  currencyId,
+  note,
+}: {
+  label: string;
+  value: number;
+  maxAbs: number;
+  currencyId: string;
+  note: string;
+}) {
   const pct = maxAbs > 0 ? (Math.abs(value) / maxAbs) * 100 : 0;
   const isPositive = value >= 0;
   return (
     <div>
       <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className={cn("font-semibold", isPositive ? "text-success" : "text-destructive")}>
+        <span className="font-bold">{label}</span>
+        <span className={cn("font-bold tabular-nums", isPositive ? "text-success" : "text-destructive")}>
           {formatSigned(value, currencyId)}
         </span>
       </div>
-      <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-track">
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-track">
         <div
-          className={cn("h-2 rounded-full", isPositive ? "bg-success" : "bg-destructive")}
+          className={cn(
+            "h-2 rounded-full",
+            isPositive ? "bg-gradient-to-r from-secondary to-[#2BB3C2]" : "bg-destructive",
+          )}
           style={{ width: `${pct}%` }}
         />
       </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">{note}</p>
     </div>
   );
 }
 
-function MoverCard({ item, currencyId }: { item: ItemAnalytics; currencyId: string }) {
+function MoverRow({ item, currencyId }: { item: ItemAnalytics; currencyId: string }) {
   const delta = item.revenueNow - item.revenuePrev;
   const isPositive = delta >= 0;
   return (
@@ -151,28 +149,10 @@ function MoverCard({ item, currencyId }: { item: ItemAnalytics; currencyId: stri
       href={item.permalink}
       target="_blank"
       rel="noreferrer"
-      className="flex items-center gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:bg-muted/40"
+      className="flex items-center justify-between gap-3 border-b border-border/60 py-2.5 text-sm transition-colors last:border-0 hover:text-primary"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
-        {item.thumbnail ? (
-          <Image src={item.thumbnail} alt="" width={40} height={40} className="object-cover" unoptimized />
-        ) : (
-          <Package className="h-4 w-4 text-muted-foreground" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{item.title}</p>
-        <p className="text-xs text-muted-foreground">{item.meliItemId}</p>
-        <span
-          className={cn(
-            "mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[10px]",
-            isPositive ? "bg-success-bg text-success" : "bg-danger-bg text-destructive",
-          )}
-        >
-          {reasonTag(item)}
-        </span>
-      </div>
-      <span className={cn("shrink-0 text-sm font-semibold", isPositive ? "text-success" : "text-destructive")}>
+      <span className="truncate">{item.title}</span>
+      <span className={cn("shrink-0 font-bold tabular-nums", isPositive ? "text-success" : "text-destructive")}>
         {formatSigned(delta, currencyId)}
       </span>
     </a>
@@ -195,99 +175,107 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
   }, [items]);
 
   return (
-    <div className="space-y-4">
-      <p className="flex items-start gap-2 rounded-2xl border border-[var(--banner-warning-border)] bg-[var(--banner-warning-bg)] p-3 text-xs text-warning">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span>
-          <span className="font-semibold">Métricas Brutas</span> (igual que Mercado Libre). No descuenta
-          cancelaciones. La <span className="font-semibold">Retención Estimada</span> es un cálculo con la
-          tasa que configuraste en Costos y Gastos, no un dato que Mercado Libre entregue por API. Para ver
-          ingresos netos, usa el Dashboard principal.
-        </span>
-      </p>
-
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm shadow-[0_0_20px_-14px_rgba(99,102,241,0.8)]">
-        {buildInsight(now, prev, impact, currencyId)}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="animate-fade-in-up flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Ingresos Brutos"
+          label="Ingresos"
           value={formatMoney(now.revenue, currencyId)}
           prevValue={formatMoney(prev.revenue, currencyId)}
           changePct={pctChange(now.revenue, prev.revenue)}
-          glowRgb="rgba(99,102,241,0.7)"
-        />
-        <KpiCard
-          label="Cantidad de Ventas"
-          value={String(now.units)}
-          prevValue={String(prev.units)}
-          changePct={pctChange(now.units, prev.units)}
-          glowRgb="rgba(20,184,166,0.7)"
+          glowRgb="var(--glow)"
         />
         <KpiCard
           label="Visitas"
-          value={now.visits.toLocaleString()}
-          prevValue={prev.visits.toLocaleString()}
+          value={now.visits.toLocaleString("es-CO")}
+          prevValue={prev.visits.toLocaleString("es-CO")}
           changePct={pctChange(now.visits, prev.visits)}
-          glowRgb="rgba(249,115,22,0.7)"
+          glowRgb="var(--glow)"
+        />
+        <KpiCard
+          label="Ventas"
+          value={String(now.units)}
+          prevValue={String(prev.units)}
+          changePct={pctChange(now.units, prev.units)}
+          glowRgb="var(--glow-secondary)"
         />
         <KpiCard
           label="Conversión"
-          value={`${(now.conversion * 100).toFixed(2)}%`}
-          prevValue={`${(prev.conversion * 100).toFixed(2)}%`}
+          value={formatPercent(now.conversion * 100, 2)}
+          prevValue={formatPercent(prev.conversion * 100, 2)}
           changePct={pctChange(now.conversion, prev.conversion)}
-          glowRgb="rgba(139,92,246,0.7)"
-        />
-        <KpiCard
-          label="Retención Estimada"
-          value={formatMoney(retentionNow, currencyId)}
-          prevValue={formatMoney(retentionPrev, currencyId)}
-          changePct={pctChange(retentionNow, retentionPrev)}
-          glowRgb="rgba(245,158,11,0.7)"
-          hint={
-            taxWithholdingPercent > 0 ? (
-              `${taxWithholdingPercent.toFixed(2)}% sobre ingresos brutos`
-            ) : (
-              <Link href="/dashboard/costos-gastos" className="text-primary hover:underline">
-                Configura tu tasa →
-              </Link>
-            )
-          }
+          glowRgb="var(--glow-secondary)"
         />
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 shadow-[0_0_20px_-16px_rgba(99,102,241,0.6)]">
-        <p className="text-sm font-semibold">Impacto en ventas por variable</p>
-        <div className="mt-4 space-y-4">
-          <ImpactBar label="Ticket Promedio" value={impact.avgTicket} maxAbs={maxAbsImpact} currencyId={currencyId} />
-          <ImpactBar label="Tasa de Conversión" value={impact.conversion} maxAbs={maxAbsImpact} currencyId={currencyId} />
-          <ImpactBar label="Tráfico (Visitas)" value={impact.visits} maxAbs={maxAbsImpact} currencyId={currencyId} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(300px,1fr)]">
+        <div className="rounded-[22px] border border-border bg-card p-5">
+          <h3 className="font-display text-lg font-bold">¿Por qué cambiaron tus ingresos?</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{buildInsight(now, prev, impact, currencyId)}</p>
+          <div className="mt-5 space-y-5">
+            <ImpactBar
+              label="Visitas"
+              value={impact.visits}
+              maxAbs={maxAbsImpact}
+              currencyId={currencyId}
+              note="Más o menos gente viendo tus publicaciones"
+            />
+            <ImpactBar
+              label="Conversión"
+              value={impact.conversion}
+              maxAbs={maxAbsImpact}
+              currencyId={currencyId}
+              note="De cada 100 visitas, cuántas compran"
+            />
+            <ImpactBar
+              label="Ticket promedio"
+              value={impact.avgTicket}
+              maxAbs={maxAbsImpact}
+              currencyId={currencyId}
+              note="Precio medio por unidad vendida"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="rounded-[22px] border border-border bg-card p-5">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-success">
+              <TrendingUp className="h-4 w-4" /> Más crecieron
+            </p>
+            <div className="mt-2">
+              {movers.crecimiento.map(({ item }) => (
+                <MoverRow key={item.productId} item={item} currencyId={currencyId} />
+              ))}
+            </div>
+          </div>
+          <div className="rounded-[22px] border border-border bg-card p-5">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-destructive">
+              <TrendingDown className="h-4 w-4" /> Más cayeron
+            </p>
+            <div className="mt-2">
+              {movers.caida.map(({ item }) => (
+                <MoverRow key={item.productId} item={item} currencyId={currencyId} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-[0_18px_36px_-20px_rgba(192,24,47,0.4)]">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
-            <TrendingDown className="h-4 w-4" /> Mayor caída
-          </p>
-          <div className="mt-3 space-y-2">
-            {movers.caida.map(({ item }) => (
-              <MoverCard key={item.productId} item={item} currencyId={currencyId} />
-            ))}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-[0_18px_36px_-20px_var(--glow-secondary)]">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-success">
-            <TrendingUp className="h-4 w-4" /> Mayor crecimiento
-          </p>
-          <div className="mt-3 space-y-2">
-            {movers.crecimiento.map(({ item }) => (
-              <MoverCard key={item.productId} item={item} currencyId={currencyId} />
-            ))}
-          </div>
-        </div>
-      </div>
+      <p className="flex items-start gap-2 rounded-2xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <span>
+          <span className="font-semibold">Métricas brutas</span> (igual que Mercado Libre): no descuentan
+          cancelaciones. La retención estimada del período ({formatMoney(retentionNow, currencyId)}, antes{" "}
+          {formatMoney(retentionPrev, currencyId)}) se calcula con la tasa{" "}
+          {taxWithholdingPercent > 0 ? (
+            `de ${formatPercent(taxWithholdingPercent, 2)} que configuraste`
+          ) : (
+            <Link href="/dashboard/costos-gastos" className="text-primary hover:underline">
+              que configures en Costos y gastos →
+            </Link>
+          )}
+          , no es un dato que entregue la API. Para ingresos netos, usa el Dashboard.
+        </span>
+      </p>
     </div>
   );
 }
@@ -501,40 +489,33 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
   );
 }
 
-export function AnalyticsSection({ data, days }: { data: ConnectedAnalyticsData; days: number }) {
-  const periodOptions = [7, 15, 30];
+export function AnalyticsSection({ data }: { data: ConnectedAnalyticsData }) {
+  const [tab, setTab] = useState<"general" | "publicaciones">("general");
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {periodOptions.map((option) => (
-          <Link
-            key={option}
-            href={`/dashboard/analytics?days=${option}`}
+    <div className="flex flex-col gap-4">
+      <div className="flex w-fit items-center gap-1 rounded-[13px] border border-border bg-card p-1">
+        {(
+          [
+            { key: "general", label: "Análisis general" },
+            { key: "publicaciones", label: "Publicaciones" },
+          ] as const
+        ).map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setTab(option.key)}
             className={cn(
-              "rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
-              days === option
-                ? "border-primary bg-primary/10 text-primary shadow-[0_0_16px_-4px_var(--primary)]"
-                : "border-border text-muted-foreground hover:text-foreground",
+              "rounded-[10px] px-4 py-2 text-sm font-bold transition-colors",
+              tab === option.key ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {option} días
-          </Link>
+            {option.label}
+          </button>
         ))}
       </div>
 
-      <Tabs defaultValue="general">
-        <TabsList>
-          <TabsTrigger value="general">Análisis General</TabsTrigger>
-          <TabsTrigger value="publicaciones">Publicaciones</TabsTrigger>
-        </TabsList>
-        <TabsContent value="general" className="mt-6">
-          <OverviewTab data={data} />
-        </TabsContent>
-        <TabsContent value="publicaciones" className="mt-6">
-          <PublicacionesTab data={data} />
-        </TabsContent>
-      </Tabs>
+      {tab === "general" ? <OverviewTab data={data} /> : <PublicacionesTab data={data} />}
     </div>
   );
 }

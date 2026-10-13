@@ -8,7 +8,7 @@ export default function PublicacionesLayout({ children }: { children: React.Reac
     <>
       <DashboardTitleBar
         title="Publicaciones"
-        subtitle="Optimizador SEO, descripción e infografías con IA — cada paso reutiliza lo que ya generaste en el anterior."
+        subtitle="Optimiza título, descripción e imágenes con IA y publícalos directo en Mercado Libre."
       />
 
       <PublicacionesTabs />

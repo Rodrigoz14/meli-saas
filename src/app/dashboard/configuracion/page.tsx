@@ -14,7 +14,7 @@ export default async function ConfiguracionPage() {
 
   return (
     <>
-      <DashboardTitleBar title="Configuración" subtitle="Tu cuenta de MeliBoost y tu conexión con Mercado Libre." />
+      <DashboardTitleBar title="Configuración" subtitle="Tu cuenta, tu conexión con Mercado Libre y la apariencia del panel." />
 
       <SettingsSection
         accountName={session!.user.name ?? null}

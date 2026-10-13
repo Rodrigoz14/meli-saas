@@ -299,7 +299,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(300px,1fr)_minmax(0,1.4fr)]">
       <div className="space-y-4 rounded-2xl border border-border bg-card p-6">
         {context && useContext && (
           <ContextBanner

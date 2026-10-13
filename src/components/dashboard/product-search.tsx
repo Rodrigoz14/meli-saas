@@ -14,7 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildNicheReport, buildRelatedKeywords, type NicheReport, type NicheRow } from "@/lib/niche-mock";
 import { SortableHead } from "@/components/dashboard/sortable-head";
 import { cn } from "@/lib/utils";
@@ -527,6 +526,7 @@ export function ProductSearch() {
   // ya trae prefijos como "mini ") se le vuelven a pegar los mismos
   // prefijos encima ("mini mini mini ...") en cada clic sucesivo.
   const [pinnedKeywords, setPinnedKeywords] = useState<string[]>([]);
+  const [reportTab, setReportTab] = useState<"demanda" | "mercado" | "estrategia">("demanda");
 
   // Escaneo de varios nichos seguidos (en vez de uno a la vez): arranca de
   // las tendencias reales de Mercado Libre para el país elegido (API oficial
@@ -651,11 +651,8 @@ export function ProductSearch() {
           <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
         </span>
         <span>
-          Extensión de MeliBoost detectada — esta búsqueda usa datos reales de Mercado Libre (título, precio e
-          imagen). Cuando una publicación muestra &ldquo;+N vendidos&rdquo; en Mercado Libre, se lo mostramos como
-          dato real (es un acumulado histórico, no de los últimos 30 días) y priorizamos esas publicaciones primero.
-          Visitas y facturación siguen siendo una estimación por posición para todas las filas — Mercado Libre no
-          expone las vistas reales de publicaciones ajenas a nadie.
+          <span className="font-bold">Extensión de MeliBoost detectada.</span> Precios y títulos son datos
+          reales; visitas y facturación son estimaciones por posición.
         </span>
       </div>
 
@@ -772,22 +769,35 @@ export function ProductSearch() {
       )}
 
       {report && (
-        <Tabs defaultValue="demanda" className="mt-6">
-          <TabsList>
-            <TabsTrigger value="demanda">Demanda</TabsTrigger>
-            <TabsTrigger value="mercado">Mercado</TabsTrigger>
-            <TabsTrigger value="estrategia">Estrategia</TabsTrigger>
-          </TabsList>
-          <TabsContent value="demanda" className="mt-6">
-            <DemandTab report={report} />
-          </TabsContent>
-          <TabsContent value="mercado" className="mt-6">
-            <MarketTab report={report} />
-          </TabsContent>
-          <TabsContent value="estrategia" className="mt-6">
-            <StrategyTab report={report} />
-          </TabsContent>
-        </Tabs>
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="flex w-fit items-center gap-1 rounded-[13px] border border-border bg-card p-1">
+            {(
+              [
+                { key: "demanda", label: "Demanda" },
+                { key: "mercado", label: "Mercado" },
+                { key: "estrategia", label: "Estrategia" },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setReportTab(option.key)}
+                className={cn(
+                  "rounded-[10px] px-4 py-2 text-sm font-bold transition-colors",
+                  reportTab === option.key
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {reportTab === "demanda" && <DemandTab report={report} />}
+          {reportTab === "mercado" && <MarketTab report={report} />}
+          {reportTab === "estrategia" && <StrategyTab report={report} />}
+        </div>
       )}
     </div>
   );

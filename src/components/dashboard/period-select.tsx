@@ -3,13 +3,13 @@
 import { useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-const PERIOD_OPTIONS = [7, 15, 30, 60, 90];
+const DEFAULT_OPTIONS = [7, 15, 30, 60, 90];
 const SEGMENT_WIDTH = 52;
 
-export function PeriodSelect({ days }: { days: number }) {
+export function PeriodSelect({ days, options = DEFAULT_OPTIONS }: { days: number; options?: number[] }) {
   const router = useRouter();
   const pathname = usePathname();
-  const activeIndex = Math.max(0, PERIOD_OPTIONS.indexOf(days));
+  const activeIndex = Math.max(0, options.indexOf(days));
 
   return (
     <div className="relative flex items-center rounded-[13px] border border-border bg-muted p-1">
@@ -18,7 +18,7 @@ export function PeriodSelect({ days }: { days: number }) {
         style={{ width: SEGMENT_WIDTH, transform: `translateX(${activeIndex * SEGMENT_WIDTH}px)` }}
         aria-hidden
       />
-      {PERIOD_OPTIONS.map((option) => {
+      {options.map((option) => {
         const isActive = option === days;
         return (
           <button

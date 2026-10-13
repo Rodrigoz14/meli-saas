@@ -41,7 +41,10 @@ export default async function CostosGastosPage({
 
   return (
     <>
-      <DashboardTitleBar title="Gestión de Costos" subtitle="Gastos operativos y costos de producto (COGS)." />
+      <DashboardTitleBar
+        title="Costos y gastos"
+        subtitle="Gastos operativos, costos de producto (COGS), facturación de ML y calculadora de precios."
+      />
 
       {errorMessage && (
         <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">

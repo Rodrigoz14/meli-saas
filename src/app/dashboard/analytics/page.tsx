@@ -8,6 +8,7 @@ export const maxDuration = 60;
 import { Button } from "@/components/ui/button";
 import { AnalyticsSection } from "@/components/dashboard/analytics-section";
 import { DashboardTitleBar } from "@/components/dashboard/dashboard-title-bar";
+import { PeriodSelect } from "@/components/dashboard/period-select";
 import { getAnalyticsData } from "@/lib/analytics-data";
 
 export default async function AnalyticsPage({
@@ -44,6 +45,7 @@ export default async function AnalyticsPage({
       <DashboardTitleBar
         title="Analytics"
         subtitle="Comparación de períodos, atribución de causas y publicaciones ganadoras/perdedoras."
+        actions={<PeriodSelect days={days} options={[7, 15, 30]} />}
       />
 
       {data.errorMessage && (
@@ -58,7 +60,7 @@ export default async function AnalyticsPage({
         </p>
       )}
 
-      {!data.errorMessage && data.items.length > 0 && <AnalyticsSection data={data} days={days} />}
+      {!data.errorMessage && data.items.length > 0 && <AnalyticsSection data={data} />}
     </>
   );
 }

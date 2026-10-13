@@ -6,13 +6,11 @@ import Image from "next/image";
 import { toast } from "sonner";
 import {
   AlertCircle,
-  Calculator,
   Check,
   CheckCircle2,
   Clock,
   Download,
   Gift,
-  Landmark,
   Package,
   Pencil,
   Receipt,
@@ -24,12 +22,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import type { BillingSummary } from "@/lib/meli-api";
 import { InlineCogsInput } from "@/components/dashboard/inline-cogs-input";
 import { PricingCalculator } from "@/components/dashboard/pricing-calculator";
-import { formatMoney } from "@/lib/format-money";
+import { formatMoney, formatPercent } from "@/lib/format-money";
 import {
   addOperatingCost,
   addTaxEntry,
@@ -655,279 +652,314 @@ function ExpensesTab({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-danger-bg p-4">
-          <p className="text-xs text-muted-foreground">Gastos Fijos (mes)</p>
-          <p className="mt-1 text-xl font-bold text-destructive">{formatMoney(totalFixed, currencyId)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-warning-bg p-4">
-          <p className="text-xs text-muted-foreground">Gastos Variables</p>
-          <p className="mt-1 text-xl font-bold text-warning">{formatMoney(totalVariable, currencyId)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4 shadow-[0_0_18px_-14px_rgba(99,102,241,0.6)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.8)]">
-          <p className="text-xs text-muted-foreground">Total Costos</p>
-          <p className="mt-1 text-xl font-bold">{formatMoney(total, currencyId)}</p>
-        </div>
-      </div>
+    <div className="animate-fade-in-up flex flex-wrap gap-4">
+      <div className="flex min-w-[560px] flex-[2_1_560px] flex-col gap-4">
+        <div className="rounded-[22px] border border-border bg-card p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-display text-lg font-bold">Gastos operativos (mensual)</h3>
+            <p className="font-display text-lg font-bold tabular-nums">{formatMoney(total, currencyId)}</p>
+          </div>
 
-      {byCategory.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-sm font-semibold">Distribución por Categoría</p>
-          <div className="mt-4 space-y-4">
-            {byCategory.map(([cat, amt]) => {
-              const pct = total > 0 ? (amt / total) * 100 : 0;
-              return (
-                <div key={cat}>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">{cat}</span>
-                    <span>
-                      {formatMoney(amt, currencyId)}{" "}
-                      <span className="text-xs text-muted-foreground">({pct.toFixed(1)}%)</span>
-                    </span>
-                  </div>
-                  <div className="mt-2 h-3.5 w-full overflow-hidden rounded-full bg-muted">
-                    <div className={cn("h-3.5", PROGRESS_BAR_CLASS)} style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[620px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
+                  <th className="py-2.5 pr-3">Concepto</th>
+                  <th className="py-2.5 pr-3">Categoría</th>
+                  <th className="py-2.5 pr-3">Tipo</th>
+                  <th className="py-2.5 pr-3 text-right">Monto</th>
+                  <th className="py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {localCosts.map((cost) => {
+                  if (editingId === cost.id) {
+                    return (
+                      <tr key={cost.id} className="border-b border-border/60 bg-muted/30 last:border-0">
+                        <td className="py-2 pr-3">
+                          <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-8" />
+                        </td>
+                        <td className="py-2 pr-3">
+                          <select
+                            value={editCategory}
+                            onChange={(e) => setEditCategory(e.target.value)}
+                            className="h-8 w-full rounded-xl border border-input bg-background px-2 text-sm"
+                          >
+                            {CATEGORY_OPTIONS.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="py-2 pr-3">
+                          <select
+                            value={editIsFixed ? "fijo" : "variable"}
+                            onChange={(e) => setEditIsFixed(e.target.value === "fijo")}
+                            className="h-8 w-full rounded-xl border border-input bg-background px-2 text-sm"
+                          >
+                            <option value="fijo">Fijo</option>
+                            <option value="variable">Variable</option>
+                          </select>
+                        </td>
+                        <td className="py-2 pr-3 text-right">
+                          <Input
+                            type="number"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            className="h-8 text-right"
+                          />
+                        </td>
+                        <td className="py-2 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => saveEdit(cost.id)}
+                              aria-label="Guardar gasto"
+                              className="text-success hover:opacity-80"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              aria-label="Cancelar edición"
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold">Registrar Gasto</p>
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="min-w-[140px] flex-1 space-y-1">
-            <Label className="text-xs">Concepto</Label>
-            <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nómina, empaque…" />
-          </div>
-          <div className="w-28 space-y-1">
-            <Label className="text-xs">Monto</Label>
-            <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
-          </div>
-          <div className="w-36 space-y-1">
-            <Label className="text-xs">Categoría</Label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="w-36 space-y-1">
-            <Label className="text-xs">Tipo</Label>
-            <select
-              value={isFixed ? "fijo" : "variable"}
-              onChange={(e) => setIsFixed(e.target.value === "fijo")}
-              className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-            >
-              <option value="fijo">Fijo (mensual)</option>
-              <option value="variable">Variable</option>
-            </select>
-          </div>
-          <Button onClick={handleAdd} disabled={isPending}>
-            Agregar
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          <Upload className="h-4 w-4" /> Carga Masiva
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={handleDownloadTemplate}>
-            <Download className="mr-2 h-3.5 w-3.5" /> Descargar Plantilla
-          </Button>
-          <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" id="gastos-file" />
-          <label
-            htmlFor="gastos-file"
-            className="cursor-pointer rounded-md border border-input bg-background px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            {fileName ?? "Ningún archivo seleccionado"}
-          </label>
-          <Button type="button" size="sm" onClick={handleUpload} disabled={isPending || !fileName}>
-            <Upload className="mr-2 h-3.5 w-3.5" /> Subir
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold">Impuestos (% sobre ventas)</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Registra impuestos como un porcentaje aplicado sobre tus ventas reales. Se muestran en el Dashboard
-          como deducción.
-        </p>
-        <div className="mt-3 space-y-2">
-          {localTaxEntries.map((tax) => (
-            <div key={tax.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm">
-              <span>{tax.label}</span>
-              <div className="flex items-center gap-3">
-                <span className="text-warning">{tax.percent}%</span>
-                <button onClick={() => handleDeleteTax(tax.id)} aria-label="Eliminar impuesto" className="text-muted-foreground hover:text-destructive">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-          {localTaxEntries.length === 0 && <p className="text-sm text-muted-foreground">No hay impuestos registrados.</p>}
-        </div>
-        {currencyId === "COP" && (
-          <button
-            type="button"
-            onClick={() => {
-              setTaxLabel("Retención estimada (Colombia)");
-              setTaxPercent("0.57");
-            }}
-            className="mt-2 text-xs text-primary hover:underline"
-          >
-            + Sugerir retención estándar Colombia (~0.57% — ReteFuente/ReteICA, revisa antes de agregar)
-          </button>
-        )}
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="min-w-[140px] flex-1 space-y-1">
-            <Label className="text-xs">Concepto (ej: IVA, Renta)</Label>
-            <Input value={taxLabel} onChange={(e) => setTaxLabel(e.target.value)} placeholder="IVA, Renta…" />
-          </div>
-          <div className="w-28 space-y-1">
-            <Label className="text-xs">Porcentaje (%)</Label>
-            <Input type="number" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} placeholder="0" />
-          </div>
-          <Button onClick={handleAddTax} disabled={isPending}>
-            Agregar Impuesto
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-sm font-semibold">Gastos Registrados ({localCosts.length})</p>
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="py-2 pr-3">Concepto</th>
-                <th className="py-2 pr-3">Categoría</th>
-                <th className="py-2 pr-3">Tipo</th>
-                <th className="py-2 pr-3 text-right">Monto</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {localCosts.map((cost) => {
-                if (editingId === cost.id) {
+                  const isAuto = cost.source === "ml";
                   return (
-                    <tr key={cost.id} className="border-b border-border/60 last:border-0 bg-muted/30">
-                      <td className="py-2 pr-3">
-                        <Input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="h-8" />
-                      </td>
-                      <td className="py-2 pr-3">
-                        <select
-                          value={editCategory}
-                          onChange={(e) => setEditCategory(e.target.value)}
-                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    <tr
+                      key={cost.id}
+                      className={cn(
+                        "animate-fade-in-up border-b border-border/60 transition-colors last:border-0 hover:bg-muted",
+                        isAuto && "text-muted-foreground",
+                      )}
+                    >
+                      <td className="py-3 pr-3 font-semibold">{cost.label.replace(" (ML)", "")}</td>
+                      <td className="py-3 pr-3 text-muted-foreground">{cost.category}</td>
+                      <td className="py-3 pr-3">
+                        <span
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                            isAuto
+                              ? "bg-info-bg text-info"
+                              : cost.isFixed
+                                ? "bg-info-bg text-info"
+                                : "bg-warning-bg text-warning",
+                          )}
                         >
-                          {CATEGORY_OPTIONS.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
+                          {isAuto ? "Automático" : cost.isFixed ? "Fijo" : "Variable"}
+                        </span>
                       </td>
-                      <td className="py-2 pr-3">
-                        <select
-                          value={editIsFixed ? "fijo" : "variable"}
-                          onChange={(e) => setEditIsFixed(e.target.value === "fijo")}
-                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-sm"
-                        >
-                          <option value="fijo">Fijo (mensual)</option>
-                          <option value="variable">Variable</option>
-                        </select>
+                      <td className="py-3 pr-3 text-right font-bold tabular-nums">
+                        {formatMoney(cost.amount, currencyId)}
                       </td>
-                      <td className="py-2 pr-3 text-right">
-                        <Input
-                          type="number"
-                          value={editAmount}
-                          onChange={(e) => setEditAmount(e.target.value)}
-                          className="h-8 text-right"
-                        />
-                      </td>
-                      <td className="py-2 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => saveEdit(cost.id)} aria-label="Guardar gasto" className="text-success hover:opacity-80">
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button onClick={cancelEdit} aria-label="Cancelar edición" className="text-muted-foreground hover:text-destructive">
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
+                      <td className="py-3 text-right">
+                        {!isAuto && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => startEdit(cost)}
+                              aria-label="Editar gasto"
+                              className="flex h-[30px] w-[30px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(cost.id)}
+                              aria-label="Eliminar gasto"
+                              className="flex h-[30px] w-[30px] items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger-bg hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
-                }
-
-                return (
-                  <tr key={cost.id} className="border-b border-border/60 last:border-0">
-                    <td className="py-2 pr-3 font-medium">
-                      <span className="inline-flex items-center gap-1.5">
-                        {cost.label}
-                        {cost.source === "ml" && (
-                          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-normal text-primary">
-                            Automático (ML)
-                          </span>
-                        )}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 text-muted-foreground">{cost.category}</td>
-                    <td className="py-2 pr-3">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs",
-                          cost.isFixed ? "bg-primary/10 text-primary" : "bg-warning-bg text-warning",
-                        )}
-                      >
-                        {cost.isFixed ? (
-                          <span className="inline-flex items-center gap-1">
-                            <Clock className="h-3 w-3" /> Fijo/mes
-                          </span>
-                        ) : (
-                          "Variable"
-                        )}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 text-right text-warning">
-                      {formatMoney(cost.amount, currencyId)}
-                    </td>
-                    <td className="py-2 text-right">
-                      {cost.source !== "ml" && (
-                        <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => startEdit(cost)} aria-label="Editar gasto" className="text-muted-foreground hover:text-primary">
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => handleDelete(cost.id)} aria-label="Eliminar gasto" className="text-muted-foreground hover:text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
+                })}
+                {localCosts.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-muted-foreground">
+                      Sin gastos operativos registrados.
                     </td>
                   </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {byCategory.length > 0 && (
+          <div className="rounded-[22px] border border-border bg-card p-5">
+            <h3 className="font-display text-lg font-bold">Distribución por categoría</h3>
+            <div className="mt-4 space-y-4">
+              {byCategory.map(([cat, amt]) => {
+                const pct = total > 0 ? (amt / total) * 100 : 0;
+                return (
+                  <div key={cat}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{cat}</span>
+                      <span className="tabular-nums">
+                        {formatMoney(amt, currencyId)}{" "}
+                        <span className="text-xs text-muted-foreground">({formatPercent(pct)})</span>
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-track">
+                      <div className={cn("h-2", PROGRESS_BAR_CLASS)} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
                 );
               })}
-              {localCosts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-4 text-center text-muted-foreground">
-                    Sin gastos operativos registrados.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex min-w-[320px] flex-[1_1_320px] flex-col gap-4">
+        <div className="rounded-[22px] border border-border bg-card p-5">
+          <h3 className="font-display text-lg font-bold">Agregar gasto</h3>
+          <div className="mt-4 space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Concepto</Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nómina, empaque…" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Monto</Label>
+                <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Categoría</Label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="h-9 w-full rounded-xl border border-input bg-background px-2 text-sm"
+                >
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex rounded-xl border border-border bg-muted p-1">
+              {[
+                { value: true, label: "Fijo" },
+                { value: false, label: "Variable" },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => setIsFixed(option.value)}
+                  className={cn(
+                    "flex-1 rounded-[10px] px-3 py-2 text-sm font-bold transition-colors",
+                    isFixed === option.value
+                      ? "bg-card text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            <Button onClick={handleAdd} disabled={isPending} className="w-full justify-between">
+              <span>Agregar gasto</span>
+              <span>+</span>
+            </Button>
+          </div>
+
+          <p className="mt-4 text-xs text-muted-foreground">
+            ¿Muchos gastos? Súbelos por CSV: concepto, monto, categoría, tipo.
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={handleDownloadTemplate}>
+              <Download className="mr-2 h-3.5 w-3.5" /> Plantilla
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              className="hidden"
+              id="gastos-file"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => (fileName ? handleUpload() : fileInputRef.current?.click())}
+              disabled={isPending}
+            >
+              <Upload className="mr-2 h-3.5 w-3.5" /> {fileName ? "Subir" : "Subir CSV"}
+            </Button>
+          </div>
+          {fileName && <p className="mt-2 truncate text-xs text-muted-foreground">{fileName}</p>}
+        </div>
+
+        <div className="rounded-[22px] border border-border bg-card p-5">
+          <h3 className="font-display text-lg font-bold">Impuestos y retenciones</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Porcentaje aplicado sobre tus ventas reales. Se descuenta en el Dashboard.
+          </p>
+          <div className="mt-4 space-y-2">
+            {localTaxEntries.map((tax) => (
+              <div
+                key={tax.id}
+                className="flex items-center justify-between gap-2 rounded-xl bg-muted px-3 py-2.5 text-sm"
+              >
+                <span>{tax.label}</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-bold tabular-nums">{formatPercent(tax.percent)}</span>
+                  <button
+                    onClick={() => handleDeleteTax(tax.id)}
+                    aria-label="Eliminar impuesto"
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {localTaxEntries.length === 0 && (
+              <p className="text-sm text-muted-foreground">No hay impuestos registrados.</p>
+            )}
+            {localTaxEntries.length > 0 && (
+              <div className="flex items-center justify-between px-3 pt-1 text-sm font-bold">
+                <span>Total</span>
+                <span className="tabular-nums">
+                  {formatPercent(localTaxEntries.reduce((sum, t) => sum + t.percent, 0))}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {currencyId === "COP" && (
+            <button
+              type="button"
+              onClick={() => {
+                setTaxLabel("Retención estimada (Colombia)");
+                setTaxPercent("0.57");
+              }}
+              className="mt-3 text-xs text-primary hover:underline"
+            >
+              + Sugerir retención estándar Colombia (~0,57% — ReteFuente/ReteICA, revísala antes de agregar)
+            </button>
+          )}
+
+          <div className="mt-3 grid grid-cols-[1fr_90px] gap-2">
+            <Input value={taxLabel} onChange={(e) => setTaxLabel(e.target.value)} placeholder="IVA, Renta…" />
+            <Input type="number" value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} placeholder="%" />
+          </div>
+          <Button onClick={handleAddTax} disabled={isPending} variant="outline" className="mt-2 w-full">
+            Agregar impuesto
+          </Button>
         </div>
       </div>
     </div>
@@ -957,34 +989,43 @@ export function CostsExpensesSection({
   const pathname = usePathname();
   const tab: TabValue = TAB_VALUES.includes(initialTab as TabValue) ? (initialTab as TabValue) : "gastos";
 
-  function handleTabChange(value: unknown) {
+  function handleTabChange(value: string) {
     router.push(`${pathname}?tab=${value}`);
   }
 
+  const TABS: { key: TabValue; label: string }[] = [
+    { key: "gastos", label: "Gastos operativos" },
+    { key: "cogs", label: "Costos de producto (COGS)" },
+    { key: "facturacion-ml", label: "Facturación ML" },
+    { key: "calculadora", label: "Calculadora" },
+  ];
+
   return (
-    <Tabs value={tab} onValueChange={handleTabChange}>
-      <TabsList>
-        <TabsTrigger value="gastos">Gastos Operativos</TabsTrigger>
-        <TabsTrigger value="cogs">Costos de Producto (COGS)</TabsTrigger>
-        <TabsTrigger value="facturacion-ml">
-          <Landmark className="mr-1.5 h-3.5 w-3.5" /> Facturación ML
-        </TabsTrigger>
-        <TabsTrigger value="calculadora">
-          <Calculator className="mr-1.5 h-3.5 w-3.5" /> Calculadora
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="gastos" className="mt-6">
-        <ExpensesTab currencyId={currencyId} costs={operatingCosts} taxEntries={taxEntries} />
-      </TabsContent>
-      <TabsContent value="cogs" className="mt-6">
-        <CostsTab products={products} currencyId={currencyId} />
-      </TabsContent>
-      <TabsContent value="facturacion-ml" className="mt-6">
+    <div className="flex flex-col gap-4">
+      <div className="flex w-fit flex-wrap items-center gap-1 rounded-[13px] border border-border bg-card p-1">
+        {TABS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => handleTabChange(option.key)}
+            className={cn(
+              "rounded-[10px] px-4 py-2 text-sm font-bold transition-colors",
+              tab === option.key ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "gastos" && <ExpensesTab currencyId={currencyId} costs={operatingCosts} taxEntries={taxEntries} />}
+      {tab === "cogs" && <CostsTab products={products} currencyId={currencyId} />}
+      {tab === "facturacion-ml" && (
         <MlChargesTab autoExpenses={autoExpenses} billingSummary={billingSummary} currencyId={currencyId} />
-      </TabsContent>
-      <TabsContent value="calculadora" className="mt-6">
+      )}
+      {tab === "calculadora" && (
         <PricingCalculator products={products} currencyId={currencyId} siteId={siteId} taxEntries={taxEntries} />
-      </TabsContent>
-    </Tabs>
+      )}
+    </div>
   );
 }
