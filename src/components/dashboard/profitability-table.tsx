@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowUpDown, Download, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
+import { ArrowUpDown, ChevronDown, Download, Flame, Lightbulb, Search, TriangleAlert } from "lucide-react";
 import * as XLSX from "xlsx";
 import {
   Table,
@@ -196,11 +196,34 @@ function Row({
 
 type FilterTab = "todos" | "killers" | "criticos" | "oportunidades";
 
-const FILTER_TABS: { key: FilterTab; label: string; icon: typeof Flame }[] = [
-  { key: "todos", label: "Todos", icon: ArrowUpDown },
-  { key: "killers", label: "Top Killers", icon: Flame },
-  { key: "criticos", label: "Críticos", icon: TriangleAlert },
-  { key: "oportunidades", label: "Oportunidades", icon: Lightbulb },
+// Cada filtro usa el color de lo que representa cuando está activo: así se
+// lee de un vistazo si estás mirando los buenos, los críticos o los que
+// tienen margen de mejora.
+const FILTER_TABS: { key: FilterTab; label: string; icon: typeof Flame; active: string }[] = [
+  {
+    key: "todos",
+    label: "Todos",
+    icon: ArrowUpDown,
+    active: "bg-gradient-to-r from-primary to-primary-2 text-primary-foreground shadow-[0_6px_16px_-6px_var(--glow)]",
+  },
+  {
+    key: "killers",
+    label: "Top Killers",
+    icon: Flame,
+    active: "bg-gradient-to-r from-secondary to-success text-white shadow-[0_6px_16px_-6px_var(--glow-secondary)]",
+  },
+  {
+    key: "criticos",
+    label: "Críticos",
+    icon: TriangleAlert,
+    active: "bg-destructive text-white shadow-[0_6px_16px_-6px_rgba(192,24,47,0.55)]",
+  },
+  {
+    key: "oportunidades",
+    label: "Oportunidades",
+    icon: Lightbulb,
+    active: "bg-warning text-white shadow-[0_6px_16px_-6px_rgba(229,154,11,0.55)]",
+  },
 ];
 
 export function ProfitabilityTable({
@@ -407,8 +430,8 @@ export function ProfitabilityTable({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-0.5 rounded-[13px] border border-border bg-muted p-1">
           {FILTER_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = filterTab === tab.key;
@@ -418,38 +441,43 @@ export function ProfitabilityTable({
                 type="button"
                 onClick={() => setFilterTab(tab.key)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                  isActive
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground",
+                  "flex h-[30px] items-center gap-1.5 rounded-[10px] px-2.5 text-[13px] font-bold transition-all duration-300",
+                  isActive ? tab.active : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 {tab.label}
-                <span className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground">
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 text-[11px] tabular-nums",
+                    isActive ? "bg-white/25 text-white" : "bg-card text-muted-foreground",
+                  )}
+                >
                   {tabCounts[tab.key]}
                 </span>
               </button>
             );
           })}
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative w-[190px]">
+            <Search className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nombre o ID..."
-              className="pl-8"
+              placeholder="Buscar por nombre o ID…"
+              className="h-10 rounded-xl pl-9"
             />
           </div>
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-muted">
-              <Download className="h-3.5 w-3.5" /> Exportar
+            <DropdownMenuTrigger className="group flex h-10 items-center gap-2 rounded-xl border border-border bg-muted px-3 text-sm font-medium hover:bg-muted/70">
+              <Download className="h-4 w-4" /> Exportar tabla
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 group-aria-expanded:rotate-180" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCsv}>Descargar CSV</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportXlsx}>Descargar XLSX</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="min-w-48">
+              <DropdownMenuItem onClick={handleExportCsv}>Descargar CSV · .csv</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportXlsx}>Descargar Excel · .xls</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
