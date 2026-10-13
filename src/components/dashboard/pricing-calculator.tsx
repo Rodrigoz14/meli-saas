@@ -160,7 +160,7 @@ export function PricingCalculator({
               ))}
             </select>
             {selectedProduct && (
-              <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-success-bg px-3 py-2 text-xs text-success">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted/40">
                   {selectedProduct.thumbnail ? (
                     <Image src={selectedProduct.thumbnail} alt="" width={32} height={32} className="object-cover" unoptimized />

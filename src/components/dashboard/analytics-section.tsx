@@ -177,13 +177,13 @@ function MoverCard({ item, currencyId }: { item: ItemAnalytics; currencyId: stri
         <span
           className={cn(
             "mt-0.5 inline-block rounded-full px-1.5 py-0.5 text-[10px]",
-            isPositive ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500",
+            isPositive ? "bg-success-bg text-success" : "bg-danger-bg text-destructive",
           )}
         >
           {reasonTag(item)}
         </span>
       </div>
-      <span className={cn("shrink-0 text-sm font-semibold", isPositive ? "text-emerald-500" : "text-rose-500")}>
+      <span className={cn("shrink-0 text-sm font-semibold", isPositive ? "text-success" : "text-destructive")}>
         {formatSigned(delta, currencyId)}
       </span>
     </a>
@@ -207,7 +207,7 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
 
   return (
     <div className="space-y-4">
-      <p className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 shadow-[0_0_18px_-14px_rgba(245,158,11,0.7)] dark:text-amber-400">
+      <p className="flex items-start gap-2 rounded-2xl border border-[var(--banner-warning-border)] bg-[var(--banner-warning-bg)] p-3 text-xs text-warning">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           <span className="font-semibold">Métricas Brutas</span> (igual que Mercado Libre). No descuenta
@@ -278,8 +278,8 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-xl border border-rose-500/20 bg-card p-4 shadow-[0_0_20px_-14px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(244,63,94,0.85)]">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-rose-500">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-[0_18px_36px_-20px_rgba(192,24,47,0.4)]">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
             <TrendingDown className="h-4 w-4" /> Mayor caída
           </p>
           <div className="mt-3 space-y-2">
@@ -288,8 +288,8 @@ function OverviewTab({ data }: { data: ConnectedAnalyticsData }) {
             ))}
           </div>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-card p-4 shadow-[0_0_20px_-14px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(16,185,129,0.85)]">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-500">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-[0_18px_36px_-20px_var(--glow-secondary)]">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-success">
             <TrendingUp className="h-4 w-4" /> Mayor crecimiento
           </p>
           <div className="mt-3 space-y-2">
@@ -412,15 +412,15 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-center shadow-[0_0_20px_-14px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(16,185,129,0.85)]">
-          <p className="font-display text-2xl font-bold tracking-tight text-emerald-500">{tierTotals.killer.count}</p>
+        <div className="rounded-2xl border border-border bg-success-bg p-4 text-center">
+          <p className="font-display text-2xl font-bold tracking-tight text-success">{tierTotals.killer.count}</p>
           <p className="text-xs text-muted-foreground">KILLER ({tierTotals.killer.pct.toFixed(0)}% ingresos)</p>
         </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 text-center shadow-[0_0_20px_-14px_rgba(59,130,246,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(59,130,246,0.85)]">
-          <p className="font-display text-2xl font-bold tracking-tight text-blue-500">{tierTotals.potencial.count}</p>
+        <div className="rounded-2xl border border-border bg-info-bg p-4 text-center">
+          <p className="font-display text-2xl font-bold tracking-tight text-info">{tierTotals.potencial.count}</p>
           <p className="text-xs text-muted-foreground">POTENCIAL ({tierTotals.potencial.pct.toFixed(0)}%)</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-4 text-center shadow-[0_0_20px_-16px_rgba(148,163,184,0.6)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(148,163,184,0.75)]">
+        <div className="rounded-2xl border border-border bg-card p-4 text-center">
           <p className="font-display text-2xl font-bold tracking-tight">{tierTotals.cola.count}</p>
           <p className="text-xs text-muted-foreground">COLA LARGA ({tierTotals.cola.pct.toFixed(0)}%)</p>
         </div>
@@ -474,12 +474,12 @@ function PublicacionesTab({ data }: { data: ConnectedAnalyticsData }) {
                 <td className="px-3 py-2 text-right text-muted-foreground">{pctOfTotal.toFixed(1)}%</td>
                 <td className="px-3 py-2 text-right">{item.visitsNow.toLocaleString()}</td>
                 <td className="px-3 py-2 text-right">{item.unitsNow}</td>
-                <td className="px-3 py-2 text-right text-emerald-500">{cvr.toFixed(1)}%</td>
+                <td className="px-3 py-2 text-right text-success">{cvr.toFixed(1)}%</td>
                 {adsConnected && (
                   <td className="px-3 py-2 text-right">
                     {item.ads ? (
                       <div className="flex flex-col items-end">
-                        <span className="font-medium text-violet-500">
+                        <span className="font-medium text-[var(--cost-3)]">
                           {item.ads.clicks.toLocaleString()} clics / {formatMoney(item.ads.cost, currencyId)}
                         </span>
                         <span className="text-[10px] text-muted-foreground">{item.ads.ctr.toFixed(2)}%</span>

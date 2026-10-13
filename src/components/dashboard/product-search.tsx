@@ -252,7 +252,7 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
                 <TableCell>
                   {row.originalPrice && row.originalPrice > row.price ? (
                     <div className="flex flex-col">
-                      <span className="font-semibold text-emerald-500">{money(row.price, currencyId)}</span>
+                      <span className="font-semibold text-success">{money(row.price, currencyId)}</span>
                       <span className="text-xs text-muted-foreground line-through">
                         {money(row.originalPrice, currencyId)}
                       </span>
@@ -273,7 +273,7 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
                     <span className="text-[10px] font-normal text-muted-foreground">estimado (30d)</span>
                     {row.realSales != null && (
                       <span
-                        className="text-[10px] font-normal text-emerald-500"
+                        className="text-[10px] font-normal text-success"
                         title="Ventas históricas acumuladas reales de Mercado Libre (no de los últimos 30 días)"
                       >
                         ✓ +{row.realSales.toLocaleString("es")} vendidos histórico
@@ -283,14 +283,14 @@ function ProductsTable({ rows, currencyId }: { rows: NicheRow[]; currencyId: str
                 </TableCell>
                 <TableCell className="text-center">
                   {row.isCatalog ? (
-                    <Badge className="bg-emerald-500/15 text-emerald-500">Catálogo</Badge>
+                    <Badge className="bg-success-bg text-success">Catálogo</Badge>
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </TableCell>
                 <TableCell className="text-center">
                   {row.isFull ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-blue-500">
+                    <span className="inline-flex items-center gap-1 text-xs text-info">
                       <Zap className="h-3.5 w-3.5" /> Full
                     </span>
                   ) : (
@@ -370,7 +370,7 @@ function DemandTab({ report }: { report: NicheReport }) {
         <KpiCard
           label="Facturación estimada"
           value={money(d.estimatedRevenue, report.currencyId)}
-          valueClassName="text-emerald-500"
+          valueClassName="text-success"
         />
       </div>
 
@@ -391,11 +391,11 @@ function DemandTab({ report }: { report: NicheReport }) {
           </div>
           <div className="rounded-lg bg-muted/40 p-4 text-center">
             <p className="text-xs uppercase text-muted-foreground">% Top 3</p>
-            <p className="mt-1 text-xl font-bold text-amber-500">{d.top3SharePercent}%</p>
+            <p className="mt-1 text-xl font-bold text-warning">{d.top3SharePercent}%</p>
           </div>
         </div>
 
-        <p className="mt-6 text-sm font-semibold text-blue-500">Potencial de tráfico y facturación</p>
+        <p className="mt-6 text-sm font-semibold text-info">Potencial de tráfico y facturación</p>
         <p className="mt-2 text-sm text-muted-foreground">{d.potentialText}</p>
       </div>
 
@@ -451,14 +451,14 @@ function MarketTab({ report }: { report: NicheReport }) {
               </div>
               <div className="mt-1 h-1.5 w-full rounded-full bg-muted">
                 <div
-                  className="h-1.5 rounded-full bg-blue-500"
+                  className="h-1.5 rounded-full bg-info"
                   style={{ width: `${Math.min(entry.percent, 100)}%` }}
                 />
               </div>
             </div>
           ))}
         </div>
-        <p className="mt-4 text-sm text-amber-600 dark:text-amber-400">💡 Oportunidad: {m.opportunityText}</p>
+        <p className="mt-4 text-sm text-warning">💡 Oportunidad: {m.opportunityText}</p>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6">
@@ -507,8 +507,8 @@ function StrategyTab({ report }: { report: NicheReport }) {
       <div className="rounded-xl border border-border bg-card p-6">
         <p className="text-sm font-semibold">Análisis de Estrategia Inteligente</p>
         <p className="text-xs text-muted-foreground">Motor de Inteligencia Demanda + Mercado</p>
-        <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <p className="text-xs font-semibold uppercase text-emerald-600 dark:text-emerald-400">Veredicto estratégico</p>
+        <div className="mt-4 rounded-lg border border-border bg-success-bg p-4">
+          <p className="text-xs font-semibold uppercase text-success">Veredicto estratégico</p>
           <p className="mt-1 font-medium">🔥 {s.verdictText}</p>
         </div>
       </div>
@@ -624,8 +624,8 @@ export function ProductSearch() {
   if (!extensionAvailable) {
     return (
       <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-500/10">
-          <Puzzle className="h-6 w-6 text-amber-500" />
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning-bg">
+          <Puzzle className="h-6 w-6 text-warning" />
         </div>
         <h2 className="font-display text-xl font-bold">Necesitas la extensión de MeliBoost</h2>
         <p className="max-w-md text-sm text-muted-foreground">
@@ -663,7 +663,7 @@ export function ProductSearch() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="flex items-center gap-2 text-sm font-semibold">
-              <Radar className="h-4 w-4 text-blue-500" /> Escanear tendencias reales (Top 10)
+              <Radar className="h-4 w-4 text-info" /> Escanear tendencias reales (Top 10)
             </p>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
               En vez de buscar nicho por nicho, esto toma las búsquedas en tendencia real de Mercado Libre para el

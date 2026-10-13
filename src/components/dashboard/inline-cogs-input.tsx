@@ -51,7 +51,7 @@ export function InlineCogsInput({
         onKeyDown={(e) => e.key === "Enter" && save()}
         disabled={isPending}
         className={cn(
-          "h-8 w-28 border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400",
+          "h-8 w-28 border-border bg-success-bg text-success",
           !Number(value) && "border-border bg-transparent text-foreground",
         )}
       />

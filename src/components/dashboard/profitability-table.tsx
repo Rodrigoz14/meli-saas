@@ -127,7 +127,7 @@ function Row({
       <TableCell>
         {row.originalPrice && row.originalPrice > row.price ? (
           <div className="flex flex-col">
-            <span className="font-semibold text-emerald-500">{formatMoney(row.price, row.currencyId)}</span>
+            <span className="font-semibold text-success">{formatMoney(row.price, row.currencyId)}</span>
             <span className="text-xs text-muted-foreground line-through">
               {formatMoney(row.originalPrice, row.currencyId)}
             </span>
@@ -147,10 +147,10 @@ function Row({
       <TableCell className="text-muted-foreground">
         -{formatMoney(row.commission30d || row.saleFee, row.currencyId)}
       </TableCell>
-      <TableCell className="text-cyan-600 dark:text-cyan-400">
+      <TableCell className="text-secondary">
         -{formatMoney(row.shipping30d, row.currencyId)}
       </TableCell>
-      <TableCell className="text-amber-600 dark:text-amber-400">
+      <TableCell className="text-warning">
         -{formatMoney(retention, row.currencyId)}
       </TableCell>
       <TableCell className="font-semibold">
@@ -160,7 +160,7 @@ function Row({
         <TableCell className="text-right">
           {row.ads ? (
             <div className="flex flex-col items-end">
-              <span className="font-medium text-violet-500">
+              <span className="font-medium text-[var(--cost-3)]">
                 {row.ads.clicks.toLocaleString()} clics / {formatMoney(row.ads.cost, row.currencyId)}
               </span>
               <span className="text-[10px] text-muted-foreground">{row.ads.ctr.toFixed(2)}%</span>
@@ -538,7 +538,7 @@ export function ProfitabilityTable({
             <TableCell className="font-semibold text-muted-foreground">
               -{formatMoney(totals.commission, currencyId)}
             </TableCell>
-            <TableCell className="font-semibold text-cyan-600 dark:text-cyan-400">
+            <TableCell className="font-semibold text-secondary">
               -{formatMoney(totals.shipping, currencyId)}
             </TableCell>
             <TableCell>—</TableCell>

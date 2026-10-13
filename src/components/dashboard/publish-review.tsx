@@ -445,7 +445,7 @@ function PublishResultRow({ label, result }: { label: string; result?: PublishRe
     );
   }
   return (
-    <p className={`flex items-start gap-2 ${result.ok ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+    <p className={`flex items-start gap-2 ${result.ok ? "text-success" : "text-destructive"}`}>
       {result.ok ? (
         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
       ) : (

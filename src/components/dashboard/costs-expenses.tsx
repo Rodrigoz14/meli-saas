@@ -111,13 +111,13 @@ function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; 
       </div>
 
       <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-3">
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-[0_0_18px_-12px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(244,63,94,0.85)]">
+        <div className="rounded-xl border border-border bg-danger-bg p-4">
           <p className="text-xs text-muted-foreground">Total Cargos</p>
-          <p className="mt-1 text-lg font-bold text-rose-500">{formatMoney(totalCharges, currencyId)}</p>
+          <p className="mt-1 text-lg font-bold text-destructive">{formatMoney(totalCharges, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 shadow-[0_0_18px_-12px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(16,185,129,0.85)]">
+        <div className="rounded-xl border border-border bg-success-bg p-4">
           <p className="text-xs text-muted-foreground">Total Bonificaciones</p>
-          <p className="mt-1 text-lg font-bold text-emerald-500">{formatMoney(totalBonuses, currencyId)}</p>
+          <p className="mt-1 text-lg font-bold text-success">{formatMoney(totalBonuses, currencyId)}</p>
         </div>
         <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 shadow-[0_0_18px_-12px_rgba(99,102,241,0.8)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.9)]">
           <p className="text-xs text-muted-foreground">Total Facturado</p>
@@ -127,7 +127,7 @@ function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; 
 
       <div className="grid gap-5 border-t border-border p-5 sm:grid-cols-2">
         <div>
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-rose-500">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-destructive">
             <Receipt className="h-3.5 w-3.5" /> Cargos
           </p>
           <div className="mt-3 space-y-2">
@@ -143,7 +143,7 @@ function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; 
           </div>
         </div>
         <div>
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-emerald-500">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-success">
             <Gift className="h-3.5 w-3.5" /> Bonificaciones
           </p>
           <div className="mt-3 space-y-2">
@@ -153,10 +153,10 @@ function BillingSummaryCard({ summary, currencyId }: { summary: BillingSummary; 
             {summary.bonuses.map((c, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between gap-3 rounded-lg bg-emerald-500/5 px-3 py-2 text-xs"
+                className="flex items-center justify-between gap-3 rounded-lg bg-success-bg px-3 py-2 text-xs"
               >
                 <span className="text-muted-foreground">{c.label}</span>
-                <span className="shrink-0 font-medium text-emerald-500">{formatMoney(c.amount, currencyId)}</span>
+                <span className="shrink-0 font-medium text-success">{formatMoney(c.amount, currencyId)}</span>
               </div>
             ))}
           </div>
@@ -188,13 +188,13 @@ function MlChargesTab({
       </p>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-[0_0_18px_-12px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(244,63,94,0.85)]">
+        <div className="rounded-xl border border-border bg-danger-bg p-4">
           <p className="text-xs text-muted-foreground">Fijos (mes)</p>
-          <p className="mt-1 text-xl font-bold text-rose-500">{formatMoney(totalFixed, currencyId)}</p>
+          <p className="mt-1 text-xl font-bold text-destructive">{formatMoney(totalFixed, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-[0_0_18px_-12px_rgba(245,158,11,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(245,158,11,0.85)]">
+        <div className="rounded-xl border border-border bg-warning-bg p-4">
           <p className="text-xs text-muted-foreground">Variables</p>
-          <p className="mt-1 text-xl font-bold text-amber-500">{formatMoney(totalVariable, currencyId)}</p>
+          <p className="mt-1 text-xl font-bold text-warning">{formatMoney(totalVariable, currencyId)}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4 shadow-[0_0_18px_-14px_rgba(99,102,241,0.6)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.8)]">
           <p className="text-xs text-muted-foreground">Total Automático</p>
@@ -221,7 +221,7 @@ function MlChargesTab({
                   <span
                     className={cn(
                       "rounded-full px-2 py-0.5 text-xs",
-                      cost.isFixed ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500",
+                      cost.isFixed ? "bg-primary/10 text-primary" : "bg-warning-bg text-warning",
                     )}
                   >
                     {cost.isFixed ? (
@@ -232,7 +232,7 @@ function MlChargesTab({
                       "Variable"
                     )}
                   </span>
-                  <span className="font-medium text-amber-600 dark:text-amber-400">
+                  <span className="font-medium text-warning">
                     {formatMoney(cost.amount, currencyId)}
                   </span>
                 </div>
@@ -354,8 +354,8 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10">
-                <AlertCircle className="h-4 w-4 text-amber-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-warning-bg">
+                <AlertCircle className="h-4 w-4 text-warning" />
               </div>
               <div>
                 <p className="text-sm font-semibold">Progreso de Costos</p>
@@ -368,8 +368,8 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
             <div className={cn("h-3.5", PROGRESS_BAR_CLASS)} style={{ width: `${progress}%` }} />
           </div>
           <div className="mt-2 flex items-center justify-between text-xs">
-            <span className="text-emerald-500">{withCost} con costo</span>
-            <span className="text-rose-500">{withoutCost} sin costo</span>
+            <span className="text-success">{withCost} con costo</span>
+            <span className="text-destructive">{withoutCost} sin costo</span>
           </div>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
@@ -466,9 +466,9 @@ function CostsTab({ products, currencyId }: { products: CostProduct[]; currencyI
                 </td>
                 <td className="px-3 py-2 text-center">
                   {product.cogs > 0 ? (
-                    <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-500" />
+                    <CheckCircle2 className="mx-auto h-4 w-4 text-success" />
                   ) : (
-                    <AlertCircle className="mx-auto h-4 w-4 text-rose-500" />
+                    <AlertCircle className="mx-auto h-4 w-4 text-destructive" />
                   )}
                 </td>
               </tr>
@@ -668,13 +668,13 @@ function ExpensesTab({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-4 shadow-[0_0_18px_-12px_rgba(244,63,94,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(244,63,94,0.85)]">
+        <div className="rounded-xl border border-border bg-danger-bg p-4">
           <p className="text-xs text-muted-foreground">Gastos Fijos (mes)</p>
-          <p className="mt-1 text-xl font-bold text-rose-500">{formatMoney(totalFixed, currencyId)}</p>
+          <p className="mt-1 text-xl font-bold text-destructive">{formatMoney(totalFixed, currencyId)}</p>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 shadow-[0_0_18px_-12px_rgba(245,158,11,0.7)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(245,158,11,0.85)]">
+        <div className="rounded-xl border border-border bg-warning-bg p-4">
           <p className="text-xs text-muted-foreground">Gastos Variables</p>
-          <p className="mt-1 text-xl font-bold text-amber-500">{formatMoney(totalVariable, currencyId)}</p>
+          <p className="mt-1 text-xl font-bold text-warning">{formatMoney(totalVariable, currencyId)}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4 shadow-[0_0_18px_-14px_rgba(99,102,241,0.6)] transition-shadow hover:shadow-[0_0_24px_-8px_rgba(99,102,241,0.8)]">
           <p className="text-xs text-muted-foreground">Total Costos</p>
@@ -781,7 +781,7 @@ function ExpensesTab({
             <div key={tax.id} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2 text-sm">
               <span>{tax.label}</span>
               <div className="flex items-center gap-3">
-                <span className="text-amber-600 dark:text-amber-400">{tax.percent}%</span>
+                <span className="text-warning">{tax.percent}%</span>
                 <button onClick={() => handleDeleteTax(tax.id)} aria-label="Eliminar impuesto" className="text-muted-foreground hover:text-destructive">
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
@@ -871,7 +871,7 @@ function ExpensesTab({
                       </td>
                       <td className="py-2 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button onClick={() => saveEdit(cost.id)} aria-label="Guardar gasto" className="text-emerald-500 hover:text-emerald-600">
+                          <button onClick={() => saveEdit(cost.id)} aria-label="Guardar gasto" className="text-success hover:opacity-80">
                             <Check className="h-4 w-4" />
                           </button>
                           <button onClick={cancelEdit} aria-label="Cancelar edición" className="text-muted-foreground hover:text-destructive">
@@ -900,7 +900,7 @@ function ExpensesTab({
                       <span
                         className={cn(
                           "rounded-full px-2 py-0.5 text-xs",
-                          cost.isFixed ? "bg-primary/10 text-primary" : "bg-amber-500/10 text-amber-500",
+                          cost.isFixed ? "bg-primary/10 text-primary" : "bg-warning-bg text-warning",
                         )}
                       >
                         {cost.isFixed ? (
@@ -912,7 +912,7 @@ function ExpensesTab({
                         )}
                       </span>
                     </td>
-                    <td className="py-2 pr-3 text-right text-amber-600 dark:text-amber-400">
+                    <td className="py-2 pr-3 text-right text-warning">
                       {formatMoney(cost.amount, currencyId)}
                     </td>
                     <td className="py-2 text-right">

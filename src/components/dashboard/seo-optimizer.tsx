@@ -21,14 +21,14 @@ import { getLastImage, saveLastImage, clearLastImage, savePublicationContext } f
 import type { PublicationProduct } from "@/lib/publications-shared";
 
 const TIER_STYLES: Record<CategoryTier, string> = {
-  alta: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  media: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  alta: "border-border bg-success-bg text-success",
+  media: "border-border bg-warning-bg text-warning",
   baja: "border-border bg-muted text-muted-foreground",
 };
 
 const TIER_DOT: Record<CategoryTier, string> = {
-  alta: "bg-emerald-500",
-  media: "bg-amber-500",
+  alta: "bg-success",
+  media: "bg-warning",
   baja: "bg-muted-foreground",
 };
 
@@ -335,10 +335,10 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
             </div>
 
             {result.categoryTrending.length > 0 && (
-              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+              <div className="rounded-2xl border border-border bg-warning-bg p-5">
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-amber-500" />
-                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  <TrendingUp className="h-4 w-4 text-warning" />
+                  <p className="text-sm font-medium text-warning">
                     Más buscados en categoría ({result.categoryTrending.length} tendencias)
                   </p>
                 </div>

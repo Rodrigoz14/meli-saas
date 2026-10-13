@@ -14,7 +14,7 @@ export function PeriodSelect({ days }: { days: number }) {
   return (
     <div className="relative flex items-center rounded-[13px] border border-border bg-muted p-1">
       <div
-        className="absolute top-1 left-1 z-0 h-[30px] rounded-[10px] bg-gradient-to-r from-primary to-primary-2 shadow-[0_6px_16px_-6px_var(--glow)] transition-transform duration-400 ease-[cubic-bezier(.2,.8,.2,1)]"
+        className="absolute top-1 left-1 z-0 h-[30px] rounded-[10px] bg-gradient-to-r from-primary to-primary-2 shadow-[0_6px_16px_-6px_var(--glow)] transition-transform duration-[400ms] ease-[cubic-bezier(.2,.8,.2,1)]"
         style={{ width: SEGMENT_WIDTH, transform: `translateX(${activeIndex * SEGMENT_WIDTH}px)` }}
         aria-hidden
       />

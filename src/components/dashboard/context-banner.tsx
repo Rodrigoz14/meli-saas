@@ -19,11 +19,11 @@ export function ContextBanner({
   onDismiss: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-success-bg p-4">
       <div className="flex items-start gap-2.5">
-        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+        <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-success" />
         <div>
-          <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Usando datos de {sourceLabel}</p>
+          <p className="text-sm font-medium text-success">Usando datos de {sourceLabel}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {summary} · hace {minutesAgo(savedAt)} min
           </p>

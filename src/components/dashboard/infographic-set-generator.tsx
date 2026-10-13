@@ -350,7 +350,7 @@ export function InfographicSetGenerator({ products }: { products: Product[] }) {
             className="hidden"
           />
           {productThumbnailUrl && !uploadedDataUrl && (
-            <p className="mt-1 text-xs text-emerald-500">✓ Usando la foto real de la publicación seleccionada</p>
+            <p className="mt-1 text-xs text-success">✓ Usando la foto real de la publicación seleccionada</p>
           )}
         </div>
 

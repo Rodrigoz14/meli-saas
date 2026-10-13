@@ -279,9 +279,9 @@ export function DescriptionGenerator({ products }: { products: PublicationProduc
         )}
 
         {description && !isPending && (
-          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 shadow-[0_0_20px_-14px_rgba(16,185,129,0.7)] transition-shadow hover:shadow-[0_0_26px_-10px_rgba(16,185,129,0.85)]">
+          <div className="rounded-2xl border border-border bg-success-bg p-6">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Descripción optimizada</p>
+              <p className="text-sm font-medium text-success">Descripción optimizada</p>
               <CopyButton text={description} />
             </div>
             <p className="mt-2 whitespace-pre-wrap text-sm">{description}</p>

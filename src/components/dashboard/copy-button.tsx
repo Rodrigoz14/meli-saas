@@ -15,7 +15,7 @@ export function CopyButton({ text }: { text: string }) {
       }}
       className="flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
-      {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
       {copied ? "Copiado" : "Copiar"}
     </button>
   );

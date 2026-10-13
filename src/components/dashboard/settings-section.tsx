@@ -1,5 +1,6 @@
-import { BadgeCheck, ExternalLink, ShoppingBag, User } from "lucide-react";
+import { BadgeCheck, ExternalLink, Palette, ShoppingBag, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AppearancePicker } from "@/components/dashboard/appearance-picker";
 import type { MeliUserProfile } from "@/lib/meli-api";
 
 const SITE_NAMES: Record<string, string> = {
@@ -58,7 +59,19 @@ export function SettingsSection({
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl p-[1.5px]">
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Palette className="h-5 w-5" />
+          </div>
+          <h2 className="font-display text-lg font-bold tracking-tight">Apariencia</h2>
+        </div>
+        <div className="mt-5">
+          <AppearancePicker />
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-2xl p-[1.5px] lg:col-span-2">
         {meliProfile && (
           <div
             className="absolute inset-0 animate-[spin_6s_linear_infinite]"
