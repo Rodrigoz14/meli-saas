@@ -114,6 +114,18 @@ export default async function DashboardPage({
           totalOperatingCosts={totalOperatingCosts}
           totalAds={totalAds}
           taxWithholdingPercent={taxWithholdingPercent}
+          attentionRows={rows.map((row) => ({
+            productId: row.productId,
+            title: row.title,
+            cogs: row.cogs,
+            availableQuantity: row.availableQuantity,
+            unitsSold30d: row.unitsSold30d,
+            price: row.price,
+            saleFee: row.saleFee,
+            revenue30d: row.revenue30d,
+            commission30d: row.commission30d,
+            shipping30d: row.shipping30d,
+          }))}
         />
       )}
     </>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Boxes, FileText, LayoutDashboard, Receipt, Search, Settings, TrendingUp } from "lucide-react";
+import { BarChart3, FileText, LayoutDashboard, Package, Receipt, Search, SlidersHorizontal, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const GROUPS = [
@@ -20,12 +20,12 @@ const GROUPS = [
     items: [
       { href: "/dashboard/publicaciones", label: "Publicaciones", icon: FileText },
       { href: "/dashboard/busqueda-productos", label: "Búsqueda de productos", icon: Search },
-      { href: "/dashboard/inventario", label: "Inventario", icon: Boxes },
+      { href: "/dashboard/inventario", label: "Inventario", icon: Package },
     ],
   },
   {
     label: "Cuenta",
-    items: [{ href: "/dashboard/configuracion", label: "Configuración", icon: Settings }],
+    items: [{ href: "/dashboard/configuracion", label: "Configuración", icon: SlidersHorizontal }],
   },
 ];
 

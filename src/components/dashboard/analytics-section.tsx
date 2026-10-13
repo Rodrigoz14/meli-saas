@@ -18,20 +18,9 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { KpiCard as SharedKpiCard } from "@/components/dashboard/kpi-card";
 import type { AnalyticsData, ImpactBreakdown, ItemAnalytics, PeriodTotals } from "@/lib/analytics-data";
+import { formatMoney } from "@/lib/format-money";
 
 type ConnectedAnalyticsData = Extract<AnalyticsData, { connected: true }>;
-
-function formatMoney(value: number, currencyId: string) {
-  try {
-    return new Intl.NumberFormat("es", {
-      style: "currency",
-      currency: currencyId,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value).toLocaleString()}`;
-  }
-}
 
 function formatSigned(value: number, currencyId: string) {
   return `${value >= 0 ? "+" : "-"}${formatMoney(Math.abs(value), currencyId)}`;

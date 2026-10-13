@@ -1,18 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, PieChart, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-function formatMoney(value: number, currencyId: string) {
-  try {
-    return new Intl.NumberFormat("es", {
-      style: "currency",
-      currency: currencyId,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${value.toLocaleString()}`;
-  }
-}
+import { formatMoney } from "@/lib/format-money";
 
 export function SummaryCards({
   totalNetProfit,

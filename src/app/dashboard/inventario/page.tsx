@@ -67,6 +67,7 @@ export default async function InventarioPage() {
             unitsSold30d: row.unitsSold30d,
             cogs: row.cogs,
             price: row.price,
+            logisticType: row.logisticType ?? null,
           }))}
           currencyId={rows[0].currencyId}
         />

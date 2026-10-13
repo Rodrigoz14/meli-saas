@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatMoney } from "@/lib/format-money";
 
 // Anima el número de un valor al siguiente en 900ms (ease-out cúbico), sin
 // tocar de dónde viene el valor — solo una transición visual sobre un número
@@ -33,16 +34,5 @@ export function AnimatedNumber({ value, currencyId }: { value: number; currencyI
     return () => cancelAnimationFrame(raf);
   }, [value]);
 
-  let formatted: string;
-  try {
-    formatted = new Intl.NumberFormat("es", {
-      style: "currency",
-      currency: currencyId,
-      maximumFractionDigits: 0,
-    }).format(display);
-  } catch {
-    formatted = `$${Math.round(display).toLocaleString()}`;
-  }
-
-  return <>{formatted}</>;
+  return <>{formatMoney(display, currencyId)}</>;
 }

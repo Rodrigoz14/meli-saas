@@ -22,7 +22,10 @@ export type MeliItem = {
   available_quantity: number;
   status: string;
   permalink: string;
-  shipping?: { free_shipping?: boolean };
+  // `logistic_type` ya venía en la respuesta de la API, solo faltaba
+  // declararlo: "fulfillment" = la publicación está en FULL (bodega de
+  // Mercado Libre), cualquier otro valor = despacha el vendedor.
+  shipping?: { free_shipping?: boolean; logistic_type?: string };
 };
 
 // Mercado Libre manda `thumbnail` en baja resolución (sufijo "-I.jpg",

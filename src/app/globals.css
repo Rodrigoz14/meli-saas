@@ -51,6 +51,7 @@
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
   --color-track: var(--track);
+  --color-line-hi: var(--line-hi);
   --color-banner-warning-bg: var(--banner-warning-bg);
   --color-banner-warning-border: var(--banner-warning-border);
   --color-cost-1: var(--cost-1);
@@ -101,6 +102,7 @@
   --banner-warning-bg: #FFF6E2;
   --banner-warning-border: #F5DDA6;
   --track: #E6E8F0;
+  --line-hi: rgba(33, 64, 237, 0.35);
   --cost-1: #2140ED;
   --cost-2: #4F6BFF;
   --cost-3: #7C8CF5;
@@ -156,6 +158,7 @@
   --banner-warning-bg: rgba(245, 185, 74, 0.08);
   --banner-warning-border: rgba(245, 185, 74, 0.3);
   --track: rgba(127, 148, 255, 0.12);
+  --line-hi: rgba(127, 148, 255, 0.45);
   --cost-1: #7F94FF;
   --cost-2: #5470F7;
   --cost-3: #A78BFA;
@@ -187,9 +190,25 @@
   html {
     @apply font-sans;
   }
-  select option {
-    background: var(--card);
+  select option,
+  select optgroup {
+    background-color: var(--card);
     color: var(--foreground);
+  }
+  select option:checked {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  .dark select {
+    background-color: #161a3a;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: #8a8fa8;
+  }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
 }
 
@@ -228,7 +247,7 @@
     transform: translate(0, 0) scale(1);
   }
   to {
-    transform: translate(50px, -40px) scale(1.16);
+    transform: translate(70px, 40px) scale(1.18);
   }
 }
 

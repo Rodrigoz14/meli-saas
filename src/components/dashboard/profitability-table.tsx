@@ -13,7 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -23,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { computePeriodProfit, diagnose } from "@/lib/profitability";
+import { formatMoney, formatPercent } from "@/lib/format-money";
 import type { AdsItemMetric } from "@/lib/meli-api";
 import { InlineCogsInput } from "@/components/dashboard/inline-cogs-input";
 import { SortableHead } from "@/components/dashboard/sortable-head";
@@ -39,6 +39,8 @@ export type ProfitabilityRow = {
   originalPrice: number | null;
   currencyId: string;
   availableQuantity: number;
+  // "fulfillment" = la publicación está en FULL; null si ML no lo informa.
+  logisticType?: string | null;
   saleFee: number;
   // Necesarios para pedir la comisión real de ML a un precio hipotético
   // (calculadora de precios) — no se muestran en la tabla.
@@ -63,17 +65,6 @@ type SortKey =
   | "netProfit"
   | "margin";
 
-function formatMoney(value: number, currencyId: string) {
-  try {
-    return new Intl.NumberFormat("es", {
-      style: "currency",
-      currency: currencyId,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${value.toLocaleString()}`;
-  }
-}
 
 function Row({
   row,
@@ -119,7 +110,12 @@ function Row({
             className="rounded-md border border-border object-cover"
             unoptimized
           />
-          <span className="max-w-[220px] truncate text-sm font-medium">{row.title}</span>
+          <span className="min-w-0">
+            <span className="block max-w-[220px] truncate text-sm font-semibold">{row.title}</span>
+            {row.meliItemId ? (
+              <span className="block font-mono text-[11px] text-muted-foreground">{row.meliItemId}</span>
+            ) : null}
+          </span>
         </a>
       </TableCell>
       <TableCell className="text-center">{row.unitsSold30d}</TableCell>
@@ -171,12 +167,25 @@ function Row({
         </TableCell>
       )}
       <TableCell>
-        <Badge
-          variant={margin >= 15 ? "secondary" : "destructive"}
-          className={margin >= 15 ? "bg-success-bg text-success" : undefined}
-        >
-          {margin.toFixed(1)}%
-        </Badge>
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-12 shrink-0 overflow-hidden rounded-full bg-track">
+            <span
+              className={cn(
+                "block h-full rounded-full",
+                margin >= 30 ? "bg-success" : margin >= 15 ? "bg-warning" : "bg-destructive",
+              )}
+              style={{ width: `${Math.min(Math.max(margin, 0), 100)}%` }}
+            />
+          </span>
+          <span
+            className={cn(
+              "text-sm font-bold tabular-nums",
+              margin >= 30 ? "text-success" : margin >= 15 ? "text-warning" : "text-destructive",
+            )}
+          >
+            {formatPercent(margin)}
+          </span>
+        </div>
       </TableCell>
       <TableCell className="max-w-[200px] text-xs text-muted-foreground">
         {diagnosis}

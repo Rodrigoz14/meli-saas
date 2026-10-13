@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { Logo } from "@/components/marketing/logo";
-import { Button } from "@/components/ui/button";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
@@ -26,30 +25,26 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
         <div className="flex h-full flex-col gap-[18px] rounded-[22px] border border-border bg-card p-[18px_12px]">
           <Logo className="px-3" />
           <DashboardNav />
-          <div className="mt-auto flex flex-col gap-2 rounded-2xl bg-muted p-2.5">
-            <div className="flex items-center gap-2.5 px-1">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-secondary to-primary text-sm font-bold text-primary-foreground">
-                {initials}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">{displayName}</p>
-                <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
-              </div>
-            </div>
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/" });
-              }}
-            >
-              <Button
-                variant="outline"
-                type="submit"
-                className="w-full hover:border-destructive hover:text-destructive"
+          <div className="mt-auto flex items-center gap-2.5 rounded-2xl bg-muted p-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-secondary to-primary text-sm font-bold text-primary-foreground">
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-foreground">{displayName}</p>
+              <form
+                action={async () => {
+                  "use server";
+                  await signOut({ redirectTo: "/" });
+                }}
               >
-                Cerrar sesión
-              </Button>
-            </form>
+                <button
+                  type="submit"
+                  className="text-xs text-muted-foreground transition-colors hover:text-destructive"
+                >
+                  Cerrar sesión
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </aside>

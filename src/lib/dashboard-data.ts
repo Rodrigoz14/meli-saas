@@ -186,6 +186,7 @@ export async function getRentabilidadData(userId: string, days = 30): Promise<Re
           originalPrice: effective.originalPrice,
           currencyId: item.currency_id,
           availableQuantity: item.available_quantity,
+          logisticType: item.shipping?.logistic_type ?? null,
           saleFee: saleFee ?? 0,
           categoryId: item.category_id,
           listingTypeId: item.listing_type_id,

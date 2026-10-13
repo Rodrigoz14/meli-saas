@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import type { BillingSummary } from "@/lib/meli-api";
 import { InlineCogsInput } from "@/components/dashboard/inline-cogs-input";
 import { PricingCalculator } from "@/components/dashboard/pricing-calculator";
+import { formatMoney } from "@/lib/format-money";
 import {
   addOperatingCost,
   addTaxEntry,
@@ -66,18 +67,6 @@ const PROGRESS_BAR_CLASS = "rounded-full bg-gradient-to-r from-primary to-primar
 
 const TAB_VALUES = ["gastos", "cogs", "facturacion-ml", "calculadora"] as const;
 type TabValue = (typeof TAB_VALUES)[number];
-
-function formatMoney(value: number, currencyId: string) {
-  try {
-    return new Intl.NumberFormat("es", {
-      style: "currency",
-      currency: currencyId,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${value.toLocaleString()}`;
-  }
-}
 
 function formatDate(iso: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("es", {

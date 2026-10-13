@@ -10,18 +10,7 @@ import { cn } from "@/lib/utils";
 import { calculatePricing, type PricingCalcInput, type PricingCalcResult } from "@/app/dashboard/actions";
 import type { CostProduct } from "@/components/dashboard/costs-expenses";
 import type { TaxEntryItem } from "@/components/dashboard/costs-expenses";
-
-function formatMoney(value: number, currencyId: string) {
-  try {
-    return new Intl.NumberFormat("es", {
-      style: "currency",
-      currency: currencyId,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value).toLocaleString()}`;
-  }
-}
+import { formatMoney } from "@/lib/format-money";
 
 const NO_PRODUCT = "__none__";
 
