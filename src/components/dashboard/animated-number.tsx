@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 // Anima el número de un valor al siguiente en 900ms (ease-out cúbico), sin
 // tocar de dónde viene el valor — solo una transición visual sobre un número
-// ya calculado.
-export function AnimatedNumber({ value, format }: { value: number; format: (n: number) => string }) {
+// ya calculado. El formato de moneda se hace adentro (no se puede recibir
+// una función como prop desde un Server Component).
+export function AnimatedNumber({ value, currencyId }: { value: number; currencyId: string }) {
   const [display, setDisplay] = useState(value);
   const prevRef = useRef(value);
 
@@ -32,5 +33,16 @@ export function AnimatedNumber({ value, format }: { value: number; format: (n: n
     return () => cancelAnimationFrame(raf);
   }, [value]);
 
-  return <>{format(display)}</>;
+  let formatted: string;
+  try {
+    formatted = new Intl.NumberFormat("es", {
+      style: "currency",
+      currency: currencyId,
+      maximumFractionDigits: 0,
+    }).format(display);
+  } catch {
+    formatted = `$${Math.round(display).toLocaleString()}`;
+  }
+
+  return <>{formatted}</>;
 }

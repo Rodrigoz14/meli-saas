@@ -177,7 +177,7 @@ export function RevenueSummary({
             <p className="text-xs font-semibold tracking-wide text-[#7FE3EE] uppercase">Utilidad neta</p>
           </div>
           <p className="mt-2 font-display text-[40px] leading-none font-extrabold tracking-[-0.04em] tabular-nums">
-            <AnimatedNumber value={utilidadNeta} format={(n) => formatMoney(n, currencyId)} />
+            <AnimatedNumber value={utilidadNeta} currencyId={currencyId} />
           </p>
           <p className="mt-2 text-sm text-[#C5C8DA]">
             {margenNeto.toFixed(1)}% de margen neto
