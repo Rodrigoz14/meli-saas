@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MeliListingPreview } from "@/components/dashboard/meli-listing-preview";
+import { ListingPreviewModal } from "@/components/dashboard/listing-preview-modal";
 import {
   publishDescriptionToMeli,
   publishImagesToMeli,
@@ -417,17 +417,26 @@ export function PublishReview({ products }: { products: PublicationProduct[] }) 
         </Dialog>
       </div>
 
-      <div>
-        <MeliListingPreview
+      <div className="flex flex-col gap-3 rounded-[22px] border border-border bg-card p-5">
+        <div>
+          <p className="font-display text-lg font-bold">Antes de publicar</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Revisá cómo va a quedar la publicación con el título, la descripción y las fotos que elegiste.
+          </p>
+        </div>
+
+        <ListingPreviewModal
           title={editableTitle}
           images={previewImages}
           description={editableDescription}
           categoryName={context?.categoryName}
+          disabled={!hasAnything}
         />
+
         {selectedProduct?.thumbnail && previewImages.length === 0 && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Image src={selectedProduct.thumbnail} alt="" width={20} height={20} className="rounded" unoptimized />
-            Sin infografías generadas todavía — la previsualización usaría solo título y descripción.
+            Sin infografías generadas todavía — la vista previa usaría solo título y descripción.
           </div>
         )}
       </div>
