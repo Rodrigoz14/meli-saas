@@ -495,13 +495,26 @@ async function getItemEffectivePrice(
   }
 }
 
+// A diferencia de la comisión y del costo de envío, el precio efectivo SÍ
+// puede cambiar en cualquier momento (una campaña que arranca o termina),
+// así que la ventana es corta: lo justo para que navegar entre Dashboard,
+// Rentabilidad y Analytics no vuelva a pedir los mismos 76 precios, sin
+// llegar a mostrar un precio viejo.
+const effectivePriceCache = new Map<string, { value: { price: number; originalPrice: number | null }; expiresAt: number }>();
+const EFFECTIVE_PRICE_CACHE_TTL_MS = 3 * 60 * 1000;
+
 export async function getEffectivePrices(
   accessToken: string,
   items: { id: string; price: number }[],
 ): Promise<Record<string, { price: number; originalPrice: number | null }>> {
-  const results = await mapWithConcurrency(items, 25, (item) =>
-    getItemEffectivePrice(accessToken, item.id, item.price),
-  );
+  const now = Date.now();
+  const results = await mapWithConcurrency(items, 25, async (item) => {
+    const cached = effectivePriceCache.get(item.id);
+    if (cached && cached.expiresAt > now) return cached.value;
+    const value = await getItemEffectivePrice(accessToken, item.id, item.price);
+    effectivePriceCache.set(item.id, { value, expiresAt: Date.now() + EFFECTIVE_PRICE_CACHE_TTL_MS });
+    return value;
+  });
   const byId: Record<string, { price: number; originalPrice: number | null }> = {};
   items.forEach((item, i) => {
     byId[item.id] = results[i];
@@ -538,6 +551,34 @@ export async function mapWithConcurrency<T, R>(
   return results;
 }
 
+// El costo de un envío ya despachado es un dato histórico: una vez que la
+// orden está pagada, Mercado Libre no lo vuelve a tocar. Y es, de lejos, la
+// llamada más repetida de toda la app — una cuenta activa tiene ~2.000 envíos
+// en 30 días, y Dashboard, Analytics y Rentabilidad piden los mismos 2.000 en
+// cada carga y en cada cambio de período. Medido en esta cuenta: 2.124
+// llamadas = ~12s por pantalla. Cachearlos en memoria deja esas 12s en cero a
+// partir de la segunda carga del proceso.
+//
+// Se cachea por id de envío (único en todo Mercado Libre) y solo el número de
+// costo; nunca se usa un id que no haya venido de las órdenes del propio
+// usuario que está consultando.
+const shipmentCostCache = new Map<number, number>();
+// Tope para que un proceso de larga vida no crezca sin límite: al llegar al
+// máximo se descarta la mitad más vieja (Map itera en orden de inserción).
+const SHIPMENT_COST_CACHE_MAX = 20000;
+
+function rememberShipmentCost(shipmentId: number, cost: number) {
+  if (shipmentCostCache.size >= SHIPMENT_COST_CACHE_MAX) {
+    const toDrop = Math.floor(SHIPMENT_COST_CACHE_MAX / 2);
+    let dropped = 0;
+    for (const key of shipmentCostCache.keys()) {
+      shipmentCostCache.delete(key);
+      if (++dropped >= toDrop) break;
+    }
+  }
+  shipmentCostCache.set(shipmentId, cost);
+}
+
 // Costo real de envío que absorbe el vendedor por ese envío específico
 // (después de descuentos obligatorios) — NO es lo mismo que
 // payments[].shipping_cost, que es lo que pagó el comprador.
@@ -547,8 +588,12 @@ async function getShipmentSellerCost(accessToken: string, shipmentId: number) {
       `/shipments/${shipmentId}/costs`,
       accessToken,
     );
-    return data.senders?.reduce((sum, s) => sum + (s.cost ?? 0), 0) ?? 0;
+    const cost = data.senders?.reduce((sum, s) => sum + (s.cost ?? 0), 0) ?? 0;
+    rememberShipmentCost(shipmentId, cost);
+    return cost;
   } catch {
+    // Un fallo no se cachea: que la próxima carga lo reintente en vez de
+    // quedarse con un envío en 0 para siempre.
     return 0;
   }
 }
@@ -622,10 +667,12 @@ export async function getOrderStats(
       allOrders.map((o) => o.shipping?.id).filter((id): id is number => Boolean(id)),
     ),
   ];
-  const shipmentCostsList = await mapWithConcurrency(shipmentIds, 25, (id) =>
-    getShipmentSellerCost(accessToken, id),
-  );
-  const shipmentCosts = new Map(shipmentIds.map((id, i) => [id, shipmentCostsList[i]]));
+  // Solo se piden los que no estén cacheados ya (ver shipmentCostCache): al
+  // navegar entre pantallas o cambiar el período, casi todos los envíos se
+  // repiten y esto baja de ~2.000 llamadas a unas pocas decenas.
+  const missingIds = shipmentIds.filter((id) => !shipmentCostCache.has(id));
+  await mapWithConcurrency(missingIds, 25, (id) => getShipmentSellerCost(accessToken, id));
+  const shipmentCosts = new Map(shipmentIds.map((id) => [id, shipmentCostCache.get(id) ?? 0]));
 
   const totals: Record<string, OrderStats> = {};
   for (const order of allOrders) {
@@ -668,6 +715,14 @@ export async function getOrderStats(
 
 // Comisión oficial de Mercado Libre para ese precio/categoría/tipo de
 // publicación — el mismo cálculo que usa MercadoLibre internamente.
+// La comisión de Mercado Libre es una tabla de tarifas por categoría y tipo
+// de publicación: no cambia de un minuto a otro. Pero se pide una vez por
+// publicación en cada carga (76 llamadas en esta cuenta), y las mismas
+// combinaciones se repiten entre pantallas y entre cambios de período. Con
+// una caché de unas horas, la segunda carga no paga ninguna.
+const saleFeeCache = new Map<string, { fee: number | null; expiresAt: number }>();
+const SALE_FEE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
 export async function getSaleFee(
   accessToken: string,
   siteId: string,
@@ -675,6 +730,13 @@ export async function getSaleFee(
   categoryId: string,
   listingTypeId: string,
 ) {
+  // El precio entra en la clave porque la comisión tiene tramos por monto;
+  // se redondea al peso para que un centavo de diferencia no invalide la
+  // entrada.
+  const cacheKey = `${siteId}|${categoryId}|${listingTypeId}|${Math.round(price)}`;
+  const cached = saleFeeCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.fee;
+
   try {
     const params = new URLSearchParams({
       price: String(price),
@@ -685,8 +747,11 @@ export async function getSaleFee(
       `/sites/${siteId}/listing_prices?${params.toString()}`,
       accessToken,
     );
-    return data.sale_fee_amount ?? null;
+    const fee = data.sale_fee_amount ?? null;
+    saleFeeCache.set(cacheKey, { fee, expiresAt: Date.now() + SALE_FEE_CACHE_TTL_MS });
+    return fee;
   } catch (err) {
+    // Un fallo no se cachea, para que la próxima carga lo reintente.
     console.error(`getSaleFee(${categoryId}, price=${price}) failed:`, err);
     return null;
   }
