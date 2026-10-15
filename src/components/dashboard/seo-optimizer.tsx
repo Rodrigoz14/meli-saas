@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
-import { Loader2, Package, Search, Sparkles, TrendingUp } from "lucide-react";
+import { ChevronDown, Loader2, Package, Search, Sparkles, TriangleAlert, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,7 @@ import {
 } from "@/app/dashboard/actions";
 import { getLastImage, saveLastImage, clearLastImage, savePublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
+import { TITLE_RULES, auditTitle } from "@/lib/title-rules";
 
 const TIER_STYLES: Record<CategoryTier, string> = {
   alta: "border-border bg-success-bg text-success",
@@ -38,17 +39,56 @@ const TIER_LABELS: Record<CategoryTier, string> = {
   baja: "Baja",
 };
 
+// Las reglas quedan a la vista, plegadas, por dos razones: el vendedor
+// entiende por qué un título "raro" (sin conectores y sin que se lea como
+// una frase) está bien, y puede contrastar a mano cualquier aviso.
+function TitleRulesDisclosure() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-3 rounded-lg border border-border/60">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-medium transition-colors hover:bg-muted/40"
+      >
+        Las 10 reglas que sigue el generador
+        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", open && "rotate-180")} />
+      </button>
+      {open && (
+        <ol className="space-y-1.5 border-t border-border/60 px-3 py-2.5">
+          {TITLE_RULES.map((rule) => (
+            <li key={rule.id} className="flex gap-2 text-xs">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
+                {rule.id}
+              </span>
+              <span>
+                <span className="font-medium">{rule.label}.</span>{" "}
+                <span className="text-muted-foreground">{rule.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 function TitleCard({
   index,
   title,
   limit,
   catalog,
+  keywords,
   publishTarget,
 }: {
   index: number;
   title: string;
   limit: number;
   catalog?: boolean;
+  // Las keywords reales de la investigación: sin ellas no se puede juzgar
+  // si las 3 primeras palabras son palabra clave ni si un conector estaba
+  // justificado.
+  keywords: string[];
   // El título de catálogo no es un campo real de Mercado Libre (es un
   // concepto propio de MeliBoost) — por eso solo los 3 títulos normales
   // reciben publishTarget y pueden publicarse de verdad.
@@ -56,6 +96,9 @@ function TitleCard({
 }) {
   const over = title.length > limit;
   const pct = Math.min(100, Math.round((title.length / limit) * 100));
+  // El título de catálogo tiene otro límite y no persigue las mismas
+  // reglas de posicionamiento, así que no se audita.
+  const issues = catalog ? [] : auditTitle(title, keywords);
   return (
     <div
       className={cn(
@@ -91,6 +134,18 @@ function TitleCard({
           {title.length}/{limit} caracteres
         </span>
       </div>
+      {issues.length > 0 && (
+        <ul className="mt-2 space-y-1 pl-7.5">
+          {issues.map((issue) => (
+            <li key={issue.ruleId} className="flex items-start gap-1.5 text-xs text-warning">
+              <TriangleAlert className="mt-0.5 h-3 w-3 shrink-0" />
+              <span>
+                <span className="font-medium">Regla {issue.ruleId}:</span> {issue.message}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {publishTarget && (
         <div className="mt-2 pl-7.5">
           <PublishToMeliButton
@@ -222,6 +277,10 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
       setIsGeneratingMore(false);
     }
   }
+
+  // Los términos sueltos, sin el tier — es lo que necesita auditTitle para
+  // decidir si una palabra del título salió de la investigación o no.
+  const keywordTerms = result?.keywords.map((k) => k.term) ?? [];
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(300px,1fr)_minmax(0,1.4fr)]">
@@ -396,8 +455,10 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
               <div className="rounded-2xl border border-border bg-card p-5">
                 <p className="text-sm font-medium">Títulos optimizados</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {result.titles.length} títulos para publicación (60 car.) + 1 para catálogo (120 car.)
+                  {result.titles.length} títulos para publicación (60 car.) + 1 para catálogo (120 car.) · solo
+                  palabras clave de la investigación
                 </p>
+                <TitleRulesDisclosure />
                 <div className="mt-3 space-y-2.5">
                   {result.titles.map((title, i) => (
                     <TitleCard
@@ -405,6 +466,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                       index={i + 1}
                       title={title}
                       limit={60}
+                      keywords={keywordTerms}
                       publishTarget={
                         selectedProduct?.meliItemId
                           ? { productId: selectedProduct.productId, permalink: selectedProduct.permalink }
@@ -413,7 +475,13 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                     />
                   ))}
                   {result.catalogTitle && (
-                    <TitleCard index={result.titles.length + 1} title={result.catalogTitle} limit={120} catalog />
+                    <TitleCard
+                      index={result.titles.length + 1}
+                      title={result.catalogTitle}
+                      limit={120}
+                      keywords={keywordTerms}
+                      catalog
+                    />
                   )}
                 </div>
                 <Button

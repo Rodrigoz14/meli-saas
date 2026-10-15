@@ -1,4 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
+import {
+  CATALOG_TITLE_MAX_LENGTH,
+  TITLE_MAX_LENGTH,
+  normalizeTitle,
+  removeRepeatedWords,
+} from "@/lib/title-rules";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -297,10 +303,21 @@ export type SeoTitlesResult = {
 // A diferencia de un generador que inventa un único título sin ningún
 // dato real de búsqueda, esta función recibe las keywords YA
 // verificadas contra Mercado Libre (tendencias reales de la categoría +
-// sinónimos filtrados) y les pide variantes de título que las usen — mismas
-// reglas reales de título de Mercado Libre (60 caracteres, sin mayúsculas
-// sostenidas ni palabras subjetivas), más un título largo "de catálogo"
-// (hasta 120 caracteres) para la ficha de producto genérica.
+// sinónimos filtrados) y les pide variantes de título que las usen.
+//
+// Las reglas que sigue son las de TITLE_RULES (ver src/lib/title-rules.ts):
+// la metodología que el vendedor ya aplica a mano. La idea de fondo es que
+// el título esté compuesto SOLAMENTE por palabras clave de la
+// investigación — todo lo demás (conectores, especificaciones, colores)
+// gasta caracteres en algo que nadie busca. Lo que el modelo tiende a
+// saltarse (tildes, largo) se corrige después de forma determinista con
+// normalizeTitle(), y lo auditable se le muestra al vendedor con
+// auditTitle().
+//
+// Se agrega además un título largo "de catálogo" (hasta 120 caracteres)
+// para la ficha de producto genérica — ese no sale del tablero del
+// vendedor, es un concepto propio de MeliBoost, pero sigue las mismas
+// reglas de qué no incluir.
 export async function generateSeoTitles(input: {
   productName: string;
   keywords: string[];
@@ -336,18 +353,26 @@ ${excludeTitles.length > 0 ? `\nYa generamos estos títulos antes — los nuevos
 
 Necesito 3 títulos de publicación optimizados${excludeTitles.length > 0 ? " MÁS (distintos a los de arriba)" : ""} y 1 título largo para catálogo — sé lo más detallado y denso posible en información real, aprovechando TODO el espacio de caracteres disponible (no dejes el título corto si hay más keywords/atributos reales para meter).
 
-Reglas de los 3 títulos de publicación:
-- Usá el máximo de caracteres posible, cerca del límite de 60 (no te quedes corto si hay keywords/atributos reales para agregar).
-- Cada título combina una selección DISTINTA de 2-3 keywords reales de la lista (no las ignores, son búsquedas reales de compradores) + cualquier atributo real (marca/modelo/capacidad/material/característica) que te haya dado el vendedor o la foto.
-- Orden: Marca (si aplica) + Producto + Atributo clave + Cantidad si aplica. Las palabras que más se buscan van primero.
-- SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio.
-- NO menciones el color del producto en ningún título, ni siquiera si lo sabés por las características o la foto — el color suele variar entre unidades/variantes de una misma publicación, así que no va en el título.
-- Los 3 títulos tienen que ser variantes genuinamente distintas (no la misma frase con una palabra cambiada) — cada uno resaltando un ángulo distinto (ej. uno enfocado en la marca/modelo, otro en un atributo real, otro en el uso).
-- NUNCA inventes un atributo (capacidad, material, etc.) que no esté en las keywords, características o descripción de foto que te pasé.
+IDEA DE FONDO (la más importante): un título excelente está compuesto SOLAMENTE por palabras clave que aparezcan en la investigación de arriba. No metas NADA que no sea una palabra clave que la gente busca en Mercado Libre. Cuanto menos "sentido" tenga la frase leída como oración, MEJOR — eso significa que no gastaste caracteres en relleno.
+
+Reglas de los 3 títulos de publicación (son innegociables, en este orden de prioridad):
+1) Usá SOLAMENTE palabras clave de la lista de arriba. Si algo no es palabra clave, no entra.
+2) Completá todos los caracteres posibles: apuntá a entre 55 y 60 caracteres. Contá los caracteres antes de responder; si te quedaste en 45, agregá otra palabra clave de la lista. Quedarte corto es desperdiciar búsquedas.
+3) NO pongas conectores ("de", "para", "con", "en", "por", "y"…). Excepción: si el conector forma parte de una palabra clave de la lista, ahí sí va.
+4) NO pongas especificaciones del producto (grande, pequeño, 10.000 watts, batería 1.5 m, iluminación, medidas…). Excepción: si esa especificación es una palabra clave de la lista, ahí sí va.
+5) NO pongas colores ni variantes (azul, negro, blanco…). Excepción: si el color es una palabra clave de la lista, ahí sí va.
+6) Los 3 títulos tienen que ser completamente DIFERENTES entre sí: distinta selección de palabras clave y distinto orden, no la misma frase con una palabra cambiada.
+7) NO armes frases lógicas ni oraciones que se lean bien. Son palabras clave una detrás de otra.
+8) NO copies el título de ninguna publicación existente.
+9) NO uses tildes ni acentos en ninguna palabra.
+10) Las 3 PRIMERAS palabras tienen que describir qué es el producto y, además, ser palabras clave de la lista. Las palabras más buscadas van primero.
+
+Además: SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio. NUNCA inventes una palabra clave que no esté en la lista que te pasé.
 
 Reglas del título de catálogo:
-- Hasta 120 caracteres, usá la mayor cantidad posible combinando TODAS las keywords/atributos reales relevantes que entren, para maximizar qué búsquedas lo encuentran.
-- Mismas reglas de qué NO incluir e no inventar que los títulos normales.
+- Hasta 120 caracteres, usá la mayor cantidad posible combinando TODAS las palabras clave relevantes que entren, para maximizar qué búsquedas lo encuentran.
+- Mismas reglas 1, 3, 4, 5, 7, 8 y 9 que los títulos de publicación.
+- No repitas ninguna palabra dos veces: cada repetición gasta caracteres sin sumar una búsqueda nueva.
 
 Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicional:
 {"titles": ["...", "...", "..."], "catalogTitle": "..."}`,
@@ -365,11 +390,17 @@ Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicion
     const parsed = JSON.parse(match ? match[0] : text);
     if (!Array.isArray(parsed?.titles) || typeof parsed?.catalogTitle !== "string") return null;
     return {
+      // normalizeTitle aplica de forma determinista lo que el modelo se
+      // salta seguido: quitar tildes (regla 9) y respetar el límite de
+      // caracteres cortando por palabra entera, para no dejar una palabra
+      // clave partida a la mitad.
       titles: parsed.titles
         .filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
-        .map((t: string) => toTitleCase(t.trim().slice(0, 60)))
+        .map((t: string) => toTitleCase(normalizeTitle(removeRepeatedWords(t), TITLE_MAX_LENGTH)))
         .slice(0, 3),
-      catalogTitle: toTitleCase(parsed.catalogTitle.trim().slice(0, 120)),
+      catalogTitle: toTitleCase(
+        normalizeTitle(removeRepeatedWords(parsed.catalogTitle), CATALOG_TITLE_MAX_LENGTH),
+      ),
     };
   } catch (err) {
     console.error("generateSeoTitles: no se pudo parsear la respuesta del modelo:", text, err);
