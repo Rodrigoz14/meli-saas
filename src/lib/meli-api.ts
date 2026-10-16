@@ -713,6 +713,41 @@ export async function getOrderStats(
   return totals;
 }
 
+// Cuántos caracteres admite de verdad el título en esa categoría. NO es
+// siempre 60: confirmado contra la cuenta real, "Suplementos Alimenticios"
+// (MCO8830) y "Disfraces Completos" (MCO118203) admiten 150, mientras que
+// "Glucómetros" (MCO166749) admite 60. Asumir 60 para todas desperdiciaba
+// hasta 90 caracteres en las categorías amplias, que es justo lo contrario
+// de lo que pide la regla 2 (completar todos los caracteres posibles).
+//
+// La configuración de una categoría casi no cambia, así que se cachea por
+// un día. Si Mercado Libre no responde o no informa el campo, se devuelve
+// null y el que llama decide el valor por defecto.
+const categoryTitleLimitCache = new Map<string, { limit: number | null; expiresAt: number }>();
+const CATEGORY_TITLE_LIMIT_TTL_MS = 24 * 60 * 60 * 1000;
+
+export async function getCategoryMaxTitleLength(
+  accessToken: string,
+  categoryId: string,
+): Promise<number | null> {
+  const cached = categoryTitleLimitCache.get(categoryId);
+  if (cached && cached.expiresAt > Date.now()) return cached.limit;
+
+  try {
+    const data = await meliFetch<{ settings?: { max_title_length?: number } }>(
+      `/categories/${categoryId}`,
+      accessToken,
+    );
+    const raw = data.settings?.max_title_length;
+    const limit = typeof raw === "number" && raw > 0 ? raw : null;
+    categoryTitleLimitCache.set(categoryId, { limit, expiresAt: Date.now() + CATEGORY_TITLE_LIMIT_TTL_MS });
+    return limit;
+  } catch (err) {
+    console.error(`getCategoryMaxTitleLength(${categoryId}) failed:`, err);
+    return null;
+  }
+}
+
 // Comisión oficial de Mercado Libre para ese precio/categoría/tipo de
 // publicación — el mismo cálculo que usa MercadoLibre internamente.
 // La comisión de Mercado Libre es una tabla de tarifas por categoría y tipo

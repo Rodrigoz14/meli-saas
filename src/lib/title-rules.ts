@@ -19,7 +19,7 @@ export type TitleRule = {
 
 export const TITLE_RULES: TitleRule[] = [
   { id: 1, label: "Solo palabras clave", detail: "Nada que no sea una palabra clave de la investigación ocupa espacio en el título." },
-  { id: 2, label: "Usar los 60 caracteres", detail: "Completar todos los caracteres posibles; un título corto desperdicia búsquedas." },
+  { id: 2, label: "Usar todos los caracteres", detail: "Completar el máximo que admita la categoría; un título corto desperdicia búsquedas." },
   { id: 3, label: "Sin conectores", detail: "Nada de «de», «para», «con»… salvo que el conector sea parte de una palabra clave." },
   { id: 4, label: "Sin especificaciones", detail: "Ni tamaño, ni potencia, ni medidas, salvo que sean palabra clave." },
   { id: 5, label: "Sin colores ni variantes", detail: "El color cambia entre unidades de la misma publicación, salvo que sea palabra clave." },
@@ -39,7 +39,10 @@ const CONNECTORS = new Set([
   "unas", "unos", "y",
 ]);
 
-export const TITLE_MAX_LENGTH = 60;
+// Valor de respaldo: es el limite mas restrictivo que usa Mercado Libre, y
+// solo se usa cuando no se pudo leer el de la categoria real
+// (getCategoryMaxTitleLength). No es "el" limite: hay categorias de 150.
+export const DEFAULT_TITLE_MAX_LENGTH = 60;
 export const CATALOG_TITLE_MAX_LENGTH = 120;
 
 // Regla 9. Se usa también para comparar palabras entre sí, de modo que
@@ -73,7 +76,7 @@ function words(text: string): string[] {
 // Deja el título como debe salir: sin tildes, sin espacios de más y dentro
 // del límite de caracteres, cortando por palabra entera para no dejar una
 // palabra clave partida a la mitad.
-export function normalizeTitle(title: string, maxLength = TITLE_MAX_LENGTH): string {
+export function normalizeTitle(title: string, maxLength = DEFAULT_TITLE_MAX_LENGTH): string {
   const clean = stripAccents(title).replace(/\s+/g, " ").trim();
   if (clean.length <= maxLength) return clean;
   const cut = clean.slice(0, maxLength);
@@ -110,21 +113,55 @@ export type TitleIssue = {
 // (no copiar, que las variantes sean distintas entre sí) va en el prompt.
 // Devuelve avisos, no errores: un título con un aviso sigue siendo usable, y
 // la decisión final es del vendedor.
-export function auditTitle(title: string, keywords: string[]): TitleIssue[] {
+export function auditTitle(
+  title: string,
+  keywords: string[],
+  maxLength = DEFAULT_TITLE_MAX_LENGTH,
+): TitleIssue[] {
   const issues: TitleIssue[] = [];
   const titleWords = words(title);
   if (titleWords.length === 0) return issues;
 
-  // Regla 2 — se avisa recién por debajo del 85% del límite, para no marcar
-  // como problema un título que simplemente cerró en una palabra entera.
-  if (title.length < Math.floor(TITLE_MAX_LENGTH * 0.85)) {
-    issues.push({
-      ruleId: 2,
-      message: `Desaprovecha ${TITLE_MAX_LENGTH - title.length} caracteres`,
-    });
+  const keywordWordsPerPhrase = keywords.map((phrase) => ({ phrase, parts: words(phrase) }));
+  const usedWords = new Set(titleWords);
+
+  // Regla 2 — se avisa por debajo del 85% del límite, pero SOLO si queda
+  // alguna palabra clave sin usar que de verdad entre en lo que sobra. En
+  // una categoría de 150 caracteres con pocas keywords investigadas no hay
+  // con qué llenar el espacio, y avisar ahí sería pedirle al vendedor algo
+  // que no puede hacer.
+  if (title.length < Math.floor(maxLength * 0.85)) {
+    // Solo cuentan las palabras realmente nuevas, y que no sean conectores:
+    // sugerir "proteina en polvo" cuando el título ya dice "proteina" y
+    // "polvo" no aporta ninguna búsqueda, solo un "en". Tampoco cuentan las
+    // variantes de algo que ya está ("monohidratadas" cuando el título dice
+    // "monohidratada"): comparten raíz, Mercado Libre las encuentra igual y
+    // sugerirlas sería ruido.
+    const esVarianteDeAlgoUsado = (word: string) =>
+      [...usedWords].some((used) => {
+        const minLen = Math.min(word.length, used.length);
+        if (minLen < 5) return false;
+        const prefijo = Math.max(5, Math.floor(minLen * 0.8));
+        return word.slice(0, prefijo) === used.slice(0, prefijo);
+      });
+
+    const aportanAlgo = keywordWordsPerPhrase
+      .map(({ parts }) =>
+        parts.filter((w) => !usedWords.has(w) && !CONNECTORS.has(w) && !esVarianteDeAlgoUsado(w)),
+      )
+      .filter((nuevas) => nuevas.length > 0)
+      .map((nuevas) => nuevas.join(" "))
+      .filter((texto) => title.length + 1 + texto.length <= maxLength);
+
+    if (aportanAlgo.length > 0) {
+      issues.push({
+        ruleId: 2,
+        message: `Sobran ${maxLength - title.length} caracteres: cabría "${aportanAlgo[0]}"`,
+      });
+    }
   }
 
-  const keywordWords = new Set(keywords.flatMap(words));
+  const keywordWords = new Set(keywordWordsPerPhrase.flatMap((k) => k.parts));
 
   // Regla 3 — la excepción del tablero es "si son palabras claves sí las
   // puedo incluir", y eso se juzga por posición, no por presencia: un "de"

@@ -98,7 +98,7 @@ function TitleCard({
   const pct = Math.min(100, Math.round((title.length / limit) * 100));
   // El título de catálogo tiene otro límite y no persigue las mismas
   // reglas de posicionamiento, así que no se audita.
-  const issues = catalog ? [] : auditTitle(title, keywords);
+  const issues = catalog ? [] : auditTitle(title, keywords, limit);
   return (
     <div
       className={cn(
@@ -250,6 +250,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
         brand: brand || undefined,
         keyFeatures: keyFeatures || undefined,
         excludeTitles: result.titles,
+        maxTitleLength: result.maxTitleLength,
       });
       if (newTitles.length === 0) {
         toast.error("No se pudieron generar más títulos, intentá de nuevo");
@@ -455,8 +456,8 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
               <div className="rounded-2xl border border-border bg-card p-5">
                 <p className="text-sm font-medium">Títulos optimizados</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {result.titles.length} títulos para publicación (60 car.) + 1 para catálogo (120 car.) · solo
-                  palabras clave de la investigación
+                  {result.titles.length} títulos para publicación ({result.maxTitleLength} car., el máximo que admite
+                  esta categoría) + 1 para catálogo · solo palabras clave de la investigación
                 </p>
                 <TitleRulesDisclosure />
                 <div className="mt-3 space-y-2.5">
@@ -465,7 +466,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                       key={i}
                       index={i + 1}
                       title={title}
-                      limit={60}
+                      limit={result.maxTitleLength}
                       keywords={keywordTerms}
                       publishTarget={
                         selectedProduct?.meliItemId
@@ -478,7 +479,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                     <TitleCard
                       index={result.titles.length + 1}
                       title={result.catalogTitle}
-                      limit={120}
+                      limit={Math.max(120, result.maxTitleLength)}
                       keywords={keywordTerms}
                       catalog
                     />

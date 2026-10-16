@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   CATALOG_TITLE_MAX_LENGTH,
-  TITLE_MAX_LENGTH,
+  DEFAULT_TITLE_MAX_LENGTH,
   normalizeTitle,
   removeRepeatedWords,
 } from "@/lib/title-rules";
@@ -314,10 +314,13 @@ export type SeoTitlesResult = {
 // normalizeTitle(), y lo auditable se le muestra al vendedor con
 // auditTitle().
 //
-// Se agrega además un título largo "de catálogo" (hasta 120 caracteres)
-// para la ficha de producto genérica — ese no sale del tablero del
-// vendedor, es un concepto propio de MeliBoost, pero sigue las mismas
-// reglas de qué no incluir.
+// El largo NO está fijo en 60: se recibe el que admite la categoría real
+// (hay categorías de 150), porque la regla 2 pide completar todos los
+// caracteres posibles y asumir 60 desperdiciaba hasta 90.
+//
+// Se agrega además un título largo "de catálogo" para la ficha de producto
+// genérica — ese no sale del tablero del vendedor, es un concepto propio
+// de MeliBoost, pero sigue las mismas reglas de qué no incluir.
 export async function generateSeoTitles(input: {
   productName: string;
   keywords: string[];
@@ -329,12 +332,20 @@ export async function generateSeoTitles(input: {
   // genuinamente distintas a las que ya se mostraron, en vez de arrancar
   // de cero o arriesgar duplicados casi idénticos.
   excludeTitles?: string[];
+  // Caracteres que admite la categoría real (getCategoryMaxTitleLength).
+  // No siempre son 60: hay categorías de 150, y quedarse en 60 ahí
+  // desperdicia más de la mitad del espacio.
+  maxTitleLength?: number;
 }): Promise<SeoTitlesResult | null> {
   const name = input.productName.trim().slice(0, 150);
   const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 25);
   const keyFeatures = input.keyFeatures?.trim().slice(0, 500) ?? "";
   const imageDescription = input.imageDescription?.trim().slice(0, 300) ?? "";
   const excludeTitles = input.excludeTitles?.map((t) => t.trim()).filter(Boolean) ?? [];
+  const maxTitleLength = input.maxTitleLength ?? DEFAULT_TITLE_MAX_LENGTH;
+  // El título de catálogo nunca puede quedar más corto que el de
+  // publicación, o la ficha genérica diría menos que la propia publicación.
+  const maxCatalogLength = Math.max(CATALOG_TITLE_MAX_LENGTH, maxTitleLength);
   if (!name) return null;
 
   const message = await anthropic.messages.create({
@@ -351,13 +362,15 @@ Palabras clave reales de búsqueda para este producto (vienen de tendencias real
 ${keywords.length > 0 ? keywords.map((k) => `- ${k}`).join("\n") : "(sin keywords reales, usa solo el nombre del producto)"}
 ${excludeTitles.length > 0 ? `\nYa generamos estos títulos antes — los nuevos tienen que ser variantes GENUINAMENTE distintas, no parecidas:\n${excludeTitles.map((t) => `- ${t}`).join("\n")}` : ""}
 
+Esta categoría admite títulos de hasta ${maxTitleLength} caracteres.
+
 Necesito 3 títulos de publicación optimizados${excludeTitles.length > 0 ? " MÁS (distintos a los de arriba)" : ""} y 1 título largo para catálogo — sé lo más detallado y denso posible en información real, aprovechando TODO el espacio de caracteres disponible (no dejes el título corto si hay más keywords/atributos reales para meter).
 
 IDEA DE FONDO (la más importante): un título excelente está compuesto SOLAMENTE por palabras clave que aparezcan en la investigación de arriba. No metas NADA que no sea una palabra clave que la gente busca en Mercado Libre. Cuanto menos "sentido" tenga la frase leída como oración, MEJOR — eso significa que no gastaste caracteres en relleno.
 
 Reglas de los 3 títulos de publicación (son innegociables, en este orden de prioridad):
 1) Usá SOLAMENTE palabras clave de la lista de arriba. Si algo no es palabra clave, no entra.
-2) Completá todos los caracteres posibles: apuntá a entre 55 y 60 caracteres. Contá los caracteres antes de responder; si te quedaste en 45, agregá otra palabra clave de la lista. Quedarte corto es desperdiciar búsquedas.
+2) Completá todos los caracteres posibles: apuntá a entre ${Math.floor(maxTitleLength * 0.9)} y ${maxTitleLength} caracteres. Contá los caracteres antes de responder; si te quedaste corto, agregá otra palabra clave de la lista. Desaprovechar caracteres es desperdiciar búsquedas.
 3) NO pongas conectores ("de", "para", "con", "en", "por", "y"…). Excepción: si el conector forma parte de una palabra clave de la lista, ahí sí va.
 4) NO pongas especificaciones del producto (grande, pequeño, 10.000 watts, batería 1.5 m, iluminación, medidas…). Excepción: si esa especificación es una palabra clave de la lista, ahí sí va.
 5) NO pongas colores ni variantes (azul, negro, blanco…). Excepción: si el color es una palabra clave de la lista, ahí sí va.
@@ -370,7 +383,7 @@ Reglas de los 3 títulos de publicación (son innegociables, en este orden de pr
 Además: SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio. NUNCA inventes una palabra clave que no esté en la lista que te pasé.
 
 Reglas del título de catálogo:
-- Hasta 120 caracteres, usá la mayor cantidad posible combinando TODAS las palabras clave relevantes que entren, para maximizar qué búsquedas lo encuentran.
+- Hasta ${maxCatalogLength} caracteres, usá la mayor cantidad posible combinando TODAS las palabras clave relevantes que entren, para maximizar qué búsquedas lo encuentran.
 - Mismas reglas 1, 3, 4, 5, 7, 8 y 9 que los títulos de publicación.
 - No repitas ninguna palabra dos veces: cada repetición gasta caracteres sin sumar una búsqueda nueva.
 
@@ -396,10 +409,10 @@ Responde ÚNICAMENTE con un objeto JSON con esta forma exacta, sin texto adicion
       // clave partida a la mitad.
       titles: parsed.titles
         .filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
-        .map((t: string) => toTitleCase(normalizeTitle(removeRepeatedWords(t), TITLE_MAX_LENGTH)))
+        .map((t: string) => toTitleCase(normalizeTitle(removeRepeatedWords(t), maxTitleLength)))
         .slice(0, 3),
       catalogTitle: toTitleCase(
-        normalizeTitle(removeRepeatedWords(parsed.catalogTitle), CATALOG_TITLE_MAX_LENGTH),
+        normalizeTitle(removeRepeatedWords(parsed.catalogTitle), maxCatalogLength),
       ),
     };
   } catch (err) {

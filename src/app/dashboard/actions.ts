@@ -17,12 +17,14 @@ import {
 import {
   appendItemPictures,
   ensureFreshMeliToken,
+  getCategoryMaxTitleLength,
   getSaleFee,
   getTrendingSearches,
   updateItemDescription,
   updateItemTitle,
   uploadPicture,
 } from "@/lib/meli-api";
+import { DEFAULT_TITLE_MAX_LENGTH } from "@/lib/title-rules";
 import { discoverCategory, getCategoryDetails, type MeliCategoryNode } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
 
@@ -323,6 +325,9 @@ export type SeoOptimizerResult = {
   keywords: { term: string; score: CategoryTier }[];
   titles: string[];
   catalogTitle: string;
+  // Caracteres que admite el título en esa categoría: 60 en unas, 150 en
+  // otras. La UI lo usa para el contador y para avisar si sobra espacio.
+  maxTitleLength: number;
   trendsCount: number;
   aiSynonymsCount: number;
 };
@@ -461,6 +466,13 @@ export async function runSeoOptimizer(input: {
     return { term, score };
   });
 
+  // Cuántos caracteres admite de verdad el título acá. Si no se pudo
+  // averiguar (sin token o sin categoría), se cae al mínimo de Mercado
+  // Libre, que es lo seguro: nunca genera un título que ML vaya a rechazar.
+  const maxTitleLength =
+    (token && categoryId ? await getCategoryMaxTitleLength(token, categoryId) : null) ??
+    DEFAULT_TITLE_MAX_LENGTH;
+
   const seoTitles = productName
     ? await generateSeoTitles({
         productName,
@@ -469,6 +481,7 @@ export async function runSeoOptimizer(input: {
         brand: input.brand,
         keyFeatures: input.keyFeatures,
         imageDescription: imageDescription ?? undefined,
+        maxTitleLength,
       }).catch(() => null)
     : null;
 
@@ -481,6 +494,7 @@ export async function runSeoOptimizer(input: {
     keywords,
     titles: seoTitles?.titles ?? [],
     catalogTitle: seoTitles?.catalogTitle ?? "",
+    maxTitleLength,
     trendsCount: allTrendTerms.length,
     aiSynonymsCount: aiSynonyms.length,
   };
@@ -497,6 +511,7 @@ export async function generateMoreSeoTitles(input: {
   brand?: string;
   keyFeatures?: string;
   excludeTitles: string[];
+  maxTitleLength?: number;
 }): Promise<string[]> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
@@ -508,6 +523,7 @@ export async function generateMoreSeoTitles(input: {
     brand: input.brand,
     keyFeatures: input.keyFeatures,
     excludeTitles: input.excludeTitles,
+    maxTitleLength: input.maxTitleLength,
   }).catch(() => null);
 
   return result?.titles ?? [];
