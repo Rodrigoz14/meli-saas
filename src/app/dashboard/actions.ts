@@ -9,7 +9,7 @@ import {
   generateDetailedDescription,
   generateInfographicSetClaims,
   generateSeoKeywordCandidates,
-  detectBrandWords,
+  detectUnusableWords,
   generateSeoTitles,
   suggestAccentColor,
   type DetailedDescriptionInput,
@@ -19,6 +19,8 @@ import {
   appendItemPictures,
   ensureFreshMeliToken,
   getCategoryMaxTitleLength,
+  getCategoryTitleAttributes,
+  type CategoryTitleAttribute,
   getSaleFee,
   getTrendingSearches,
   updateItemDescription,
@@ -332,6 +334,9 @@ export type SeoOptimizerResult = {
   // Palabras ordenadas por demanda real, calculadas sobre las busquedas de
   // /trends en el orden en que Mercado Libre las devuelve.
   rankedWords: RankedWord[];
+  // Atributos reales de la categoria para que el vendedor marque cuales
+  // aplican a su producto. Es lo que llena el titulo cuando no hay marca.
+  titleAttributes: CategoryTitleAttribute[];
   trendsCount: number;
   aiSynonymsCount: number;
 };
@@ -489,7 +494,7 @@ export async function runSeoOptimizer(input: {
   // propio vendedor declaro para este producto.
   const brandWords = new Set(
     rankedRaw.length > 0
-      ? await detectBrandWords(rankedRaw.map((r) => r.word), categoryName ?? undefined).catch(() => [])
+      ? await detectUnusableWords(rankedRaw.map((r) => r.word), categoryName ?? undefined).catch(() => [])
       : [],
   );
   const ownBrandWords = new Set(
@@ -507,9 +512,11 @@ export async function runSeoOptimizer(input: {
     (k) => !k.term.toLowerCase().split(/\s+/).some((w) => isForeignBrand(w)),
   );
 
-  const maxTitleLength =
-    (token && categoryId ? await getCategoryMaxTitleLength(token, categoryId) : null) ??
-    DEFAULT_TITLE_MAX_LENGTH;
+  const [maxTitleLengthRaw, titleAttributes] = await Promise.all([
+    token && categoryId ? getCategoryMaxTitleLength(token, categoryId) : Promise.resolve(null),
+    token && categoryId ? getCategoryTitleAttributes(token, categoryId) : Promise.resolve([]),
+  ]);
+  const maxTitleLength = maxTitleLengthRaw ?? DEFAULT_TITLE_MAX_LENGTH;
 
   const seoTitles = productName
     ? await generateSeoTitles({
@@ -535,6 +542,7 @@ export async function runSeoOptimizer(input: {
     catalogTitle: seoTitles?.catalogTitle ?? "",
     maxTitleLength,
     rankedWords,
+    titleAttributes,
     trendsCount: allTrendTerms.length,
     aiSynonymsCount: aiSynonyms.length,
   };
@@ -553,6 +561,7 @@ export async function generateMoreSeoTitles(input: {
   excludeTitles: string[];
   maxTitleLength?: number;
   rankedWords?: RankedWord[];
+  confirmedAttributes?: string[];
 }): Promise<string[]> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
@@ -566,9 +575,41 @@ export async function generateMoreSeoTitles(input: {
     excludeTitles: input.excludeTitles,
     maxTitleLength: input.maxTitleLength,
     rankedWords: input.rankedWords,
+    confirmedAttributes: input.confirmedAttributes,
   }).catch(() => null);
 
   return result?.titles ?? [];
+}
+
+// Rehace los 3 titulos (y el de catalogo) incorporando las
+// caracteristicas que el vendedor marco como ciertas de su producto. Es
+// distinto de "Generar mas titulos": aca no se acumulan variantes, se
+// reemplazan, porque el material de entrada cambio.
+export async function regenerateSeoTitlesWithAttributes(input: {
+  productName: string;
+  keywords: string[];
+  categoryName?: string;
+  brand?: string;
+  keyFeatures?: string;
+  maxTitleLength?: number;
+  rankedWords?: RankedWord[];
+  confirmedAttributes: string[];
+}): Promise<{ titles: string[]; catalogTitle: string } | null> {
+  const session = await auth();
+  if (!session?.user?.id) throw new Error("No autenticado");
+
+  const result = await generateSeoTitles({
+    productName: input.productName,
+    keywords: input.keywords,
+    categoryName: input.categoryName,
+    brand: input.brand,
+    keyFeatures: input.keyFeatures,
+    maxTitleLength: input.maxTitleLength,
+    rankedWords: input.rankedWords,
+    confirmedAttributes: input.confirmedAttributes,
+  }).catch(() => null);
+
+  return result ? { titles: result.titles, catalogTitle: result.catalogTitle } : null;
 }
 
 export async function generateDescription(

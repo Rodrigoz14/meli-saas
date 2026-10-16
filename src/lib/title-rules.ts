@@ -171,7 +171,18 @@ export function rankKeywordWords(orderedKeywords: string[], limit = 12): RankedW
     }
   });
 
-  const entries = [...weightByWord.entries()].sort((a, b) => b[1] - a[1]);
+  // Se ordena por en cuantas busquedas DISTINTAS aparece la palabra, que es
+  // la medida de demanda del metodo ("6 busquedas con Tensiometro Digital
+  // confirman que hay demanda"), y se desempata por la posicion de esas
+  // busquedas. Ordenar por el peso posicional solo daba resultados que
+  // contradecian el numero que se le muestra al vendedor: "perro" primero
+  // con 13 busquedas y "cama" segundo con 15.
+  const entries = [...weightByWord.entries()].sort((a, b) => {
+    const searchesA = searchesByWord.get(a[0]) ?? 0;
+    const searchesB = searchesByWord.get(b[0]) ?? 0;
+    if (searchesA !== searchesB) return searchesB - searchesA;
+    return b[1] - a[1];
+  });
   const top = entries[0]?.[1] ?? 1;
 
   return entries.slice(0, limit).map(([word, weight]) => ({

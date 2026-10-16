@@ -748,6 +748,107 @@ export async function getCategoryMaxTitleLength(
   }
 }
 
+export type CategoryTitleAttribute = {
+  id: string;
+  name: string;
+  values: string[];
+};
+
+// Vocabulario propio de la categoria: los atributos con los que los
+// compradores filtran ("Tipo de cama: almohadon/catre/colchoneta",
+// "Tipos de cafetera: expreso/capsulas/de filtro"). Para un producto sin
+// marca es el unico material legitimo que queda para llenar el titulo una
+// vez que se descartan las marcas ajenas.
+//
+// El ruido se separa con las propias etiquetas de Mercado Libre, sin
+// mantener ninguna lista a mano:
+//  - hidden/read_only: datos administrativos (GTIN, IVA, medidas del
+//    paquete, claves fiscales) que nadie busca.
+//  - color: la regla 5 los prohibe en el titulo.
+//  - number_unit y number: son especificaciones con unidad (voltaje, peso),
+//    que la regla 4 deja fuera salvo que sean busqueda real.
+//  - BRAND y MODEL: se tratan aparte, nunca se sugieren como "caracteristica".
+const UNUSABLE_ATTRIBUTE_IDS = new Set(["BRAND", "MODEL", "PART_NUMBER", "GTIN", "SELLER_SKU"]);
+
+function isUsableTitleAttribute(attr: {
+  id: string;
+  value_type?: string;
+  tags?: Record<string, boolean>;
+  values?: { name?: string }[];
+}): boolean {
+  if (UNUSABLE_ATTRIBUTE_IDS.has(attr.id)) return false;
+  if (attr.id.includes("COLOR")) return false;
+  const tags = attr.tags ?? {};
+  if (tags.hidden || tags.read_only) return false;
+  if (attr.value_type !== "string" && attr.value_type !== "list" && attr.value_type !== "boolean") return false;
+  return (attr.values ?? []).some((v) => typeof v.name === "string" && v.name.trim().length > 0);
+}
+
+const categoryAttributesCache = new Map<string, { data: CategoryTitleAttribute[]; expiresAt: number }>();
+const CATEGORY_ATTRIBUTES_TTL_MS = 24 * 60 * 60 * 1000;
+
+export async function getCategoryTitleAttributes(
+  accessToken: string,
+  categoryId: string,
+): Promise<CategoryTitleAttribute[]> {
+  const cached = categoryAttributesCache.get(categoryId);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+
+  try {
+    const raw = await meliFetch<
+      {
+        id: string;
+        name: string;
+        value_type?: string;
+        tags?: Record<string, boolean>;
+        values?: { name?: string }[];
+      }[]
+    >(`/categories/${categoryId}/attributes`, accessToken);
+
+    const data = raw.filter(isUsableTitleAttribute).map((attr) => ({
+      id: attr.id,
+      name: attr.name,
+      values: (attr.values ?? [])
+        .map((v) => (v.name ?? "").trim())
+        .filter(Boolean)
+        // "Si"/"No" sueltos no describen nada en un titulo; para un atributo
+        // booleano el que sirve es el nombre ("Es lavable" -> "lavable"),
+        // asi que se resuelve abajo.
+        .filter((name) => !/^(s[ií]|no)$/i.test(name))
+        .slice(0, 12),
+    }));
+
+    // Los booleanos quedan sin valores utiles tras el filtro de Si/No: se
+    // reemplazan por su propio nombre, que es lo que de verdad se escribe
+    // en un titulo ("Es lavable" -> "Lavable").
+    const normalized = data
+      .map((attr) =>
+        attr.values.length === 0
+          ? {
+              ...attr,
+              values: [
+                attr.name
+                  // "Es lavable" -> "lavable"; "Es a prueba de agua" ->
+                  // "prueba de agua". El conector inicial se quita porque
+                  // la regla 3 lo marcaria como suelto en el titulo, y en
+                  // un titulo de palabras clave no aporta ninguna busqueda.
+                  .replace(/^(es|tiene|incluye)\s+/i, "")
+                  .replace(/^(a|de|con|para|en|por|del|la|el|los|las)\s+/i, "")
+                  .trim(),
+              ],
+            }
+          : attr,
+      )
+      .filter((attr) => attr.values.some(Boolean));
+
+    categoryAttributesCache.set(categoryId, { data: normalized, expiresAt: Date.now() + CATEGORY_ATTRIBUTES_TTL_MS });
+    return normalized;
+  } catch (err) {
+    console.error(`getCategoryTitleAttributes(${categoryId}) failed:`, err);
+    return [];
+  }
+}
+
 // Comisión oficial de Mercado Libre para ese precio/categoría/tipo de
 // publicación — el mismo cálculo que usa MercadoLibre internamente.
 // La comisión de Mercado Libre es una tabla de tarifas por categoría y tipo

@@ -13,6 +13,7 @@ import { PublishToMeliButton } from "@/components/dashboard/publish-to-meli-butt
 import {
   generateMoreSeoTitles,
   publishTitleToMeli,
+  regenerateSeoTitlesWithAttributes,
   runSeoOptimizer,
   type CategoryTier,
   type SeoOptimizerResult,
@@ -174,6 +175,11 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
   const [result, setResult] = useState<SeoOptimizerResult | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
+  // Caracteristicas de la categoria que el vendedor marco como ciertas de
+  // su producto. Se guardan aparte del resultado porque sobreviven a
+  // regenerar los titulos.
+  const [checkedAttributes, setCheckedAttributes] = useState<string[]>([]);
+  const [isApplyingAttributes, setIsApplyingAttributes] = useState(false);
 
   const selectedProduct = products.find((p) => p.productId === selectedId);
   const previewSrc = imageDataUrl || productThumbnailUrl;
@@ -236,11 +242,39 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
           titles: data.titles,
           catalogTitle: data.catalogTitle || undefined,
         });
+        setCheckedAttributes([]);
         toast.success("Palabras clave y títulos generados");
       } catch {
         toast.error("No se pudo generar el resultado, intentá de nuevo");
       }
     });
+  }
+
+  async function handleApplyAttributes() {
+    if (!result || checkedAttributes.length === 0) return;
+    setIsApplyingAttributes(true);
+    try {
+      const fresh = await regenerateSeoTitlesWithAttributes({
+        productName,
+        keywords: keywordTerms,
+        categoryName: result.categoryName ?? undefined,
+        brand,
+        keyFeatures,
+        maxTitleLength: result.maxTitleLength,
+        rankedWords: result.rankedWords,
+        confirmedAttributes: checkedAttributes,
+      });
+      if (!fresh || fresh.titles.length === 0) {
+        toast.error("No se pudieron rehacer los títulos, intentá de nuevo");
+        return;
+      }
+      setResult({ ...result, titles: fresh.titles, catalogTitle: fresh.catalogTitle });
+      toast.success("Títulos rehechos con tus características");
+    } catch {
+      toast.error("No se pudieron rehacer los títulos, intentá de nuevo");
+    } finally {
+      setIsApplyingAttributes(false);
+    }
   }
 
   async function handleGenerateMore() {
@@ -489,6 +523,66 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+                {result.titleAttributes.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-border/60 p-3">
+                    <p className="text-xs font-medium">Características reales de tu producto</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Son los atributos con los que los compradores filtran en esta categoría, tal como los define
+                      Mercado Libre. Marcá solo los que de verdad aplican a tu producto: sirven para llenar los
+                      caracteres que sobran sin inventar nada ni usar marcas ajenas.
+                    </p>
+                    <div className="mt-2.5 space-y-2">
+                      {result.titleAttributes.slice(0, 8).map((attr) => (
+                        <div key={attr.id}>
+                          <p className="text-[11px] text-muted-foreground">{attr.name}</p>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {attr.values.map((value) => {
+                              const activo = checkedAttributes.includes(value);
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() =>
+                                    setCheckedAttributes((prev) =>
+                                      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+                                    )
+                                  }
+                                  className={cn(
+                                    "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                                    activo
+                                      ? "border-primary/40 bg-primary/15 font-medium text-primary"
+                                      : "border-border bg-card text-muted-foreground hover:bg-muted/60",
+                                  )}
+                                >
+                                  {value}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleApplyAttributes}
+                      disabled={checkedAttributes.length === 0 || isApplyingAttributes}
+                      className="mt-3"
+                    >
+                      {isApplyingAttributes ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-2 h-4 w-4" />
+                      )}
+                      {isApplyingAttributes
+                        ? "Rehaciendo…"
+                        : `Rehacer títulos con ${checkedAttributes.length || "estas"} característica${
+                            checkedAttributes.length === 1 ? "" : "s"
+                          }`}
+                    </Button>
                   </div>
                 )}
                 <TitleRulesDisclosure />

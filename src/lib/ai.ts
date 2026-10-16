@@ -322,17 +322,18 @@ export type SeoTitlesResult = {
 // Se agrega además un título largo "de catálogo" para la ficha de producto
 // genérica — ese no sale del tablero del vendedor, es un concepto propio
 // de MeliBoost, pero sigue las mismas reglas de qué no incluir.
-// Las tendencias de una categoria estan llenas de marcas de otros
-// vendedores ("ninja", "oster", "sony", "corsair"): son terminos muy
-// buscados, pero meterlos en el titulo de un producto que NO es de esa
-// marca es engañoso y Mercado Libre lo penaliza. Como la API de ML no
+// Las tendencias de una categoria estan llenas de palabras muy buscadas
+// que NO sirven para el titulo: marcas de otros vendedores ("ninja",
+// "oster", "sony", "corsair") y lugares ("bogota", "medellin"). Meter una
+// marca ajena es engañoso y Mercado Libre lo penaliza; meter una ciudad
+// gasta caracteres en algo que no describe el producto. Como la API de ML no
 // expone la lista de marcas de una categoria (el atributo BRAND viene con
 // values vacio, verificado), se identifican con una llamada corta al
 // modelo, que es lo unico que generaliza a cualquier categoria.
 //
 // Devuelve solo las que SON marca; ante cualquier fallo devuelve [] y el
 // llamador sigue con la lista completa (mejor no filtrar que romper).
-export async function detectBrandWords(words: string[], categoryName?: string): Promise<string[]> {
+export async function detectUnusableWords(words: string[], categoryName?: string): Promise<string[]> {
   const list = words.map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 40);
   if (list.length === 0) return [];
 
@@ -348,13 +349,17 @@ export async function detectBrandWords(words: string[], categoryName?: string): 
           }:
 ${list.map((w) => `- ${w}`).join("\n")}
 
-Decime cuales son NOMBRES DE MARCA o fabricante (ej. sony, oster, corsair, adidas), y cuales son palabras genericas del producto (ej. licuadora, silla, bluetooth, portatil, grande).
+Decime cuales NO sirven para el titulo de una publicacion generica. Son de dos tipos:
+1. NOMBRES DE MARCA o fabricante (ej. sony, oster, corsair, adidas).
+2. LUGARES: ciudades, departamentos, paises (ej. bogota, medellin, colombia). La gente los busca, pero en el titulo no describen el producto y no se pueden prometer.
+
+Las palabras genericas del producto SI sirven (ej. licuadora, silla, bluetooth, portatil, grande, lavable).
 
 Un modelo concreto de una marca tambien cuenta como marca (ej. "iskur", "airpods", "1000xm5").
 
 IMPORTANTE: muchas marcas vienen partidas en varias palabras sueltas en esta lista ("black" y "decker" de Black+Decker, "xtreme" y "life"). Marca TAMBIEN esas partes, aunque por separado parezcan genericas, siempre que en esta categoria formen parte del nombre de una marca.
 
-Responde UNICAMENTE con un array JSON de las que son marca, en minuscula, sin texto adicional. Si ninguna es marca, responde [].`,
+Responde UNICAMENTE con un array JSON de las que NO sirven (marcas y lugares), en minuscula, sin texto adicional. Si todas sirven, responde [].`,
         },
       ],
     });
@@ -371,7 +376,7 @@ Responde UNICAMENTE con un array JSON de las que son marca, en minuscula, sin te
       .map((w: string) => w.trim().toLowerCase())
       .filter((w: string) => list.includes(w));
   } catch (err) {
-    console.error("detectBrandWords fallo:", err);
+    console.error("detectUnusableWords fallo:", err);
     return [];
   }
 }
@@ -395,6 +400,11 @@ export async function generateSeoTitles(input: {
   // busquedas que devuelve /trends). Es lo que decide con que palabra abre
   // el titulo, en vez de dejarlo al criterio del modelo.
   rankedWords?: RankedWord[];
+  // Caracteristicas que el vendedor CONFIRMO que son ciertas de su
+  // producto, elegidas de los atributos reales de la categoria en Mercado
+  // Libre. Para un producto sin marca es el material legitimo que llena
+  // los caracteres que la marca ocuparia.
+  confirmedAttributes?: string[];
 }): Promise<SeoTitlesResult | null> {
   const name = input.productName.trim().slice(0, 150);
   const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 25);
@@ -403,6 +413,10 @@ export async function generateSeoTitles(input: {
   const excludeTitles = input.excludeTitles?.map((t) => t.trim()).filter(Boolean) ?? [];
   const maxTitleLength = input.maxTitleLength ?? DEFAULT_TITLE_MAX_LENGTH;
   const rankedWords = (input.rankedWords ?? []).slice(0, 12);
+  const confirmedAttributes = (input.confirmedAttributes ?? [])
+    .map((a) => a.trim())
+    .filter(Boolean)
+    .slice(0, 15);
   // El título de catálogo nunca puede quedar más corto que el de
   // publicación, o la ficha genérica diría menos que la propia publicación.
   const maxCatalogLength = Math.max(CATALOG_TITLE_MAX_LENGTH, maxTitleLength);
@@ -429,6 +443,14 @@ ${
 }
 ${excludeTitles.length > 0 ? `\nYa generamos estos títulos antes — los nuevos tienen que ser variantes GENUINAMENTE distintas, no parecidas:\n${excludeTitles.map((t) => `- ${t}`).join("\n")}` : ""}
 
+${
+  confirmedAttributes.length > 0
+    ? `\nCARACTERISTICAS CONFIRMADAS por el vendedor (salen de los atributos reales de esta categoria en Mercado Libre, y el vendedor marco que son ciertas de SU producto):\n${confirmedAttributes
+        .map((a) => `- ${a}`)
+        .join("\n")}\n\nSon material legitimo para el titulo. Van DESPUES de las palabras con demanda confirmada (no desplazan a las mas buscadas), pero agregá TANTAS como entren hasta acercarte al maximo de caracteres: para eso estan. Un titulo que deja caracteres libres teniendo caracteristicas sin usar esta mal hecho.`
+    : ""
+}
+
 Esta categoría admite títulos de hasta ${maxTitleLength} caracteres.
 
 Necesito 3 títulos de publicación optimizados${excludeTitles.length > 0 ? " MÁS (distintos a los de arriba)" : ""} y 1 título largo para catálogo — sé lo más detallado y denso posible en información real, aprovechando TODO el espacio de caracteres disponible (no dejes el título corto si hay más keywords/atributos reales para meter).
@@ -436,7 +458,9 @@ Necesito 3 títulos de publicación optimizados${excludeTitles.length > 0 ? " M�
 IDEA DE FONDO (la más importante): un título excelente está compuesto SOLAMENTE por palabras clave que aparezcan en la investigación de arriba. No metas NADA que no sea una palabra clave que la gente busca en Mercado Libre. Cuanto menos "sentido" tenga la frase leída como oración, MEJOR — eso significa que no gastaste caracteres en relleno.
 
 Reglas de los 3 títulos de publicación (son innegociables, en este orden de prioridad):
-1) Usá SOLAMENTE palabras clave de la lista de arriba. Si algo no es palabra clave, no entra.
+1) Usá SOLAMENTE palabras clave de la lista de arriba${
+    confirmedAttributes.length > 0 ? ", o alguna de las caracteristicas confirmadas" : ""
+  }. Si algo no está en esas listas, no entra.
 2) Completá todos los caracteres posibles: apuntá a entre ${Math.floor(maxTitleLength * 0.9)} y ${maxTitleLength} caracteres. Contá los caracteres antes de responder; si te quedaste corto, agregá otra palabra clave de la lista. Desaprovechar caracteres es desperdiciar búsquedas.
 3) NO pongas conectores ("de", "para", "con", "en", "por", "y"…). Excepción: si el conector forma parte de una palabra clave de la lista, ahí sí va.
 4) NO pongas especificaciones del producto (grande, pequeño, 10.000 watts, batería 1.5 m, iluminación, medidas…). Excepción: si esa especificación es una palabra clave de la lista, ahí sí va.
