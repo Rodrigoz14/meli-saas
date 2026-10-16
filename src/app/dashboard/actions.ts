@@ -9,6 +9,7 @@ import {
   generateDetailedDescription,
   generateInfographicSetClaims,
   generateSeoKeywordCandidates,
+  detectBrandWords,
   generateSeoTitles,
   suggestAccentColor,
   type DetailedDescriptionInput,
@@ -24,7 +25,7 @@ import {
   updateItemTitle,
   uploadPicture,
 } from "@/lib/meli-api";
-import { DEFAULT_TITLE_MAX_LENGTH } from "@/lib/title-rules";
+import { DEFAULT_TITLE_MAX_LENGTH, rankKeywordWords, type RankedWord } from "@/lib/title-rules";
 import { discoverCategory, getCategoryDetails, type MeliCategoryNode } from "@/lib/meli-public-api";
 import { isAllowedImageHost, resolveImageDataUrl } from "@/lib/infographic-set";
 
@@ -328,6 +329,9 @@ export type SeoOptimizerResult = {
   // Caracteres que admite el título en esa categoría: 60 en unas, 150 en
   // otras. La UI lo usa para el contador y para avisar si sobra espacio.
   maxTitleLength: number;
+  // Palabras ordenadas por demanda real, calculadas sobre las busquedas de
+  // /trends en el orden en que Mercado Libre las devuelve.
+  rankedWords: RankedWord[];
   trendsCount: number;
   aiSynonymsCount: number;
 };
@@ -469,6 +473,40 @@ export async function runSeoOptimizer(input: {
   // Cuántos caracteres admite de verdad el título acá. Si no se pudo
   // averiguar (sin token o sin categoría), se cae al mínimo de Mercado
   // Libre, que es lo seguro: nunca genera un título que ML vaya a rechazar.
+  // El ranking se calcula sobre las tendencias REALES ya filtradas por
+  // relevancia, respetando el orden en que las devolvio Mercado Libre (de
+  // mas a menos buscada). Si no hubo tendencias, se cae a las keywords
+  // sueltas, que al menos siguen siendo busquedas reales.
+  const orderedForRanking =
+    categoryTrending.length > 0 ? categoryTrending.map((t) => t.term) : keywords.map((k) => k.term);
+  const rankedRaw = rankKeywordWords(orderedForRanking, 20);
+
+  // Las tendencias de cualquier categoria vienen cargadas de marcas de
+  // otros vendedores, y son de las mas buscadas. Si se dejan pasar, el
+  // generador arma titulos como "Licuadora Ninja Oster" para un producto
+  // que no es de ninguna de las dos: enganoso y penalizado por Mercado
+  // Libre. Se quitan del ranking y de las keywords, salvo la marca que el
+  // propio vendedor declaro para este producto.
+  const brandWords = new Set(
+    rankedRaw.length > 0
+      ? await detectBrandWords(rankedRaw.map((r) => r.word), categoryName ?? undefined).catch(() => [])
+      : [],
+  );
+  const ownBrandWords = new Set(
+    (input.brand ?? "")
+      .toLowerCase()
+      .split(/\s+/)
+      .map((w) => w.trim())
+      .filter(Boolean),
+  );
+  const isForeignBrand = (word: string) => brandWords.has(word) && !ownBrandWords.has(word);
+
+  const rankedWords = rankedRaw.filter((r) => !isForeignBrand(r.word)).slice(0, 12);
+  // Una frase clave que menciona otra marca tampoco sirve como material.
+  const keywordsSinMarcasAjenas = keywords.filter(
+    (k) => !k.term.toLowerCase().split(/\s+/).some((w) => isForeignBrand(w)),
+  );
+
   const maxTitleLength =
     (token && categoryId ? await getCategoryMaxTitleLength(token, categoryId) : null) ??
     DEFAULT_TITLE_MAX_LENGTH;
@@ -476,12 +514,13 @@ export async function runSeoOptimizer(input: {
   const seoTitles = productName
     ? await generateSeoTitles({
         productName,
-        keywords: keywords.map((k) => k.term),
+        keywords: keywordsSinMarcasAjenas.map((k) => k.term),
         categoryName: categoryName ?? undefined,
         brand: input.brand,
         keyFeatures: input.keyFeatures,
         imageDescription: imageDescription ?? undefined,
         maxTitleLength,
+        rankedWords,
       }).catch(() => null)
     : null;
 
@@ -495,6 +534,7 @@ export async function runSeoOptimizer(input: {
     titles: seoTitles?.titles ?? [],
     catalogTitle: seoTitles?.catalogTitle ?? "",
     maxTitleLength,
+    rankedWords,
     trendsCount: allTrendTerms.length,
     aiSynonymsCount: aiSynonyms.length,
   };
@@ -512,6 +552,7 @@ export async function generateMoreSeoTitles(input: {
   keyFeatures?: string;
   excludeTitles: string[];
   maxTitleLength?: number;
+  rankedWords?: RankedWord[];
 }): Promise<string[]> {
   const session = await auth();
   if (!session?.user?.id) throw new Error("No autenticado");
@@ -524,6 +565,7 @@ export async function generateMoreSeoTitles(input: {
     keyFeatures: input.keyFeatures,
     excludeTitles: input.excludeTitles,
     maxTitleLength: input.maxTitleLength,
+    rankedWords: input.rankedWords,
   }).catch(() => null);
 
   return result?.titles ?? [];

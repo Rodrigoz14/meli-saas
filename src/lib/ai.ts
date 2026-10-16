@@ -4,6 +4,7 @@ import {
   DEFAULT_TITLE_MAX_LENGTH,
   normalizeTitle,
   removeRepeatedWords,
+  type RankedWord,
 } from "@/lib/title-rules";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -321,6 +322,60 @@ export type SeoTitlesResult = {
 // Se agrega además un título largo "de catálogo" para la ficha de producto
 // genérica — ese no sale del tablero del vendedor, es un concepto propio
 // de MeliBoost, pero sigue las mismas reglas de qué no incluir.
+// Las tendencias de una categoria estan llenas de marcas de otros
+// vendedores ("ninja", "oster", "sony", "corsair"): son terminos muy
+// buscados, pero meterlos en el titulo de un producto que NO es de esa
+// marca es engañoso y Mercado Libre lo penaliza. Como la API de ML no
+// expone la lista de marcas de una categoria (el atributo BRAND viene con
+// values vacio, verificado), se identifican con una llamada corta al
+// modelo, que es lo unico que generaliza a cualquier categoria.
+//
+// Devuelve solo las que SON marca; ante cualquier fallo devuelve [] y el
+// llamador sigue con la lista completa (mejor no filtrar que romper).
+export async function detectBrandWords(words: string[], categoryName?: string): Promise<string[]> {
+  const list = words.map((w) => w.trim().toLowerCase()).filter(Boolean).slice(0, 40);
+  if (list.length === 0) return [];
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 400,
+      messages: [
+        {
+          role: "user",
+          content: `Estas palabras salen de busquedas reales de Mercado Libre${
+            categoryName ? ` en la categoria "${categoryName}"` : ""
+          }:
+${list.map((w) => `- ${w}`).join("\n")}
+
+Decime cuales son NOMBRES DE MARCA o fabricante (ej. sony, oster, corsair, adidas), y cuales son palabras genericas del producto (ej. licuadora, silla, bluetooth, portatil, grande).
+
+Un modelo concreto de una marca tambien cuenta como marca (ej. "iskur", "airpods", "1000xm5").
+
+IMPORTANTE: muchas marcas vienen partidas en varias palabras sueltas en esta lista ("black" y "decker" de Black+Decker, "xtreme" y "life"). Marca TAMBIEN esas partes, aunque por separado parezcan genericas, siempre que en esta categoria formen parte del nombre de una marca.
+
+Responde UNICAMENTE con un array JSON de las que son marca, en minuscula, sin texto adicional. Si ninguna es marca, responde [].`,
+        },
+      ],
+    });
+
+    const text = message.content
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("");
+    const match = text.match(/\[[\s\S]*\]/);
+    const parsed = JSON.parse(match ? match[0] : text);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((w: unknown): w is string => typeof w === "string")
+      .map((w: string) => w.trim().toLowerCase())
+      .filter((w: string) => list.includes(w));
+  } catch (err) {
+    console.error("detectBrandWords fallo:", err);
+    return [];
+  }
+}
+
 export async function generateSeoTitles(input: {
   productName: string;
   keywords: string[];
@@ -336,6 +391,10 @@ export async function generateSeoTitles(input: {
   // No siempre son 60: hay categorías de 150, y quedarse en 60 ahí
   // desperdicia más de la mitad del espacio.
   maxTitleLength?: number;
+  // Palabras ordenadas por demanda real (rankKeywordWords sobre las
+  // busquedas que devuelve /trends). Es lo que decide con que palabra abre
+  // el titulo, en vez de dejarlo al criterio del modelo.
+  rankedWords?: RankedWord[];
 }): Promise<SeoTitlesResult | null> {
   const name = input.productName.trim().slice(0, 150);
   const keywords = input.keywords.map((k) => k.trim()).filter(Boolean).slice(0, 25);
@@ -343,6 +402,7 @@ export async function generateSeoTitles(input: {
   const imageDescription = input.imageDescription?.trim().slice(0, 300) ?? "";
   const excludeTitles = input.excludeTitles?.map((t) => t.trim()).filter(Boolean) ?? [];
   const maxTitleLength = input.maxTitleLength ?? DEFAULT_TITLE_MAX_LENGTH;
+  const rankedWords = (input.rankedWords ?? []).slice(0, 12);
   // El título de catálogo nunca puede quedar más corto que el de
   // publicación, o la ficha genérica diría menos que la propia publicación.
   const maxCatalogLength = Math.max(CATALOG_TITLE_MAX_LENGTH, maxTitleLength);
@@ -360,6 +420,13 @@ ${imageDescription ? `Lo que se ve realmente en la foto: "${imageDescription}"` 
 
 Palabras clave reales de búsqueda para este producto (vienen de tendencias reales de Mercado Libre, ya filtradas para que apliquen a este producto):
 ${keywords.length > 0 ? keywords.map((k) => `- ${k}`).join("\n") : "(sin keywords reales, usa solo el nombre del producto)"}
+${
+  rankedWords.length > 0
+    ? `\nDEMANDA REAL por palabra, de mayor a menor (contada sobre esas mismas busquedas de Mercado Libre):\n${rankedWords
+        .map((r, i) => `${i + 1}. ${r.word} - aparece en ${r.searches} busquedas distintas`)
+        .join("\n")}\n\nEste orden NO es una sugerencia: la palabra 1 es la que mas gente escribe en el buscador. El titulo que abre con ella aparece mas arriba.`
+    : ""
+}
 ${excludeTitles.length > 0 ? `\nYa generamos estos títulos antes — los nuevos tienen que ser variantes GENUINAMENTE distintas, no parecidas:\n${excludeTitles.map((t) => `- ${t}`).join("\n")}` : ""}
 
 Esta categoría admite títulos de hasta ${maxTitleLength} caracteres.
@@ -378,9 +445,17 @@ Reglas de los 3 títulos de publicación (son innegociables, en este orden de pr
 7) NO armes frases lógicas ni oraciones que se lean bien. Son palabras clave una detrás de otra.
 8) NO copies el título de ninguna publicación existente.
 9) NO uses tildes ni acentos en ninguna palabra.
-10) Las 3 PRIMERAS palabras tienen que describir qué es el producto y, además, ser palabras clave de la lista. Las palabras más buscadas van primero.
+10) Las 3 PRIMERAS palabras tienen que describir que es el producto y ser las de MAYOR demanda de la lista de arriba.${
+    rankedWords.length > 0
+      ? ` En concreto: el titulo TIENE que empezar por "${rankedWords[0].word}"${
+          rankedWords[1] ? `, y "${rankedWords[1].word}" deberia ir en segundo o tercer lugar` : ""
+        }. Si una variante no puede empezar asi, no la generes.`
+      : ""
+  }
 
 Además: SIN mayúsculas sostenidas, SIN emojis ni símbolos, SIN palabras subjetivas ("el mejor", "increíble"), SIN mencionar envío/garantía/promociones/precio. NUNCA inventes una palabra clave que no esté en la lista que te pasé.
+
+MARCAS: las busquedas de arriba incluyen marcas de otros vendedores porque son populares en la categoria. NUNCA uses una marca que no sea la de este producto${input.brand?.trim() ? ` (que es "${input.brand.trim()}")` : " (y aca el vendedor no indico marca, asi que no uses ninguna)"} - ademas de no servirle a este producto, Mercado Libre lo penaliza. Si una palabra clave util viene pegada a otra marca, usa solo la parte generica.
 
 Reglas del título de catálogo:
 - Hasta ${maxCatalogLength} caracteres, usá la mayor cantidad posible combinando TODAS las palabras clave relevantes que entren, para maximizar qué búsquedas lo encuentran.

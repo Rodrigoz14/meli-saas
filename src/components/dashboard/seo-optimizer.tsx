@@ -19,7 +19,7 @@ import {
 } from "@/app/dashboard/actions";
 import { getLastImage, saveLastImage, clearLastImage, savePublicationContext } from "@/lib/publication-context";
 import type { PublicationProduct } from "@/lib/publications-shared";
-import { TITLE_RULES, auditTitle } from "@/lib/title-rules";
+import { TITLE_RULES, auditTitle, type RankedWord } from "@/lib/title-rules";
 
 const TIER_STYLES: Record<CategoryTier, string> = {
   alta: "border-border bg-success-bg text-success",
@@ -79,6 +79,7 @@ function TitleCard({
   limit,
   catalog,
   keywords,
+  rankedWords,
   publishTarget,
 }: {
   index: number;
@@ -89,6 +90,9 @@ function TitleCard({
   // si las 3 primeras palabras son palabra clave ni si un conector estaba
   // justificado.
   keywords: string[];
+  // Ranking de palabras por demanda real: con él, la regla 10 comprueba
+  // que el título arranque por la más buscada, no solo por una keyword.
+  rankedWords: RankedWord[];
   // El título de catálogo no es un campo real de Mercado Libre (es un
   // concepto propio de MeliBoost) — por eso solo los 3 títulos normales
   // reciben publishTarget y pueden publicarse de verdad.
@@ -98,7 +102,7 @@ function TitleCard({
   const pct = Math.min(100, Math.round((title.length / limit) * 100));
   // El título de catálogo tiene otro límite y no persigue las mismas
   // reglas de posicionamiento, así que no se audita.
-  const issues = catalog ? [] : auditTitle(title, keywords, limit);
+  const issues = catalog ? [] : auditTitle(title, keywords, limit, rankedWords);
   return (
     <div
       className={cn(
@@ -251,6 +255,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
         keyFeatures: keyFeatures || undefined,
         excludeTitles: result.titles,
         maxTitleLength: result.maxTitleLength,
+        rankedWords: result.rankedWords,
       });
       if (newTitles.length === 0) {
         toast.error("No se pudieron generar más títulos, intentá de nuevo");
@@ -459,6 +464,33 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                   {result.titles.length} títulos para publicación ({result.maxTitleLength} car., el máximo que admite
                   esta categoría) + 1 para catálogo · solo palabras clave de la investigación
                 </p>
+                {result.rankedWords.length > 0 && (
+                  <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+                    <p className="text-xs font-medium">Orden por demanda real</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Contado sobre las búsquedas reales de la categoría en Mercado Libre. La primera debe abrir el
+                      título.
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {result.rankedWords.slice(0, 8).map((w, i) => (
+                        <span
+                          key={w.word}
+                          className={cn(
+                            "flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                            i === 0
+                              ? "border-primary/40 bg-primary/10 font-semibold text-primary"
+                              : "border-border bg-card text-muted-foreground",
+                          )}
+                          title={`Aparece en ${w.searches} búsquedas distintas`}
+                        >
+                          <span className="font-mono opacity-60">{i + 1}</span>
+                          {w.word}
+                          <span className="opacity-60">{w.searches}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <TitleRulesDisclosure />
                 <div className="mt-3 space-y-2.5">
                   {result.titles.map((title, i) => (
@@ -468,6 +500,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                       title={title}
                       limit={result.maxTitleLength}
                       keywords={keywordTerms}
+                      rankedWords={result.rankedWords}
                       publishTarget={
                         selectedProduct?.meliItemId
                           ? { productId: selectedProduct.productId, permalink: selectedProduct.permalink }
@@ -481,6 +514,7 @@ export function SeoOptimizer({ products, siteId }: { products: PublicationProduc
                       title={result.catalogTitle}
                       limit={Math.max(120, result.maxTitleLength)}
                       keywords={keywordTerms}
+                      rankedWords={result.rankedWords}
                       catalog
                     />
                   )}
